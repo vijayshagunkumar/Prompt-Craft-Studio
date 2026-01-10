@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Enterprise AI Prompt Assistant - Transform ideas into perfect AI prompts instantly">
+    <title>PromptCraft Pro | Enterprise AI Prompt Assistant</title>
+    
+    <!-- ✅ FAVICON -->
+    <link rel="icon" type="image/svg+xml" href="assets/ai-brain.svg">
+    <link rel="icon" type="image/png" href="assets/ai-brain.png">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- ✅ CRITICAL: Keep ONLY truly essential inline CSS -->
+    <style>
+        /* Voice recording animation ONLY - no layout rules */
+        @keyframes pulse {
+            0% { 
+                box-shadow: 0 0 5px #ff4444;
+                transform: scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 20px #ff4444;
+                transform: scale(1.05);
+            }
+            100% { 
+                box-shadow: 0 0 5px #ff4444;
+                transform: scale(1);
+            }
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        /* Metrics button disabled state */
+        .metrics-toggle.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        
+        .metrics-toggle.disabled:hover {
+            transform: none;
+            background: var(--glass-bg);
+        }
+        
+        /* ✅ ADDED: Workflow highlight - CLEAR AND VISIBLE */
+        .workflow-highlight {
+            background: rgba(79, 70, 229, 0.15);
+            color: #d1d5ff;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-top: 8px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: inline-block;
+            border: 1px solid rgba(79, 70, 229, 0.3);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            animation: gentle-pulse 3s infinite;
+        }
+        
+        @keyframes gentle-pulse {
+            0%, 100% { 
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                transform: translateY(0);
+            }
+            50% { 
+                box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+                transform: translateY(-1px);
+            }
+        }
+    </style>
+</head>
+<body class="dark-theme">
+    <!-- Header -->
+    <header class="app-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="header-top">
+                    <a href="#" class="logo">
+                        <div class="logo-icon">
+                            <i class="fas fa-magic"></i>
+                        </div>
+                        <div class="logo-text">
+                            <h1>PromptCraft Pro</h1>
+                            <p>Enterprise-grade AI prompt optimization for professional workflows</p>
+                            <!-- ✅ ADDED: Highlighted workflow instructions in header -->
+                           <div class="workflow-highlight" style="background: #4f46e5; color: white; font-weight: 700; padding: 12px 18px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.4); box-shadow: 0 6px 20px rgba(79,70,229,0.5);">
+    <i class="fas fa-play-circle" style="margin-right: 8px; color: #fbbf24;"></i>
+    1. Type or speak →
+2. Prepare prompt <kbd>Alt</kbd>+<kbd>P</kbd> →
+3. Open AI tool <kbd>Alt</kbd>+<kbd>T</kbd> →
+Paste
+
+</div>
+                        </div>
+                    </a>
+                    
+                    <div class="header-actions">
+                        <!-- History Button -->
+                        <button id="historyBtn" class="action-btn glass-effect" title="Prompt History">
+                            <i class="fas fa-history"></i>
+                            <span class="action-btn-tooltip">History</span>
+                        </button>
+                        
+                        <!-- Settings Button -->
+                        <button id="settingsBtn" class="action-btn glass-effect" title="Settings">
+                            <i class="fas fa-sliders-h"></i>
+                            <span class="action-btn-tooltip">Settings</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="progress-indicator">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <div class="app-container">
+            <!-- Step 1: Input (Visible initially) -->
+            <div class="input-section">
+                <div class="card">
+                    <div class="step-header">
+                        <div class="step-number">1</div>
+                        <div>
+                            <div class="step-title">Describe Your Task</div>
+                            <!-- ✅ CHANGED: Removed subtitle, moved question up with bulb button -->
+                            <div class="step-subtitle" style="display: flex; justify-content: space-between; align-items: center;">
+                                <span>What would you like the AI to help you with?</span>
+                                <button id="needInspirationBtn" class="need-inspiration-btn" title="Need Inspiration" style="margin-left: 10px;">
+                                    <i class="fas fa-lightbulb"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- ✅ REMOVED: Old workflow instructions from here -->
+
+                    <div class="textarea-container">
+                        <!-- Character Counter (Top-right corner) -->
+                        <div class="char-counter" id="charCounter">0/5000</div>
+                        
+                        <!-- Maximize Button (Top-right corner inside box) -->
+                        <div class="textarea-top-right-controls">
+                            <button id="maximizeInputBtn" class="action-btn" title="Maximize Editor">
+                                <i class="fas fa-expand"></i>
+                                <span class="action-btn-tooltip">Maximize</span>
+                            </button>
+                        </div>
+                        
+                        <textarea 
+                            id="userInput"
+                            class="textarea"
+                            placeholder="Example: Create a comprehensive project proposal for implementing an AI-powered customer service chatbot that reduces response time by 40% while maintaining customer satisfaction scores..."
+                            rows="5"
+                        ></textarea>
+                        
+                        <!-- Text Area Controls (Bottom corners) -->
+                        <div class="textarea-controls">
+                            <div class="left-controls">
+                                <!-- Voice Input (Bottom-left) -->
+                                <button id="micBtn" class="action-btn" title="Voice Input">
+                                    <i class="fas fa-microphone"></i>
+                                    <span class="action-btn-tooltip">Voice Input</span>
+                                </button>
+                            </div>
+                            <div class="right-controls">
+                                <!-- Clear Button (Bottom-right) -->
+                                <button id="clearInputBtn" class="action-btn" title="Clear Input">
+                                    <i class="fas fa-times"></i>
+                                    <span class="action-btn-tooltip">Clear</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Need Inspiration Button and Panel - IMPROVED DESIGN -->
+                    <div class="inspiration-container">
+                        <!-- Inspiration Panel with border -->
+                        <div class="inspiration-panel" id="inspirationPanel">
+                            <div class="inspiration-header">
+                                <div class="inspiration-title">
+                                    <i class="fas fa-lightbulb"></i>
+                                    Inspiration Templates
+                                </div>
+                                <button class="close-inspiration-btn" id="closeInspirationBtn" title="Close">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            <div class="inspiration-grid">
+                                <a href="#" class="inspiration-item" data-type="email">
+                                    <div class="inspiration-icon">
+                                        <i class="fas fa-envelope"></i>
+                                    </div>
+                                    <div class="inspiration-text">Business Email</div>
+                                </a>
+                                <a href="#" class="inspiration-item" data-type="code">
+                                    <div class="inspiration-icon">
+                                        <i class="fas fa-code"></i>
+                                    </div>
+                                    <div class="inspiration-text">Code Generation</div>
+                                </a>
+                                <a href="#" class="inspiration-item" data-type="analysis">
+                                    <div class="inspiration-icon">
+                                        <i class="fas fa-chart-bar"></i>
+                                    </div>
+                                    <div class="inspiration-text">Data Analysis</div>
+                                </a>
+                                <a href="#" class="inspiration-item" data-type="creative">
+                                    <div class="inspiration-icon">
+                                        <i class="fas fa-paint-brush"></i>
+                                    </div>
+                                    <div class="inspiration-text">Creative Writing</div>
+                                </a>
+                                <a href="#" class="inspiration-item" data-type="strategy">
+                                    <div class="inspiration-icon">
+                                        <i class="fas fa-chess"></i>
+                                    </div>
+                                    <div class="inspiration-text">Business Strategy</div>
+                                </a>
+                                <a href="#" class="inspiration-item" data-type="research">
+                                    <div class="inspiration-icon">
+                                        <i class="fas fa-search"></i>
+                                    </div>
+                                    <div class="inspiration-text">Research Summary</div>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Steps 2 & 3: Output and AI Platforms Side-by-Side (Hidden initially) -->
+            <div class="output-section" id="outputSection">
+                <!-- Step 2: Generated Prompt -->
+                <div class="card" id="outputCard">
+                    <div class="step-header">
+                        <div class="step-number">2</div>
+                        <div>
+                            <div class="step-title">Generated Prompt</div>
+                            <div class="step-subtitle">Optimized for maximum AI performance and clarity</div>
+                        </div>
+                    </div>
+                    
+                    <div class="output-container">
+                        <!-- Output Action Buttons (Top-right inside text box) -->
+                        <div class="output-actions">
+                            <button id="speakBtn" class="action-btn" title="Listen to Prompt">
+                                <i class="fas fa-volume-up"></i>
+                                <span class="action-btn-tooltip">Listen</span>
+                            </button>
+                            <button id="copyBtn" class="action-btn" title="Copy Prompt">
+                                <i class="fas fa-copy"></i>
+                                <span class="action-btn-tooltip">Copy</span>
+                            </button>
+                            <button id="exportBtn" class="action-btn" title="Export Prompt">
+                                <i class="fas fa-download"></i>
+                                <span class="action-btn-tooltip">Export</span>
+                            </button>
+                            <button id="maximizeOutputBtn" class="action-btn" title="Maximize Editor">
+                                <i class="fas fa-expand"></i>
+                                <span class="action-btn-tooltip">Maximize</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Save Button (Appears when prompt is edited) -->
+                        <button id="savePromptBtn" class="save-btn">
+                            <i class="fas fa-save"></i>
+                            Save
+                        </button>
+                        
+                        <!-- Editable Output Area -->
+                        <div 
+                            id="outputArea" 
+                            class="output-area" 
+                            contenteditable="true"
+                            data-placeholder="Your optimized prompt will appear here. Describe your task in Step 1 and click 'Prepare Prompt' to generate."
+                        ></div>
+                    </div>
+                    
+                    <!-- ✅ ADDED: Why Tool Recommendation Anchor (FOR JS INJECTION) -->
+                    <div id="rankingExplanationSlot"></div>
+                </div>
+
+                <!-- ✅ CORRECTED: Step 3: AI Platforms Sidebar (NOW OUTSIDE outputCard) -->
+                <div class="platforms-sidebar">
+                    <div class="card" id="aiCard">
+                        <div class="step-header">
+                            <div class="step-number">3</div>
+                            <div>
+                                <div class="step-title">Deploy to AI</div>
+                                <div class="step-subtitle">Select a platform to launch your prompt</div>
+                            </div>
+                        </div>
+                        
+                        <div class="platforms-header">
+                            <p style="color: var(--text-secondary); font-size: var(--font-size-sm);">
+                                Click any AI tool to copy the prompt and open the platform
+                            </p>
+                        </div>
+                        
+                        <div id="platformsGrid" class="platforms-grid">
+                            <!-- AI Platforms will be dynamically inserted here -->
+                            <div class="empty-state" id="platformsEmptyState">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <p>Generate a prompt first to see AI platform options</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Prompt History Section - ELEGANT DESIGN with close button -->
+            <div class="history-section" id="historySection">
+                <div class="card">
+                    <div class="history-header">
+                        <div class="step-header">
+                            <div class="step-number">
+                                <i class="fas fa-history"></i>
+                            </div>
+                            <div>
+                                <div class="step-title">Prompt History</div>
+                                <div class="step-subtitle">Recently generated and saved prompts</div>
+                            </div>
+                        </div>
+                        <button class="history-close-btn" id="closeHistoryBtn" title="Close History">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="history-list" id="historyList">
+                        <!-- History items will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Bar for proper button layout -->
+        <div class="action-bar">
+            <button id="stickyPrepareBtn" class="sticky-cta prepare">
+                <i class="fas fa-magic cta-icon"></i>
+                <span>Prepare Prompt</span>
+            </button>
+            <button id="stickyResetBtn" class="sticky-cta reset" style="display:none">
+                <i class="fas fa-redo cta-icon"></i>
+                <span>Reset</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <div class="footer-item">
+                        <span class="status-indicator"></span>
+                        <span>Status: <strong>Online</strong></span>
+                    </div>
+                    <div class="footer-item">
+                        <i class="fas fa-robot"></i>
+                        <span>AI Model: <strong id="currentModel">Google Gemini</strong></span>
+                    </div>
+                    <div class="footer-item">
+                        <i class="fas fa-palette"></i>
+                        <span>Theme: <strong id="currentTheme">Dark</strong></span>
+                    </div>
+                    <div class="footer-item">
+                        <i class="fas fa-language"></i>
+                        <span>Language: <strong id="currentLanguage">English</strong></span>
+                    </div>
+                </div>
+                <div class="footer-copyright">
+                    <p>© 2026 PromptCraft Pro. Enterprise AI Prompt Assistant v2.0</p>
+                    <p>Optimizing AI interactions for professional workflows</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <i class="fas fa-cog"></i>
+                    Settings & Preferences
+                </div>
+                <button id="closeSettingsBtn" class="action-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body">
+                <!-- Language Settings -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">
+                        <i class="fas fa-language"></i>
+                        Language & Localization
+                    </h3>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Interface Language</label>
+                        <select id="interfaceLanguage" class="language-select">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi</option>
+                            <option value="te">Telugu</option>
+                            <option value="kn">Kannada</option>
+                        </select>
+                        <p class="helper-text">Select your preferred interface language</p>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Voice Input Language</label>
+                        <select id="voiceInputLanguage">
+                            <option value="en-US">English (US)</option>
+                            <option value="hi-IN">Hindi (India)</option>
+                            <option value="te-IN">Telugu (India)</option>
+                        </select>
+                        <p class="helper-text">Language for voice input recognition</p>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Voice Output Language</label>
+                        <select id="voiceOutputLanguage">
+                            <option value="en-US">English (US)</option>
+                            <option value="hi-IN">Hindi (India)</option>
+                        </select>
+                        <p class="helper-text">Language for text-to-speech output</p>
+                    </div>
+                </div>
+                
+                <!-- Appearance -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">
+                        <i class="fas fa-palette"></i>
+                        Appearance & Interface
+                    </h3>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Theme</label>
+                        <select id="themeSelect">
+                            <option value="auto">Auto (System Preference)</option>
+                            <option value="light">Light Theme</option>
+                            <option value="dark">Dark Theme</option>
+                        </select>
+                        <p class="helper-text">Choose your preferred visual theme</p>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">UI Density</label>
+                        <select id="uiDensity">
+                            <option value="comfortable">Comfortable</option>
+                            <option value="compact">Compact</option>
+                            <option value="spacious">Spacious</option>
+                        </select>
+                        <p class="helper-text">Adjust spacing and density for optimal workflow</p>
+                    </div>
+                </div>
+                
+                <!-- AI Preferences -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">
+                        <i class="fas fa-robot"></i>
+                        AI Model Preferences
+                    </h3>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Default AI Model</label>
+                        <select id="defaultModel">
+                            <option value="gemini-3-flash-preview">Gemini 3 Flash</option>
+                            <option value="gpt-4o-mini">GPT-4o Mini</option>
+                            <option value="llama-3.1-8b-instant">Llama 3.1 8B</option>
+                        </select>
+                        <p class="helper-text">Select your preferred AI model</p>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Prompt Generation Style</label>
+                        <select id="promptStyle">
+                            <option value="detailed">Detailed & Structured</option>
+                            <option value="concise">Concise & Direct</option>
+                            <option value="creative">Creative & Engaging</option>
+                        </select>
+                        <p class="helper-text">Define the style of generated prompts</p>
+                    </div>
+                </div>
+                
+                <!-- Advanced Settings -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">
+                        <i class="fas fa-tools"></i>
+                        Advanced Settings
+                    </h3>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Auto-Generation Delay</label>
+                        <select id="autoConvertDelay">
+                            <option value="0">Disabled</option>
+                            <option value="3000">3 seconds</option>
+                            <option value="5000">5 seconds</option>
+                            <option value="10000">10 seconds</option>
+                        </select>
+                        <p class="helper-text">Automatically generate prompt after typing stops</p>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Notification Duration</label>
+                        <select id="notificationDuration">
+                            <option value="2000">2 seconds</option>
+                            <option value="3000">3 seconds</option>
+                            <option value="4000">4 seconds</option>
+                            <option value="5000">5 seconds</option>
+                        </select>
+                        <p class="helper-text">How long notifications should display</p>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <label class="setting-label">Max History Items</label>
+                        <select id="maxHistoryItems">
+                            <option value="10">10 items</option>
+                            <option value="25">25 items</option>
+                            <option value="50">50 items</option>
+                        </select>
+                        <p class="helper-text">Maximum number of prompts to save in history</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <div class="settings-actions">
+                    <button id="cancelSettingsBtn" class="settings-cancel-btn">
+                        Cancel
+                    </button>
+                    <button id="saveSettingsBtn" class="settings-save-btn">
+                        <i class="fas fa-save"></i>
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Full Screen Editor -->
+    <div id="fullScreenEditor" class="full-screen-editor">
+        <div class="editor-header">
+            <div class="editor-title">
+                <i class="fas fa-edit"></i>
+                <span id="editorTitle">Edit Prompt</span>
+            </div>
+            <div class="editor-actions">
+                <button id="editorPrepareBtn" class="editor-prepare-btn" disabled>
+                    <i class="fas fa-magic"></i>
+                    Prepare Prompt
+                </button>
+                <button id="closeEditorBtn" class="action-btn" title="Close (ESC)">
+                    <i class="fas fa-times"></i>
+                    <span class="action-btn-tooltip">Close</span>
+                </button>
+            </div>
+        </div>
+        <div class="editor-content">
+            <!-- Editor Controls -->
+            <div class="editor-controls">
+                <div class="editor-left-controls">
+                    <button id="editorMicBtn" class="action-btn" title="Voice Input">
+                        <i class="fas fa-microphone"></i>
+                        <span class="action-btn-tooltip">Voice Input</span>
+                    </button>
+                </div>
+                <div class="editor-right-controls">
+                    <!-- Editor actions can be added here -->
+                </div>
+            </div>
+            
+            <textarea id="editorTextarea" class="editor-textarea" placeholder="Start typing your prompt..."></textarea>
+        </div>
+    </div>
+
+    <!-- ✅ CRITICAL: Correct Script Load Order -->
+    <!-- config.js MUST come FIRST to define window.AppConfig before other scripts use it -->
+    <script src="js/config.js"></script>
+    <script src="js/storage-manager.js"></script>
+    <script src="js/voice-handler.js"></script>
+    <script src="js/platform-integrations.js"></script>
+    <script src="js/prompt-generator.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/ai-tool-ranking.js"></script>
+    
+    <!-- Error Suppression for Cosmetic Syntax Errors -->
+    <script>
+        // Suppress cosmetic syntax errors that appear as (index):1:73
+        window.addEventListener('error', (e) => {
+            if (e.message?.includes('Invalid or unexpected token') && e.lineno === 1) {
+                console.log('Suppressed cosmetic syntax error from browser re-evaluation');
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
+    <!-- Performance Monitoring & Fixes -->
+<script>
+// 🔧 FIX: Performance monitoring for all problems
+class PerformanceMonitor {
+    constructor() {
+        this.metrics = {
+            generationTime: [],
+            promptLengths: [],
+            cacheHits: 0,
+            cacheMisses: 0,
+            executablePrompts: 0,
+            nonExecutablePrompts: 0
+        };
+        
+        // Monitor prompt generation
+        this.monitorGenerations();
+        
+        // Monitor copy operations
+        this.monitorCopyOperations();
+        
+        // Log performance periodically
+        setInterval(() => this.logPerformance(), 60000);
+        
+        console.log('Performance monitoring enabled');
+    }
+    
+    monitorGenerations() {
+        const originalPrepare = window.promptCraftApp?.preparePrompt;
+        if (originalPrepare) {
+            window.promptCraftApp.preparePrompt = async function(...args) {
+                const start = performance.now();
+                const result = await originalPrepare.apply(this, args);
+                const end = performance.now();
+                
+                if (window.performanceMonitor) {
+                    window.performanceMonitor.trackGeneration(end - start);
+                    
+                    // Track prompt length and executability
+                    const output = document.getElementById('outputArea');
+                    if (output && output.textContent.trim()) {
+                        const length = output.textContent.length;
+                        window.performanceMonitor.trackPromptLength(length);
+                        
+                        // Check if prompt is executable
+                        const isExecutable = window.performanceMonitor.checkExecutability(output.textContent);
+                        if (isExecutable) {
+                            window.performanceMonitor.metrics.executablePrompts++;
+                        } else {
+                            window.performanceMonitor.metrics.nonExecutablePrompts++;
+                            console.warn('Non-executable prompt generated');
+                        }
+                    }
+                }
+                
+                return result;
+            };
+        }
+    }
+    
+    monitorCopyOperations() {
+        const originalCopy = window.promptCraftApp?.copyPrompt;
+        if (originalCopy) {
+            window.promptCraftApp.copyPrompt = async function(...args) {
+                console.log('Copy operation with execution instructions');
+                return originalCopy.apply(this, args);
+            };
+        }
+    }
+    
+    trackGeneration(time) {
+        this.metrics.generationTime.push(time);
+        if (this.metrics.generationTime.length > 100) this.metrics.generationTime.shift();
+        
+        // Show warning if too slow
+        if (time > 10000) {
+            console.warn(`Slow generation: ${time.toFixed(0)}ms`);
+        }
+    }
+    
+    trackPromptLength(length) {
+        this.metrics.promptLengths.push(length);
+        if (this.metrics.promptLengths.length > 100) this.metrics.promptLengths.shift();
+        
+        // Show warning if too short
+        if (length < 150) {
+            console.warn(`Short prompt generated: ${length} chars`);
+            this.showLengthWarning(length);
+        }
+    }
+    
+    checkExecutability(text) {
+        if (!text) return false;
+        
+        // Simple executability check
+        const executableIndicators = [
+            /^(execute|task|write|create|generate|analyze)/i,
+            /requirements?:/i,
+            /instructions?:/i
+        ];
+        
+        const metaIndicators = [
+            /prompt for/i,
+            /role:/i,
+            /objective:/i,
+            /you should/i
+        ];
+        
+        let execScore = 0;
+        for (const pattern of executableIndicators) {
+            if (pattern.test(text)) execScore++;
+        }
+        
+        let metaScore = 0;
+        for (const pattern of metaIndicators) {
+            if (pattern.test(text.toLowerCase())) metaScore++;
+        }
+        
+        return execScore > metaScore && text.length >= 150;
+    }
+    
+    showLengthWarning(length) {
+        // Optional: Show UI warning for short prompts
+        const warning = document.createElement('div');
+        warning.className = 'validation-message';
+        warning.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Prompt may be too short (${length} chars). Consider adding more details.`;
+        warning.style.position = 'fixed';
+        warning.style.bottom = '80px';
+        warning.style.right = '20px';
+        warning.style.zIndex = '9999';
+        warning.style.maxWidth = '300px';
+        
+        document.body.appendChild(warning);
+        setTimeout(() => warning.remove(), 5000);
+    }
+    
+    logPerformance() {
+        if (this.metrics.generationTime.length > 0) {
+            const avgTime = this.metrics.generationTime.reduce((a, b) => a + b, 0) / this.metrics.generationTime.length;
+            const avgLength = this.metrics.promptLengths.length > 0 
+                ? this.metrics.promptLengths.reduce((a, b) => a + b, 0) / this.metrics.promptLengths.length 
+                : 0;
+            
+            const execRate = this.metrics.executablePrompts + this.metrics.nonExecutablePrompts > 0
+                ? (this.metrics.executablePrompts / (this.metrics.executablePrompts + this.metrics.nonExecutablePrompts)) * 100
+                : 0;
+            
+            console.log(`📊 Performance: Avg gen ${avgTime.toFixed(0)}ms, Avg length ${avgLength.toFixed(0)} chars, Executable: ${execRate.toFixed(1)}%`);
+        }
+    }
+    
+    getMetrics() {
+        return {
+            ...this.metrics,
+            avgGenerationTime: this.metrics.generationTime.length > 0 
+                ? this.metrics.generationTime.reduce((a, b) => a + b, 0) / this.metrics.generationTime.length 
+                : 0,
+            avgPromptLength: this.metrics.promptLengths.length > 0 
+                ? this.metrics.promptLengths.reduce((a, b) => a + b, 0) / this.metrics.promptLengths.length 
+                : 0,
+            executableRate: this.metrics.executablePrompts + this.metrics.nonExecutablePrompts > 0
+                ? (this.metrics.executablePrompts / (this.metrics.executablePrompts + this.metrics.nonExecutablePrompts)) * 100
+                : 0
+        };
+    }
+}
+
+// Initialize when app is ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        if (window.promptCraftApp) {
+            window.performanceMonitor = new PerformanceMonitor();
+            
+            // 🔧 FIX 5: Add copy instructions to output area
+            const outputArea = document.getElementById('outputArea');
+            if (outputArea) {
+                const observer = new MutationObserver(() => {
+                    if (outputArea.textContent.trim() && !outputArea.textContent.includes('COPY AND PASTE')) {
+                        // Add subtle hint about executability
+                        if (!document.querySelector('.executable-hint')) {
+                            const hint = document.createElement('div');
+                            hint.className = 'executable-hint';
+                            hint.innerHTML = '<i class="fas fa-info-circle"></i> This prompt is ready to execute. Copy and paste directly into AI tools.';
+                            hint.style.cssText = 'font-size: 12px; color: var(--success); margin-top: 5px; padding: 5px; background: rgba(16, 185, 129, 0.1); border-radius: 4px;';
+                            outputArea.parentNode.insertBefore(hint, outputArea.nextSibling);
+                        }
+                    }
+                });
+                observer.observe(outputArea, { childList: true, characterData: true, subtree: true });
+            }
+        }
+    }, 3000);
+});
+
+// 🔧 FIX: Cache clearing on settings change
+function clearPromptCache() {
+    if (window.promptCraftApp?.promptGenerator) {
+        window.promptCraftApp.promptGenerator.clearCache();
+        console.log('Prompt cache cleared');
+    }
+}
+
+// Monitor settings changes for cache invalidation
+const settingsModal = document.getElementById('settingsModal');
+if (settingsModal) {
+    settingsModal.addEventListener('change', (e) => {
+        if (e.target.id === 'defaultModel' || e.target.id === 'promptStyle') {
+            clearPromptCache();
+        }
+    });
+}
+</script>
+</body>
+</html>
