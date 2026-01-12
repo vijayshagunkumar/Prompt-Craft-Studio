@@ -2842,3 +2842,287 @@ kbd {
 #testBackendBtn:hover {
     background: linear-gradient(135deg, #0da271, #2bbf89);
 }
+
+/* ======================
+   PROMPT SCORE UI STYLES
+   ====================== */
+
+.prompt-score-ui {
+    background: var(--glass-bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 15px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.prompt-score-ui.loading {
+    opacity: 0.8;
+}
+
+.prompt-score-ui.error {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.score-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: var(--text-primary);
+}
+
+.score-badge {
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    min-width: 60px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.score-bar {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.score-bar label {
+    flex: 0 0 100px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.score-bar .bar {
+    flex: 1;
+    height: 8px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0 15px;
+}
+
+.score-bar .fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.score-bar span {
+    flex: 0 0 50px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.score-feedback {
+    margin-top: 20px;
+    padding: 15px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.score-feedback p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.score-feedback strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.error-detail {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    margin-top: 5px;
+    font-family: monospace;
+}
+
+/* ======================
+   SHIMMER ANIMATION
+   ====================== */
+
+.shimmer {
+    background: linear-gradient(90deg, 
+        var(--bg-secondary) 25%, 
+        var(--border-color) 50%, 
+        var(--bg-secondary) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    color: transparent !important;
+    border-radius: 4px;
+}
+
+.shimmer.fill {
+    height: 100%;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ======================
+   METRICS BUTTON STYLES
+   ====================== */
+
+.metrics-toggle.has-score {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    border-color: var(--success) !important;
+    color: var(--success) !important;
+}
+
+.metrics-toggle.has-score:hover {
+    background-color: var(--success) !important;
+    color: white !important;
+}
+
+.metrics-toggle.disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+}
+
+/* ======================
+   TOGGLE SWITCH STYLES
+   ====================== */
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--border-color);
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: var(--success);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+/* ======================
+   GRADE COLORS
+   ====================== */
+
+.grade-excellent { color: #10b981 !important; }
+.grade-very-good { color: #3b82f6 !important; }
+.grade-good { color: #8b5cf6 !important; }
+.grade-fair { color: #f59e0b !important; }
+.grade-poor { color: #ef4444 !important; }
+.grade-inadequate { color: #6b7280 !important; }
+
+/* ======================
+   RANKING EXPLANATION BOX
+   ====================== */
+
+.ranking-explanation {
+    position: fixed;
+    bottom: 100px;
+    right: 30px;
+    width: 350px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 0;
+    z-index: 1000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: translateY(20px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.ranking-explanation.active {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+}
+
+.ranking-explanation .metrics-close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 5px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.ranking-explanation .metrics-close-btn:hover {
+    color: var(--text-primary);
+    background: var(--bg-secondary);
+}
+
+/* ======================
+   EXECUTABLE PROMPT HINT
+   ====================== */
+
+.executable-hint {
+    font-size: 12px;
+    color: var(--success);
+    margin-top: 5px;
+    padding: 5px;
+    background: rgba(16, 185, 129, 0.1);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.executable-hint i {
+    font-size: 14px;
+}
