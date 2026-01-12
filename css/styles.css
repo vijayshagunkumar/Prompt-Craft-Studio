@@ -2470,3 +2470,365 @@ kbd {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ======================
+   SCORE CARD WITH CLOSE BUTTON
+   ====================== */
+
+/* Score card container */
+.score-results {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 15px;
+    margin-top: 15px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    position: relative;
+    animation: slideInFromBottom 0.3s ease-out;
+}
+
+@keyframes slideInFromBottom {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Score card with close button */
+.score-card {
+    position: relative;
+    padding-top: 8px; /* Make room for close button */
+}
+
+/* Score card close button - TOP RIGHT */
+.score-close-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-tertiary);
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.score-close-btn:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+    transform: scale(1.1);
+}
+
+/* Score header with space for close button */
+.score-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    padding-right: 30px; /* Space for close button */
+}
+
+.score-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.score-title i {
+    color: var(--primary);
+}
+
+/* Score badge */
+.score-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 14px;
+    border: 2px solid;
+    animation: pulseScore 0.5s ease;
+}
+
+@keyframes pulseScore {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* Dimension bars container */
+.dimensions {
+    margin: 16px 0;
+}
+
+.dimension {
+    margin-bottom: 10px;
+}
+
+.dimension-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.dimension-name {
+    font-weight: 500;
+}
+
+.dimension-value {
+    font-weight: 600;
+}
+
+.dimension-bar-container {
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.dimension-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.8s ease-out;
+}
+
+/* Different colors for each dimension */
+.dimension:nth-child(1) .dimension-bar {
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+.dimension:nth-child(2) .dimension-bar {
+    background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.dimension:nth-child(3) .dimension-bar {
+    background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+/* Feedback section */
+.feedback {
+    margin-top: 16px;
+    padding: 12px;
+    background: rgba(var(--primary-rgb, 79, 70, 229), 0.05);
+    border-radius: 8px;
+    border-left: 3px solid var(--primary);
+}
+
+.feedback-content {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.feedback-icon {
+    color: var(--primary);
+    font-size: 14px;
+    margin-top: 2px;
+}
+
+.feedback-text {
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    flex: 1;
+}
+
+/* Score badge colors */
+.score-badge.score-10 { 
+    color: #059669; 
+    border-color: #059669;
+    background: #d1fae5;
+}
+
+.score-badge.score-9 { 
+    color: #10b981; 
+    border-color: #10b981;
+    background: #ecfdf5;
+}
+
+.score-badge.score-8 { 
+    color: #0d9488; 
+    border-color: #0d9488;
+    background: #f0fdfa;
+}
+
+.score-badge.score-7 { 
+    color: #0891b2; 
+    border-color: #0891b2;
+    background: #f0f9ff;
+}
+
+.score-badge.score-6 { 
+    color: #4f46e5; 
+    border-color: #4f46e5;
+    background: #eef2ff;
+}
+
+.score-badge.score-5 { 
+    color: #f59e0b; 
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.score-badge.score-4 { 
+    color: #f97316; 
+    border-color: #f97316;
+    background: #fff7ed;
+}
+
+.score-badge.score-3 { 
+    color: #ef4444; 
+    border-color: #ef4444;
+    background: #fef2f2;
+}
+
+.score-badge.score-2 { 
+    color: #dc2626; 
+    border-color: #dc2626;
+    background: #fef2f2;
+}
+
+.score-badge.score-1,
+.score-badge.score-0 { 
+    color: #991b1b; 
+    border-color: #991b1b;
+    background: #fef2f2;
+}
+
+/* Local fallback indicator */
+.local-fallback-badge {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fbbf24;
+}
+
+/* Bottom close button (optional alternative) */
+.score-bottom-close {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.score-bottom-close-btn {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.score-bottom-close-btn:hover {
+    color: var(--text-primary);
+    background: var(--border-color);
+}
+
+/* Dark theme adjustments */
+.dark-theme .score-close-btn {
+    background: var(--gray-800);
+    border-color: var(--gray-700);
+    color: var(--gray-400);
+}
+
+.dark-theme .score-close-btn:hover {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+}
+
+.dark-theme .feedback {
+    background: rgba(79, 70, 229, 0.1);
+}
+
+.dark-theme .local-fallback-badge {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+.dark-theme .score-bottom-close-btn:hover {
+    background: var(--gray-700);
+}
+
+/* Score card positioning options */
+.score-results.fixed {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    z-index: 1000;
+    max-width: 300px;
+    animation: slideInFromRight 0.3s ease-out;
+}
+
+@keyframes slideInFromRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* For score card inside output card */
+#outputCard .score-results {
+    margin: 15px 0 0 0;
+}
+
+/* Score loading state */
+.score-loading {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-tertiary);
+}
+
+.score-loading i {
+    margin-right: 8px;
+    color: var(--primary);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Score error state */
+.score-error {
+    padding: 20px;
+    text-align: center;
+    color: var(--danger);
+}
+
+.score-error i {
+    margin-right: 8px;
+}
