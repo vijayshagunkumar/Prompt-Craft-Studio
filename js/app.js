@@ -2,28 +2,7 @@
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
 // Version: 2.0.0 - PRODUCTION READY
 // ============================================
-
-// ======================
-// NOTIFICATION WRAPPER
-// ======================
-function showNotification(message, type = 'info', duration = 3000) {
-    console.log(`[${type.toUpperCase()}] ${message}`);
-    
-    // Use existing notification system if available
-    if (window.promptCraftApp?.notify) {
-        window.promptCraftApp.notify(message, type, duration);
-        return;
-    }
-    
-    // Fallback to console only
-    if (type === 'error') {
-        console.error(message);
-    } else if (type === 'warning') {
-        console.warn(message);
-    } else {
-        console.info(message);
-    }
-}
+// Add to app.js (somewhere near the top or in your initialization)
 
 // MODEL VALIDATION FUNCTIONS
 const MODEL_CAPABILITIES = {
@@ -107,365 +86,9 @@ function onStrictModeToggle(isStrict) {
   if (!validation.valid && validation.correctedModel) {
     // Auto-correct and show toast
     document.getElementById('model-selector').value = validation.correctedModel;
-    window.promptCraftApp?.showNotification(validation.reason, 'warning');
+window.promptCraftApp?.showNotification(validation.reason, 'warning');
   }
 }
-
-// ======================
-// SCORING FUNCTIONS (SINGLE DEFINITIONS)
-// ======================
-
-// LOCAL FALLBACK SCORING
-function calculateLocalScore(prompt) {
-    if (!prompt || prompt.length < 20) {
-        return {
-            score: 5.0,
-            dimensions: {
-                clarity: 50,
-                structure: 50,
-                intent: 50
-            },
-            feedback: 'Prompt too short for meaningful scoring',
-            isFallback: true
-        };
-    }
-    
-    let score = 5.0;
-    const length = prompt.length;
-    
-    // Length optimization (400-800 chars is sweet spot)
-    if (length > 400 && length < 800) score += 1.5;
-    else if (length > 800 && length < 1500) score += 1.0;
-    else if (length >= 1500) score += 0.5;
-    
-    // Structure detection
-    const sections = [
-        /task to perform:/i,
-        /requirements:/i, 
-        /format:/i,
-        /context:/i,
-        /style:/i,
-        /constraints:/i
-    ];
-    
-    const foundSections = sections.filter(pattern => pattern.test(prompt)).length;
-    score += Math.min(foundSections * 0.5, 2.0); // Max 2 bonus
-    
-    // Clarity/readability
-    const sentences = prompt.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    const avgSentenceLength = sentences.length > 0 
-        ? prompt.length / sentences.length 
-        : 0;
-    
-    if (avgSentenceLength > 50 && avgSentenceLength < 150) score += 0.5;
-    
-    // Cap between 0-10
-    const finalScore = Math.min(10, Math.max(0, score));
-    
-    return {
-        score: parseFloat(finalScore.toFixed(1)),
-        dimensions: {
-            clarity: Math.round((finalScore / 10) * 100),
-            structure: Math.round((finalScore / 10) * 100),
-            intent: Math.round((finalScore / 10) * 100)
-        },
-        feedback: 'Local heuristic scoring',
-        isFallback: true
-    };
-}
-
-// UPDATE SCORE DISPLAY
-function updateScoreDisplay(scoreData) {
-    // Try to find existing score display
-    let scoreResults = document.getElementById('scoreResults');
-    
-    // If score card is already visible, close it (toggle functionality)
-    if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
-        closeScoreDisplay();
-        return;
-    }
-    
-    if (!scoreResults) {
-        // Find the output card to append score results
-        const outputCard = document.getElementById('outputCard');
-        if (outputCard) {
-            scoreResults = document.createElement('div');
-            scoreResults.id = 'scoreResults';
-            scoreResults.className = 'score-results';
-            
-            // Append after the output area but before any existing ranking explanation
-            const outputContainer = outputCard.querySelector('.output-container');
-            if (outputContainer) {
-                outputContainer.appendChild(scoreResults);
-            } else {
-                outputCard.appendChild(scoreResults);
-            }
-        }
-    }
-    
-    // Show the score results
-    scoreResults.style.display = 'block';
-    
-    // Render score with close button
-    scoreResults.innerHTML = `
-        <div class="score-card">
-            <!-- Close Button -->
-            <button class="score-close-btn" title="Close score display" onclick="closeScoreDisplay()">
-                <i class="fas fa-times"></i>
-            </button>
-            
-            <!-- Score Header -->
-            <div class="score-header">
-                <div class="score-title">
-                    <i class="fas fa-chart-line"></i>
-                    Prompt Quality Score
-                </div>
-                <div class="score-badge score-${Math.floor(scoreData.score)}">
-                    ${scoreData.score}/10
-                    ${scoreData.isFallback ? 
-                        '<span class="local-fallback-badge">local</span>' : 
-                        ''}
-                </div>
-            </div>
-            
-            <!-- Dimensions -->
-            ${scoreData.dimensions ? `
-            <div class="dimensions">
-                ${Object.entries(scoreData.dimensions).map(([dim, value]) => `
-                <div class="dimension">
-                    <div class="dimension-header">
-                        <span class="dimension-name">${dim.charAt(0).toUpperCase() + dim.slice(1)}</span>
-                        <span class="dimension-value">${value}%</span>
-                    </div>
-                    <div class="dimension-bar-container">
-                        <div class="dimension-bar" style="width: ${value}%"></div>
-                    </div>
-                </div>
-                `).join('')}
-            </div>
-            ` : ''}
-            
-            <!-- Feedback -->
-            ${scoreData.feedback ? `
-            <div class="feedback">
-                <div class="feedback-content">
-                    <i class="fas fa-comment-alt feedback-icon"></i>
-                    <div class="feedback-text">${scoreData.feedback}</div>
-                </div>
-            </div>
-            ` : ''}
-            
-            <!-- Bottom close button (optional) -->
-            <div class="score-bottom-close">
-                <button class="score-bottom-close-btn" onclick="closeScoreDisplay()">
-                    <i class="fas fa-times"></i>
-                    Close
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // Add click outside to close functionality
-    setTimeout(() => {
-        document.addEventListener('click', handleClickOutsideScoreCard);
-    }, 100);
-}
-
-// CLOSE SCORE DISPLAY
-function closeScoreDisplay() {
-    const scoreResults = document.getElementById('scoreResults');
-    if (scoreResults) {
-        // Add fade out animation
-        scoreResults.style.opacity = '0';
-        scoreResults.style.transform = 'translateY(10px)';
-        
-        setTimeout(() => {
-            scoreResults.style.display = 'none';
-            scoreResults.innerHTML = '';
-            scoreResults.style.opacity = '';
-            scoreResults.style.transform = '';
-        }, 200);
-        
-        // Remove click outside listener
-        document.removeEventListener('click', handleClickOutsideScoreCard);
-    }
-}
-
-// HANDLE CLICK OUTSIDE
-function handleClickOutsideScoreCard(event) {
-    const scoreResults = document.getElementById('scoreResults');
-    if (!scoreResults || scoreResults.style.display === 'none') return;
-    
-    const scoreCard = scoreResults.querySelector('.score-card');
-    const scorePromptBtn = document.getElementById('scorePromptBtn');
-    
-    // Check if click is outside the score card AND not on the score button
-    if (!scoreCard.contains(event.target) && 
-        event.target !== scorePromptBtn && 
-        !scorePromptBtn.contains(event.target)) {
-        closeScoreDisplay();
-    }
-}
-
-// SCORE CURRENT PROMPT
-async function scoreCurrentPrompt() {
-    // ✅ Use correct DOM element
-    const promptText = document.getElementById('outputArea')?.innerText?.trim();
-    
-    if (!promptText || promptText.length < 10) {
-        showNotification('No valid prompt to score', 'warning');
-        return;
-    }
-    
-    // Check if score card is already open
-    const scoreResults = document.getElementById('scoreResults');
-    if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
-        // Toggle close if already open
-        closeScoreDisplay();
-        showNotification('Score display closed', 'info');
-        return;
-    }
-    
-    try {
-        // Add loading state to score button
-        const scoreBtn = document.getElementById('scorePromptBtn');
-        if (scoreBtn) {
-            const originalHTML = scoreBtn.innerHTML;
-            scoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            scoreBtn.disabled = true;
-            
-            setTimeout(() => {
-                scoreBtn.innerHTML = originalHTML;
-                scoreBtn.disabled = false;
-            }, 2000);
-        }
-        
-        showNotification('Scoring prompt...', 'info');
-        
-        console.log('🔍 Checking if window.scorePrompt exists:', typeof window.scorePrompt);
-        
-        // Try Java backend first
-        if (typeof window.scorePrompt === 'function') {
-            console.log('🎯 Calling window.scorePrompt()...');
-            const scoreData = await window.scorePrompt(promptText);
-            console.log('📊 Score data received:', scoreData);
-            
-            if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
-                // ✅ Ensure it matches our contract
-                const normalizedScoreData = {
-                    score: scoreData.score,
-                    dimensions: scoreData.dimensions || {
-                        clarity: Math.round((scoreData.score / 10) * 100),
-                        structure: Math.round((scoreData.score / 10) * 100),
-                        intent: Math.round((scoreData.score / 10) * 100)
-                    },
-                    feedback: scoreData.feedback || 'Backend scoring complete',
-                    isFallback: scoreData.isFallback || false
-                };
-                
-                console.log('✅ Normalized score data:', normalizedScoreData);
-                
-                // Show appropriate notification
-                if (normalizedScoreData.isFallback) {
-                    showNotification(`Using local scoring: ${normalizedScoreData.score}/10`, 'warning');
-                } else {
-                    showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
-                }
-                
-                updateScoreDisplay(normalizedScoreData);
-                
-            } else {
-                console.warn('Invalid score data format:', scoreData);
-                throw new Error('Invalid response from scoring service');
-            }
-            
-        } else {
-            console.warn('window.scorePrompt is not a function');
-            throw new Error('Scoring function not available');
-        }
-        
-    } catch (error) {
-        console.warn('Backend scoring failed, using local scoring:', error);
-        
-        // Fallback to local scoring
-        const fallbackScoreData = calculateLocalScore(promptText);
-        console.log('🔄 Local fallback score:', fallbackScoreData);
-        
-        showNotification(
-            `Using local scoring: ${fallbackScoreData.score}/10`,
-            'warning'
-        );
-        
-        updateScoreDisplay(fallbackScoreData);
-    }
-}
-
-// INITIALIZE SCORING
-async function initializeScoring() {
-    // Safety guard: wait for dependencies
-    if (typeof checkJavaBackendHealth !== 'function') {
-        console.warn('Java backend health check not loaded yet - retrying in 1s');
-        setTimeout(initializeScoring, 1000);
-        return;
-    }
-    
-    try {
-        // Test backend connection with timeout
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Health check timeout')), 5000)
-        );
-        
-        const healthPromise = window.checkJavaBackendHealth();
-        const health = await Promise.race([healthPromise, timeoutPromise]);
-        
-        if (health.status === 'healthy') {
-            console.log('✅ Java scoring backend available');
-            window.useJavaScoring = true;
-            
-            // Update UI indicator
-            document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
-                detail: { available: true }
-            }));
-        } else {
-            console.warn('⚠️ Java backend unavailable, using local scoring');
-            window.useJavaScoring = false;
-            
-            showNotification(
-                'Using local scoring (backend offline)', 
-                'info', 
-                3000
-            );
-        }
-    } catch (error) {
-        console.warn('⚠️ Could not reach Java backend:', error.message);
-        window.useJavaScoring = false;
-        
-        // Silently degrade
-        document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
-            detail: { available: false, error: error.message }
-        }));
-    }
-}
-
-// LISTEN FOR BACKEND STATUS
-document.addEventListener('scoringBackendStatus', (event) => {
-    const { available, error } = event.detail;
-    
-    // Update any backend indicator in UI
-    const backendIndicator = document.getElementById('backendStatusIndicator');
-    if (backendIndicator) {
-        backendIndicator.className = `backend-status ${available ? 'online' : 'offline'}`;
-        backendIndicator.innerHTML = available ? 
-            '<span>✓ Scoring active</span>' : 
-            `<span>⚠ Local only</span>`;
-    }
-    
-    // Log for debugging
-    if (!available && error) {
-        console.debug('Scoring backend status:', { available, error });
-    }
-});
-
 // ======================
 // MAIN APPLICATION CONTROLLER
 // ======================
@@ -529,6 +152,7 @@ class PromptCraftApp {
             promptHistory: [],
             currentModel: 'gemini-3-flash-preview',
             generatedFromInput: null,  // ✅ ADDED: tracks which input generated current prompt
+            lastPromptScore: null,     // ✅ ADDED: Store last score
             settings: this.loadDefaultSettings()
         };
 
@@ -545,17 +169,17 @@ class PromptCraftApp {
         // ======================
         this.storageManager = new StorageManager();
 
-        // Voice handler
-        this.voiceHandler = new VoiceHandler({
-            continuous: false,
-            interimResults: false,
-            defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
-            maxListenTime: 10000,
-            maxSimilarityThreshold: 0.75,
-            replaceMode: true,
-            mergeProgressiveResults: true,
-            debounceDelay: 400
-        });
+        // In your PromptCraftApp constructor
+this.voiceHandler = new VoiceHandler({
+    continuous: false,
+    interimResults: false, // 🔥 Only final results (no interim)
+    defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
+    maxListenTime: 10000, // 🔥 10 seconds max
+    maxSimilarityThreshold: 0.75, // 🔥 Stricter threshold
+    replaceMode: true, // 🔥 Critical for preventing duplicates
+    mergeProgressiveResults: true,
+    debounceDelay: 400
+});
         
         this.platformIntegrations = new PlatformIntegrations();
         this.promptGenerator = new PromptGenerator({
@@ -564,7 +188,7 @@ class PromptCraftApp {
             timeout: 30000,
             fallbackToLocal: true,
             enableDebug: true,
-            strictPromptMode: true
+        strictPromptMode: true // 🔥 ADD THIS LINE
         });
 
         // Bind elements (with null safety)
@@ -587,7 +211,8 @@ class PromptCraftApp {
             voiceOutputLanguage: 'en-US',
             interfaceLanguage: 'en',
             maxHistoryItems: 25,
-            notificationDuration: 3000
+            notificationDuration: 3000,
+            autoScoreEnabled: true // ✅ ADDED: Auto-score after generation
         };
     }
 
@@ -597,6 +222,7 @@ class PromptCraftApp {
             // Input
             userInput: document.getElementById('userInput'),
             charCounter: document.getElementById('charCounter'),
+            // ❌ undoBtn REMOVED (button doesn't exist in HTML)
             clearInputBtn: document.getElementById('clearInputBtn'),
             micBtn: document.getElementById('micBtn'),
             maximizeInputBtn: document.getElementById('maximizeInputBtn'),
@@ -615,7 +241,7 @@ class PromptCraftApp {
             platformsGrid: document.getElementById('platformsGrid'),
             platformsEmptyState: document.getElementById('platformsEmptyState'),
             
-            // Buttons
+            // Buttons (with null safety)
             stickyPrepareBtn: document.getElementById('stickyPrepareBtn'),
             stickyResetBtn: document.getElementById('stickyResetBtn'),
             
@@ -644,13 +270,13 @@ class PromptCraftApp {
             // App container
             appContainer: document.querySelector('.app-container'),
             
-            // Editor elements
+            // Editor elements (with null safety - these might be removed from HTML)
             editorMicBtn: document.getElementById('editorMicBtn'),
             
             // Settings elements
             settingsBtn: document.getElementById('settingsBtn'),
             
-            // Notification container
+            // Notification container (create if doesn't exist)
             notificationContainer: document.getElementById('notificationContainer') || this.createNotificationContainer()
         };
         
@@ -689,7 +315,7 @@ class PromptCraftApp {
             // Load history
             this.loadHistory();
             
-            // Test worker connection
+            // Test worker connection (don't block initialization)
             this.testWorkerConnection().catch(error => {
                 console.warn('Worker test failed, continuing with local mode:', error);
             });
@@ -711,7 +337,7 @@ class PromptCraftApp {
             this.elements.userInput.addEventListener('input', () => this.handleInputChange());
         }
         
-        // Clear input button
+        // Clear input button (optional)
         if (this.elements.clearInputBtn) {
             this.elements.clearInputBtn.addEventListener('click', () => {
                 if (this.elements.userInput) {
@@ -722,10 +348,12 @@ class PromptCraftApp {
             });
         }
         
-        // Button events
+        // Button events (with null safety)
         if (this.elements.stickyPrepareBtn) {
             this.elements.stickyPrepareBtn.addEventListener('click', () => this.preparePrompt());
         }
+        
+        // ❌ undoBtn event listener REMOVED (button doesn't exist in HTML)
         
         if (this.elements.copyBtn) {
             this.elements.copyBtn.addEventListener('click', () => this.copyPrompt());
@@ -818,7 +446,7 @@ class PromptCraftApp {
             this.elements.settingsBtn.addEventListener('click', () => this.openSettings());
         }
         
-        // Settings modal buttons
+        // Settings modal buttons (these might be in a different file)
         const closeSettingsBtn = document.getElementById('closeSettingsBtn');
         const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
         const saveSettingsBtn = document.getElementById('saveSettingsBtn');
@@ -859,131 +487,184 @@ class PromptCraftApp {
         this.setupAutoGeneration();
         
         // ================================
-        // METRICS BUTTON ENABLE / DISABLE
+        // METRICS BUTTON - JAVA BACKEND INTEGRATION
         // ================================
+        
         const metricsBtn = document.querySelector('.metrics-toggle');
         const metricsBox = document.querySelector('.ranking-explanation');
         const metricsCloseBtn = document.querySelector('.metrics-close-btn');
-
+        
         if (metricsBtn && metricsBox && metricsCloseBtn) {
-            // OPEN metrics → disable button
-            metricsBtn.addEventListener('click', () => {
+            // Prevent duplicate listeners
+            const cleanBtn = metricsBtn.cloneNode(true);
+            metricsBtn.parentNode.replaceChild(cleanBtn, metricsBtn);
+            
+            // Store reference in elements
+            this.elements.metricsBtn = cleanBtn;
+            this.elements.metricsBox = metricsBox;
+            this.elements.metricsCloseBtn = metricsCloseBtn;
+        
+            // OPEN metrics → Call Java API for scoring
+            cleanBtn.addEventListener('click', async () => {
+                const outputArea = document.getElementById('outputArea');
+                const prompt = outputArea?.textContent?.trim();
+        
+                if (!prompt) {
+                    this.showNotification('No prompt to score', 'warning');
+                    return;
+                }
+        
+                // Show loading state immediately
+                renderPromptScore({}, true);
                 metricsBox.classList.add('active');
-                metricsBtn.disabled = true;
-                metricsBtn.classList.add('disabled');
+                cleanBtn.disabled = true;
+                cleanBtn.classList.add('disabled');
+                
+                // Show loading notification
+                const loadingNotif = this.showNotification('🔍 Analyzing prompt quality...', 'info', 0);
+        
+                try {
+                    const api = new JavaBackendAPI();
+                    const score = await api.scorePrompt(prompt, 'chatgpt');
+        
+                    // Update with real score
+                    renderPromptScore(score);
+                    
+                    // Remove loading notification safely
+                    if (loadingNotif?.parentNode) {
+                        loadingNotif.remove();
+                    }
+                    
+                    this.showNotification(`✓ Prompt scored: ${score.grade}`, 'success');
+                    
+                    // Update button with score
+                    cleanBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(score.totalScore/10).toFixed(1)}/10`;
+                    cleanBtn.classList.add('has-score');
+                    
+                    // Store score in app state
+                    this.state.lastPromptScore = score;
+                    
+                } catch (err) {
+                    console.error('Java API error:', err);
+                    
+                    // Remove loading notification safely
+                    if (loadingNotif?.parentNode) {
+                        loadingNotif.remove();
+                    }
+                    
+                    // Show error in score UI
+                    const slot = document.getElementById('rankingExplanationSlot');
+                    if (slot) {
+                        slot.innerHTML = `
+                            <div class="prompt-score-ui error">
+                                <div class="score-header">
+                                    <h3>Prompt Quality Score</h3>
+                                    <span class="score-badge">Error</span>
+                                </div>
+                                <div class="score-feedback">
+                                    <p><i class="fas fa-exclamation-triangle"></i> Failed to score prompt.</p>
+                                    <p class="error-detail">${err.message || 'Check backend connection'}</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    this.showNotification('Failed to score prompt', 'error');
+                } finally {
+                    // Re-enable button
+                    cleanBtn.disabled = false;
+                    cleanBtn.classList.remove('disabled');
+                }
             });
-
+        
             // CLOSE metrics → enable button
             metricsCloseBtn.addEventListener('click', () => {
                 metricsBox.classList.remove('active');
-                metricsBtn.disabled = false;
-                metricsBtn.classList.remove('disabled');
-            });
-        }
-
-        // ================================
-        // SCORING BUTTON INTEGRATION
-        // ================================
-        const scorePromptBtn = document.getElementById('scorePromptBtn');
-        if (scorePromptBtn) {
-            scorePromptBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); // Prevent event bubbling
-                
-                // Check if score card is already visible
-                const scoreResults = document.getElementById('scoreResults');
-                const hasGeneratedPrompt = this.state?.hasGeneratedPrompt;
-                
-                if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
-                    // Toggle close if already open
-                    closeScoreDisplay();
-                    this.showNotification('Score display closed', 'info');
-                } else if (hasGeneratedPrompt) {
-                    scoreCurrentPrompt();
-                } else {
-                    this.showNotification('Generate a prompt first before scoring', 'warning');
-                }
+                cleanBtn.disabled = false;
+                cleanBtn.classList.remove('disabled');
             });
         }
     }
 
     // Set up voice handler callbacks
-    setupVoiceCallbacks() {
-        this.voiceHandler.setCallbacks({
-            onListeningStart: () => {
-                this.showNotification('🎤 Listening... Speak now', 'info');
-                // Visual feedback
-                if (this.elements.micBtn) {
-                    this.elements.micBtn.classList.add('listening');
-                    this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>';
-                }
-            },
-            onListeningEnd: () => {
-                // Clear visual feedback
-                if (this.elements.micBtn) {
-                    this.elements.micBtn.classList.remove('listening');
-                    this.elements.micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-                }
-            },
-            onTranscript: (text, metadata = {}) => {
-                console.log('🎯 Voice input received:', {
-                    text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-                    isFinal: metadata.isFinal,
-                    replaceMode: metadata.replaceMode,
-                    similarityCheck: metadata.similarityCheck
-                });
-                
-                // 🔥 CRITICAL: ONLY process FINAL results
-                if (metadata.isFinal) {
-                    // 🔥 CRITICAL: Use REPLACE mode - don't append!
-                    if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
-                        const editor = document.getElementById('editorTextarea');
-                        if (editor) {
-                            // REPLACE entire content
-                            editor.value = text;
-                            editor.selectionStart = editor.selectionEnd = text.length;
-                            editor.focus();
-                            // Trigger input event
-                            editor.dispatchEvent(new Event('input', { bubbles: true }));
-                        }
-                    } else if (this.elements.userInput) {
-                        // 🔥 REPLACE main input entirely (not append!)
-                        this.elements.userInput.value = text;
-                        this.elements.userInput.selectionStart = 
-                        this.elements.userInput.selectionEnd = text.length;
-                        this.elements.userInput.focus();
-                        
-                        // Trigger input change handler
-                        this.handleInputChange();
+setupVoiceCallbacks() {
+    this.voiceHandler.setCallbacks({
+        onListeningStart: () => {
+            this.showNotification('🎤 Listening... Speak now', 'info');
+            // Visual feedback
+            if (this.elements.micBtn) {
+                this.elements.micBtn.classList.add('listening');
+                this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>'; // Red dot
+            }
+        },
+        onListeningEnd: () => {
+            // Clear visual feedback
+            if (this.elements.micBtn) {
+                this.elements.micBtn.classList.remove('listening');
+                this.elements.micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+            }
+        },
+        onTranscript: (text, metadata = {}) => {
+            console.log('🎯 Voice input received:', {
+                text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+                isFinal: metadata.isFinal,
+                replaceMode: metadata.replaceMode,
+                similarityCheck: metadata.similarityCheck
+            });
+            
+            // 🔥 CRITICAL: ONLY process FINAL results
+            if (metadata.isFinal) {
+                // 🔥 CRITICAL: Use REPLACE mode - don't append!
+                if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
+                    const editor = document.getElementById('editorTextarea');
+                    if (editor) {
+                        // REPLACE entire content
+                        editor.value = text;
+                        editor.selectionStart = editor.selectionEnd = text.length;
+                        editor.focus();
+                        // Trigger input event
+                        editor.dispatchEvent(new Event('input', { bubbles: true }));
                     }
+                } else if (this.elements.userInput) {
+                    // 🔥 REPLACE main input entirely (not append!)
+                    this.elements.userInput.value = text;
+                    this.elements.userInput.selectionStart = 
+                    this.elements.userInput.selectionEnd = text.length;
+                    this.elements.userInput.focus();
                     
-                    // Show success notification
-                    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
-                    if (wordCount > 2) {
-                        this.showNotification(`✓ ${wordCount} words added via voice`, 'success', 2000);
-                    }
+                    // Trigger input change handler
+                    this.handleInputChange();
                 }
-            },
-            onSpeakingStart: () => {
-                this.showNotification('🔊 Reading prompt...', 'info');
-            },
-            onSpeakingEnd: () => {
-                this.showNotification('Finished reading prompt', 'info');
-            },
-            onError: (error) => {
-                const errorLower = error.toLowerCase();
-                if (errorLower.includes('not supported')) {
-                    this.showNotification('Voice features not available in your browser', 'warning');
-                } else if (errorLower.includes('permission') || errorLower.includes('not-allowed')) {
-                    this.showNotification('Please allow microphone access', 'error');
-                } else if (errorLower.includes('network')) {
-                    this.showNotification('Network error. Check your connection', 'error');
-                } else if (!errorLower.includes('aborted')) {
-                    // Don't show "aborted" errors (user stopped)
-                    this.showNotification(`Voice error: ${error}`, 'error');
+                
+                // Show success notification
+                const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+                if (wordCount > 2) {
+                    this.showNotification(`✓ ${wordCount} words added via voice`, 'success', 2000);
                 }
             }
-        });
-    }
+            // 🔥 IGNORE interim results completely (they're disabled anyway)
+        },
+        onSpeakingStart: () => {
+            this.showNotification('🔊 Reading prompt...', 'info');
+        },
+        onSpeakingEnd: () => {
+            this.showNotification('Finished reading prompt', 'info');
+        },
+        onError: (error) => {
+            const errorLower = error.toLowerCase();
+            if (errorLower.includes('not supported')) {
+                this.showNotification('Voice features not available in your browser', 'warning');
+            } else if (errorLower.includes('permission') || errorLower.includes('not-allowed')) {
+                this.showNotification('Please allow microphone access', 'error');
+            } else if (errorLower.includes('network')) {
+                this.showNotification('Network error. Check your connection', 'error');
+            } else if (!errorLower.includes('aborted')) {
+                // Don't show "aborted" errors (user stopped)
+                this.showNotification(`Voice error: ${error}`, 'error');
+            }
+        }
+    });
+}
 
     // Set up auto-generation
     setupAutoGeneration() {
@@ -1073,15 +754,14 @@ class PromptCraftApp {
             return;
         }
         
-        let selectedModel = this.state.currentModel || 'gemini-3-flash-preview';
+let selectedModel = this.state.currentModel || 'gemini-3-flash-preview';
 
-        const validation = validateModelForMode(selectedModel, true);
-        if (!validation.valid && validation.correctedModel) {
-            this.showNotification(validation.reason, 'warning');
-            selectedModel = validation.correctedModel;
-            this.state.currentModel = validation.correctedModel;
-        }
-        
+const validation = validateModelForMode(selectedModel, true);
+if (!validation.valid && validation.correctedModel) {
+    this.showNotification(validation.reason, 'warning');
+    selectedModel = validation.correctedModel;     // 🔥 CRITICAL
+    this.state.currentModel = validation.correctedModel;
+}
         this.showLoading(true);
         
         try {
@@ -1095,7 +775,7 @@ class PromptCraftApp {
                 style: 'detailed',
                 temperature: 0.4,
                 timeout: 25000,
-                strictPromptMode: true
+                strictPromptMode: true // 🔥 ADD THIS
             });
             
             console.log('Generation result:', {
@@ -1122,7 +802,7 @@ class PromptCraftApp {
                 this.state.originalPrompt = result.prompt;
                 this.state.promptModified = false;
                 this.state.hasGeneratedPrompt = true;
-                this.state.generatedFromInput = inputText;
+                this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
                 
                 // ✅ FIX: Hide Prepare button, show Reset button
                 if (this.elements.stickyPrepareBtn) {
@@ -1135,15 +815,13 @@ class PromptCraftApp {
                 if (this.elements.outputSection) {
                     this.elements.outputSection.classList.add('visible');
                 }
-                
-                // ✅ UX FIX: Auto-scroll to generated prompt
-                setTimeout(() => {
-                    this.elements.outputSection?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }, 150);
-                
+                // ✅ UX FIX: Auto-scroll to generated prompt (Step 2)
+setTimeout(() => {
+    this.elements.outputSection?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+    });
+}, 150);
                 if (this.elements.platformsGrid && this.elements.platformsEmptyState) {
                     this.platformIntegrations.renderPlatforms(this.elements.platformsGrid);
                 }
@@ -1165,6 +843,11 @@ class PromptCraftApp {
                 console.log(`Final prompt length: ${result.prompt.length} chars`);
                 console.log(`Prompt preview: ${result.prompt.substring(0, 200)}...`);
                 
+                // ✅ AUTO-SCORE AFTER GENERATION
+                setTimeout(() => {
+                    this.autoScorePromptIfEnabled();
+                }, 1000);
+                
             } else {
                 throw new Error('Failed to generate prompt');
             }
@@ -1180,44 +863,45 @@ class PromptCraftApp {
         }
     }
 
-    setOutputText(text) {
-        try {
-            if (!this.elements.outputArea) return false;
+setOutputText(text) {
+    try {
+        if (!this.elements.outputArea) return false;
 
-            this.elements.outputArea.innerHTML = '';
-            this.elements.outputArea.textContent = '';
+        this.elements.outputArea.innerHTML = '';
+        this.elements.outputArea.textContent = '';
 
-            const cleanText = this.cleanTextForDOM(text);
-            this.elements.outputArea.textContent = cleanText;
+        const cleanText = this.cleanTextForDOM(text);
+        this.elements.outputArea.textContent = cleanText;
 
-            // ✅ STORE FOR RANKING
-            window.lastGeneratedPrompt = cleanText;
+        // ✅ STORE FOR RANKING
+        window.lastGeneratedPrompt = cleanText;
 
-            // ✅ DISPATCH EVENT
-            document.dispatchEvent(new CustomEvent('promptGenerated', {
-                detail: { result: cleanText }
-            }));
+        // ✅ DISPATCH EVENT (ONLY ONCE)
+        document.dispatchEvent(new CustomEvent('promptGenerated', {
+            detail: { result: cleanText }
+        }));
 
-            // UI refresh
-            this.elements.outputArea.style.display = 'none';
-            this.elements.outputArea.offsetHeight;
-            this.elements.outputArea.style.display = '';
+        // UI refresh
+        this.elements.outputArea.style.display = 'none';
+        this.elements.outputArea.offsetHeight;
+        this.elements.outputArea.style.display = '';
 
-            requestAnimationFrame(() => {
-                this.elements.outputArea.scrollTop = this.elements.outputArea.scrollHeight;
-            });
+        requestAnimationFrame(() => {
+            this.elements.outputArea.scrollTop = this.elements.outputArea.scrollHeight;
+        });
 
-            console.log('📢 promptGenerated dispatched:', cleanText.length, 'chars');
-            return true;
+        console.log('📢 promptGenerated dispatched:', cleanText.length, 'chars');
+        return true;
 
-        } catch (e) {
-            console.error('Display failed:', e);
-            if (this.elements.outputArea) {
-                this.elements.outputArea.textContent = text.slice(0, 500);
-            }
-            return false;
+    } catch (e) {
+        console.error('Display failed:', e);
+        if (this.elements.outputArea) {
+            this.elements.outputArea.textContent = text.slice(0, 500);
         }
+        return false;
     }
+}
+
     
     cleanTextForDOM(text) {
         if (!text || typeof text !== 'string') return '';
@@ -1230,7 +914,7 @@ class PromptCraftApp {
     }
         
     async tryFallbackModels(inputText) {
-        const fallbackModels = ['gpt-4o-mini'];
+  const fallbackModels = ['gpt-4o-mini'];
         let fallbackSuccess = false;
         
         for (const fallbackModel of fallbackModels) {
@@ -1255,9 +939,9 @@ class PromptCraftApp {
                     
                     this.state.originalPrompt = fallbackResult.prompt;
                     this.state.hasGeneratedPrompt = true;
-                    this.state.generatedFromInput = inputText;
+                    this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
                     
-                    // Hide Prepare button, show Reset button
+                    // ✅ FIX: Hide Prepare button, show Reset button
                     if (this.elements.stickyPrepareBtn) {
                         this.elements.stickyPrepareBtn.style.display = 'none';
                     }
@@ -1326,9 +1010,9 @@ This structured approach ensures you get detailed, actionable responses tailored
             
             this.state.originalPrompt = localPrompt;
             this.state.hasGeneratedPrompt = true;
-            this.state.generatedFromInput = inputText;
+            this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
             
-            // Hide Prepare button, show Reset button
+            // ✅ FIX: Hide Prepare button, show Reset button
             if (this.elements.stickyPrepareBtn) {
                 this.elements.stickyPrepareBtn.style.display = 'none';
             }
@@ -1369,7 +1053,43 @@ This structured approach ensures you get detailed, actionable responses tailored
     }
 
     // ======================
-    // PLATFORM INTEGRATION
+    // AUTO-SCORE AFTER GENERATION
+    // ======================
+    async autoScorePromptIfEnabled() {
+        // Check if auto-scoring is enabled in settings
+        if (!this.state.settings.autoScoreEnabled) return;
+        
+        const outputArea = document.getElementById('outputArea');
+        const prompt = outputArea?.textContent?.trim();
+        
+        if (!prompt || prompt.length < 50) return;
+        
+        try {
+            console.log('Auto-scoring prompt...');
+            
+            const api = new JavaBackendAPI();
+            const score = await api.scorePrompt(prompt, 'chatgpt');
+            
+            // Store score for later display
+            this.state.lastPromptScore = score;
+            
+            // Show subtle notification
+            this.showNotification(`✓ Prompt scored: ${score.grade} (${(score.totalScore/10).toFixed(1)}/10)`, 'success', 3000);
+            
+            // Update UI with score badge if button exists
+            if (this.elements.metricsBtn) {
+                this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(score.totalScore/10).toFixed(1)}/10`;
+                this.elements.metricsBtn.classList.add('has-score');
+            }
+            
+        } catch (err) {
+            console.warn('Auto-scoring failed:', err);
+            // Silent fail - don't bother user
+        }
+    }
+
+    // ======================
+    // PLATFORM INTEGRATION - SAFE LAUNCH
     // ======================
 
     async handlePlatformClick(platformId) {
@@ -1412,6 +1132,9 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ======================
     // PROMPT ACTIONS
     // ======================
+    // ======================
+    // PROMPT ACTIONS - FIXED FOR PROBLEM 5
+    // ======================
 
     async copyPrompt() {
         if (!this.elements.outputArea) return;
@@ -1424,6 +1147,7 @@ This structured approach ensures you get detailed, actionable responses tailored
         }
         
         try {
+            // 🔧 FIX 5: Add execution instructions when copying
             const copyText = `=== COPY AND PASTE BELOW INTO YOUR AI TOOL ===
 
 ${text}
@@ -1458,6 +1182,7 @@ ${text}
             } catch (fallbackErr) {
                 console.error('Fallback copy failed:', fallbackErr);
                 
+                // Last resort: Show prompt for manual copy
                 this.showNotification(`Copy failed. Here's your prompt to copy manually: ${text.substring(0, 100)}...`, 'error', 5000);
             }
         }
@@ -1520,7 +1245,7 @@ ${text}
     // ======================
 
     resetApplication() {
-        // Reset button visibility
+        // ✅ FIX: Reset button visibility
         if (this.elements.stickyPrepareBtn) {
             this.elements.stickyPrepareBtn.style.display = 'flex';
         }
@@ -1530,7 +1255,8 @@ ${text}
         
         this.state.undoStack = [];
         this.state.redoStack = [];
-        this.state.generatedFromInput = null;
+        this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
+        this.state.lastPromptScore = null;     // ✅ CLEAR SCORE
         
         if (this.elements.userInput) {
             this.elements.userInput.value = '';
@@ -1542,7 +1268,7 @@ ${text}
         this.state.selectedPlatform = null;
         this.state.hasGeneratedPrompt = false;
         
-        // Restore model from settings
+        // ✅ FIX: Restore model from settings
         if (this.state.settings.defaultModel) {
             this.state.currentModel = this.state.settings.defaultModel;
         } else {
@@ -1553,7 +1279,15 @@ ${text}
         this.updateButtonStates();
         this.updateProgress();
         
+        // Clear score from metrics button
+        if (this.elements.metricsBtn) {
+            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i>`;
+            this.elements.metricsBtn.classList.remove('has-score');
+        }
+        
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        
+        
     }
 
     clearGeneratedPrompt() {
@@ -1564,7 +1298,7 @@ ${text}
         this.state.originalPrompt = null;
         this.state.promptModified = false;
         this.state.hasGeneratedPrompt = false;
-        this.state.generatedFromInput = null;
+        this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
         this.state.selectedPlatform = null;
         
         if (this.elements.outputSection) {
@@ -1574,6 +1308,8 @@ ${text}
         this.updateProgress();
         this.updateButtonStates();
     }
+
+    // ❌ undo() method REMOVED (functionality doesn't exist in UI)
 
     // ======================
     // SETTINGS MODAL
@@ -1613,6 +1349,7 @@ ${text}
         const interfaceLanguage = document.getElementById('interfaceLanguage');
         const voiceInputLanguage = document.getElementById('voiceInputLanguage');
         const voiceOutputLanguage = document.getElementById('voiceOutputLanguage');
+        const autoScoreEnabled = document.getElementById('autoScoreEnabled');
         
         if (themeSelect) themeSelect.value = this.state.settings.theme || 'dark';
         if (uiDensity) uiDensity.value = this.state.settings.uiDensity || 'comfortable';
@@ -1624,6 +1361,7 @@ ${text}
         if (interfaceLanguage) interfaceLanguage.value = this.state.settings.interfaceLanguage || 'en';
         if (voiceInputLanguage) voiceInputLanguage.value = this.state.settings.voiceInputLanguage || 'en-US';
         if (voiceOutputLanguage) voiceOutputLanguage.value = this.state.settings.voiceOutputLanguage || 'en-US';
+        if (autoScoreEnabled) autoScoreEnabled.checked = this.state.settings.autoScoreEnabled || true;
         
         const saveBtn = document.getElementById('saveSettingsBtn');
         if (saveBtn) {
@@ -1644,6 +1382,7 @@ ${text}
         const interfaceLanguage = document.getElementById('interfaceLanguage');
         const voiceInputLanguage = document.getElementById('voiceInputLanguage');
         const voiceOutputLanguage = document.getElementById('voiceOutputLanguage');
+        const autoScoreEnabled = document.getElementById('autoScoreEnabled');
         
         if (themeSelect) {
             this.state.settings.theme = themeSelect.value;
@@ -1661,6 +1400,7 @@ ${text}
             this.state.settings.defaultModel = defaultModel.value;
             this.state.currentModel = defaultModel.value;
             console.log('Default model set to:', defaultModel.value);
+            // ✅ FIX: Update model display immediately
             this.updateModelDisplay();
         }
         
@@ -1697,6 +1437,11 @@ ${text}
         if (voiceOutputLanguage) {
             this.state.settings.voiceOutputLanguage = voiceOutputLanguage.value;
             console.log('Voice output language set to:', voiceOutputLanguage.value);
+        }
+        
+        if (autoScoreEnabled) {
+            this.state.settings.autoScoreEnabled = autoScoreEnabled.checked;
+            console.log('Auto-score enabled:', autoScoreEnabled.checked);
         }
         
         console.log('Settings to save:', this.state.settings);
@@ -1761,9 +1506,10 @@ ${text}
         
         if (!editorTextarea || !closeEditorBtn) return;
         
-        // Optional editor buttons
+        // Optional editor buttons (check if they exist)
         const editorPrepareBtn = document.getElementById('editorPrepareBtn');
         const editorMicBtn = document.getElementById('editorMicBtn');
+        const editorUndoBtn = document.getElementById('editorUndoBtn');
         
         // Only set up events for buttons that exist
         if (editorPrepareBtn) {
@@ -1781,6 +1527,7 @@ ${text}
             };
         }
     
+        
         editorTextarea.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
@@ -1915,6 +1662,7 @@ Focus on practical insights that drive decision-making.`,
 
 Keep the summary concise yet comprehensive.`,
             
+            // 🔥 ADDED: Business Strategy template
             strategy: `Develop a comprehensive business strategy for an organization. The strategy should:
 1. Define vision, mission, and long-term objectives
 2. Analyze market, customers, and competitors
@@ -2021,10 +1769,15 @@ Keep the summary concise yet comprehensive.`,
             }
         }
         
+        // ❌ undoBtn state update REMOVED (button doesn't exist in HTML)
+        
         // Show/hide clear button
         if (this.elements.clearInputBtn) {
             this.elements.clearInputBtn.style.display = hasInput ? 'flex' : 'none';
         }
+        
+        // Editor prepare button (if exists)
+     
     }
 
     updateProgress() {
@@ -2132,56 +1885,61 @@ Keep the summary concise yet comprehensive.`,
         });
     }
 
-    restoreHistoryItem(id) {
-        const item = this.state.promptHistory.find(h => h.id === id);
-        if (!item) return;
+restoreHistoryItem(id) {
+    const item = this.state.promptHistory.find(h => h.id === id);
+    if (!item) return;
 
-        this.clearGeneratedPrompt();
+    this.clearGeneratedPrompt(); // ✅ ADD THIS
 
-        if (this.elements.userInput) {
-            this.elements.userInput.value = item.fullInput;
-            this.handleInputChange();
-        }
-
-        if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
-            const editorTextarea = document.getElementById('editorTextarea');
-            const editorPrepareBtn = document.getElementById('editorPrepareBtn');
-
-            if (editorTextarea) editorTextarea.value = item.fullInput;
-            if (editorPrepareBtn) editorPrepareBtn.disabled = false;
-        }
-
-        this.closeHistory();
+    if (this.elements.userInput) {
+        this.elements.userInput.value = item.fullInput;
+        this.handleInputChange();
     }
 
-    viewHistoryItem(id) {
-        const item = this.state.promptHistory.find(h => h.id === id);
-        if (!item) return;
-        this.clearGeneratedPrompt();
+    if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
+        const editorTextarea = document.getElementById('editorTextarea');
+        const editorPrepareBtn = document.getElementById('editorPrepareBtn');
 
-        if (this.elements.userInput) {
-            this.elements.userInput.value = item.fullInput;
-            this.handleInputChange();
-            this.updateButtonStates();
+        if (editorTextarea) editorTextarea.value = item.fullInput;
+        if (editorPrepareBtn) editorPrepareBtn.disabled = false;
+    }
+
+    this.closeHistory();
+}
+
+
+
+
+viewHistoryItem(id) {
+    const item = this.state.promptHistory.find(h => h.id === id);
+    if (!item) return;
+    this.clearGeneratedPrompt(); // ✅ ADD THIS
+
+    if (this.elements.userInput) {
+        this.elements.userInput.value = item.fullInput;
+        this.handleInputChange();
+        this.updateButtonStates();
+    }
+
+    this.openFullScreenEditor('input');
+
+    setTimeout(() => {
+        const editorTextarea = document.getElementById('editorTextarea');
+        const editorPrepareBtn = document.getElementById('editorPrepareBtn');
+
+        if (editorTextarea) {
+            editorTextarea.value = item.fullInput;
         }
 
-        this.openFullScreenEditor('input');
+        if (editorPrepareBtn) {
+            editorPrepareBtn.disabled = false; // 🔥 KEY LINE
+        }
+    }, 0);
 
-        setTimeout(() => {
-            const editorTextarea = document.getElementById('editorTextarea');
-            const editorPrepareBtn = document.getElementById('editorPrepareBtn');
+    this.closeHistory();
+}
 
-            if (editorTextarea) {
-                editorTextarea.value = item.fullInput;
-            }
 
-            if (editorPrepareBtn) {
-                editorPrepareBtn.disabled = false;
-            }
-        }, 0);
-
-        this.closeHistory();
-    }
 
     // ======================
     // SETTINGS MANAGEMENT
@@ -2193,7 +1951,7 @@ Keep the summary concise yet comprehensive.`,
             this.state.settings = { ...this.loadDefaultSettings(), ...saved };
         }
         
-        // Restore model from saved settings
+        // ✅ FIX: Restore model from saved settings
         if (this.state.settings.defaultModel) {
             this.state.currentModel = this.state.settings.defaultModel;
         }
@@ -2231,7 +1989,7 @@ Keep the summary concise yet comprehensive.`,
     // NOTIFICATIONS
     // ======================
 
-    showNotification(message, type = 'info') {
+    showNotification(message, type = 'info', duration = null) {
         if (!this.elements.notificationContainer) return;
         
         const notification = document.createElement('div');
@@ -2252,13 +2010,15 @@ Keep the summary concise yet comprehensive.`,
             notification.remove();
         });
         
-        const duration = this.state.settings.notificationDuration || 3000;
+        const finalDuration = duration || this.state.settings.notificationDuration || 3000;
         setTimeout(() => {
             if (notification.parentNode) {
                 notification.classList.add('fade-out');
                 setTimeout(() => notification.remove(), 300);
             }
-        }, duration);
+        }, finalDuration);
+        
+        return notification;
     }
 
     getNotificationIcon(type) {
@@ -2335,71 +2095,74 @@ Keep the summary concise yet comprehensive.`,
         }
     }
 
-    handleKeyboardShortcuts(e) {
-        const tag = e.target.tagName?.toLowerCase();
+handleKeyboardShortcuts(e) {
+    const tag = e.target.tagName?.toLowerCase();
 
-        const isTyping =
-            tag === 'input' ||
-            tag === 'textarea' ||
-            e.target.isContentEditable;
+    const isTyping =
+        tag === 'input' ||
+        tag === 'textarea' ||
+        e.target.isContentEditable;
 
-        /* =========================
-           ALT + P → Prepare Prompt
-           ========================= */
-        if (e.altKey && e.key.toLowerCase() === 'p') {
-            e.preventDefault();
+    /* =========================
+       ALT + P → Prepare Prompt
+       (ALLOW while typing)
+       ========================= */
+    if (e.altKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault();
 
-            if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
-                this.preparePrompt();
-                this.showNotification('⚡ Prepare Prompt (Alt + P)', 'info');
-            }
-            return;
+        if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
+            this.preparePrompt();
+            this.showNotification('⚡ Prepare Prompt (Alt + P)', 'info');
         }
+        return;
+    }
 
-        // Block other shortcuts while typing (except Alt-based actions)
-        if (isTyping && !e.altKey) return;
+    // Block other shortcuts while typing
+// Block other shortcuts while typing (except Alt-based actions)
+if (isTyping && !e.altKey) return;
 
-        /* =========================
-           Ctrl / Cmd + Enter
-           ========================= */
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
-                this.preparePrompt();
-            }
-        }
-
-        /* =========================
-           ALT + T → Open AI Tool
-           ========================= */
-        if (e.altKey && e.key.toLowerCase() === 't') {
-            e.preventDefault();
-
-            const toolBtn =
-                document.querySelector('.platform-card.selected') ||
-                document.querySelector('.platform-card');
-
-            if (toolBtn) {
-                toolBtn.click();
-                toolBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                this.showNotification('🚀 AI Tool opened (Alt + T)', 'info');
-            } else {
-                this.showNotification('Generate a prompt first', 'warning');
-            }
-            return;
-        }
-
-        /* =========================
-           ESC key handling
-           ========================= */
-        if (e.key === 'Escape') {
-            if (this.state.isEditorOpen) this.closeFullScreenEditor();
-            if (this.state.inspirationPanelOpen) this.closeInspirationPanel();
-            if (this.elements.historySection?.classList.contains('active')) {
-                this.closeHistory();
-            }
+    /* =========================
+       Ctrl / Cmd + Enter
+       ========================= */
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
+            this.preparePrompt();
         }
     }
+
+    /* =========================
+       ALT + T → Open AI Tool
+       ========================= */
+    if (e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+
+        const toolBtn =
+            document.querySelector('.platform-card.selected') ||
+            document.querySelector('.platform-card');
+
+        if (toolBtn) {
+            toolBtn.click();
+            toolBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            this.showNotification('🚀 AI Tool opened (Alt + T)', 'info');
+        } else {
+            this.showNotification('Generate a prompt first', 'warning');
+        }
+        return;
+    }
+
+    /* =========================
+       ESC key handling
+       ========================= */
+    if (e.key === 'Escape') {
+        if (this.state.isEditorOpen) this.closeFullScreenEditor();
+        if (this.state.inspirationPanelOpen) this.closeInspirationPanel();
+        if (this.elements.historySection?.classList.contains('active')) {
+            this.closeHistory();
+        }
+    }
+}
+
 
     updateUI() {
         this.updateButtonStates();
@@ -2408,26 +2171,132 @@ Keep the summary concise yet comprehensive.`,
     }
 }
 
+// ======================
+// JAVA BACKEND API CLIENT
+// ======================
+class JavaBackendAPI {
+    constructor(baseUrl = 'http://localhost:8080/api') {
+        this.baseUrl = baseUrl;
+    }
+
+    async scorePrompt(prompt, tool = 'chatgpt') {
+        const response = await fetch(`${this.baseUrl}/prompts/score`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prompt, tool })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Scoring API failed: ${response.status}`);
+        }
+
+        return response.json();
+    }
+}
+
+// ======================
+// PROMPT SCORE RENDERER (WITH LOADING)
+// ======================
+function renderPromptScore(score, isLoading = false) {
+    const slot = document.getElementById('rankingExplanationSlot');
+    if (!slot) return;
+
+    if (isLoading) {
+        slot.innerHTML = `
+            <div class="prompt-score-ui loading">
+                <div class="score-header">
+                    <h3>Prompt Quality Score</h3>
+                    <span class="score-badge shimmer">•••</span>
+                </div>
+                
+                <div class="score-bar">
+                    <label>Clarity</label>
+                    <div class="bar"><div class="fill shimmer" style="width:70%"></div></div>
+                    <span class="shimmer">--%</span>
+                </div>
+                
+                <div class="score-bar">
+                    <label>Structure</label>
+                    <div class="bar"><div class="fill shimmer" style="width:50%"></div></div>
+                    <span class="shimmer">--%</span>
+                </div>
+                
+                <div class="score-bar">
+                    <label>Intent</label>
+                    <div class="bar"><div class="fill shimmer" style="width:30%"></div></div>
+                    <span class="shimmer">--%</span>
+                </div>
+                
+                <div class="score-feedback">
+                    <p class="shimmer">Analyzing prompt quality...</p>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    // Normalize values for UI
+    const clarityPct = Math.round((score.clarityAndIntent / 20) * 100);
+    const structurePct = Math.round((score.structure / 15) * 100);
+    const intentPct = Math.round((score.contextAndRole / 15) * 100);
+    const badgeScore = (score.totalScore / 10).toFixed(1);
+    
+    // Determine grade-based color
+    const gradeColor = getGradeColor(score.grade);
+
+    slot.innerHTML = `
+        <div class="prompt-score-ui">
+            <div class="score-header">
+                <h3>Prompt Quality Score</h3>
+                <span class="score-badge" style="background-color: ${gradeColor}">${badgeScore}/10</span>
+            </div>
+
+            <div class="score-bar">
+                <label>Clarity</label>
+                <div class="bar"><div class="fill" style="width:${clarityPct}%; background-color: ${gradeColor}"></div></div>
+                <span>${clarityPct}%</span>
+            </div>
+
+            <div class="score-bar">
+                <label>Structure</label>
+                <div class="bar"><div class="fill" style="width:${structurePct}%; background-color: ${gradeColor}"></div></div>
+                <span>${structurePct}%</span>
+            </div>
+
+            <div class="score-bar">
+                <label>Intent</label>
+                <div class="bar"><div class="fill" style="width:${intentPct}%; background-color: ${gradeColor}"></div></div>
+                <span>${intentPct}%</span>
+            </div>
+
+            <div class="score-feedback" style="border-left-color: ${gradeColor}">
+                <p>
+                    <strong style="color: ${gradeColor}">${score.grade}.</strong>
+                    ${score.grade === 'Excellent' || score.grade === 'Very Good'
+                        ? 'Well-structured, clear, and likely to produce great results.'
+                        : 'Consider improving clarity, structure, or constraints.'}
+                </p>
+            </div>
+        </div>
+    `;
+}
+
+// ======================
+// GRADE COLOR HELPER
+// ======================
+function getGradeColor(grade) {
+    const colors = {
+        'Excellent': '#10b981', // Emerald green
+        'Very Good': '#3b82f6', // Blue
+        'Good': '#8b5cf6',      // Violet
+        'Fair': '#f59e0b',      // Amber
+        'Poor': '#ef4444',      // Red
+        'Inadequate': '#6b7280' // Gray
+    };
+    return colors[grade] || '#6b7280';
+}
+
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
-    
-    // Initialize scoring after app is ready
-    setTimeout(initializeScoring, 1000);
-    
-    // Scoring keyboard shortcut (Shift + Alt + S)
-    document.addEventListener('keydown', (e) => {
-        if (e.shiftKey && e.altKey && e.key === 'S') {
-            e.preventDefault();
-            const scoreBtn = document.getElementById('scorePromptBtn');
-            if (scoreBtn && !scoreBtn.disabled) {
-                scoreBtn.click();
-            }
-        }
-    });
 });
-
-// Make scoring functions globally available
-window.closeScoreDisplay = closeScoreDisplay;
-window.scoreCurrentPrompt = scoreCurrentPrompt;
-window.updateScoreDisplay = updateScoreDisplay;
