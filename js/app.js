@@ -190,37 +190,32 @@ function calculateLocalScore(prompt) {
 // ======================
 // UPDATE SCORE DISPLAY
 // ======================
+// ======================
+// UPDATE SCORE DISPLAY
+// ======================
 function updateScoreDisplay(scoreData) {
     // Try to find existing score display
     let scoreResults = document.getElementById('scoreResults');
     
     // If score card is already visible, close it (toggle functionality)
-    if (scoreResults && scoreResults.style.display !== 'none') {
+    if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
         closeScoreDisplay();
         return;
     }
     
     if (!scoreResults) {
-        // Find a reasonable parent container
-        const parentContainer = 
-            document.querySelector('.scoring-card') ||
-            document.querySelector('.card[data-card-type="scoring"]') ||
-            document.getElementById('scoringSection') ||
-            document.getElementById('settingsPanel') ||
-            document.querySelector('.settings-modal .card-body');
-        
-        if (parentContainer) {
+        // Find the output card to append score results
+        const outputCard = document.getElementById('outputCard');
+        if (outputCard) {
             scoreResults = document.createElement('div');
             scoreResults.id = 'scoreResults';
-            scoreResults.className = 'score-results mt-3';
-            parentContainer.appendChild(scoreResults);
-        } else {
-            // Last resort: append to output card
-            const outputCard = document.getElementById('outputCard');
-            if (outputCard) {
-                scoreResults = document.createElement('div');
-                scoreResults.id = 'scoreResults';
-                scoreResults.className = 'score-results mt-3';
+            scoreResults.className = 'score-results';
+            
+            // Append after the output area but before any existing ranking explanation
+            const outputContainer = outputCard.querySelector('.output-container');
+            if (outputContainer) {
+                outputContainer.appendChild(scoreResults);
+            } else {
                 outputCard.appendChild(scoreResults);
             }
         }
@@ -231,34 +226,37 @@ function updateScoreDisplay(scoreData) {
     
     // Render score with close button
     scoreResults.innerHTML = `
-        <div class="score-card animate-fade-in">
+        <div class="score-card">
             <!-- Close Button -->
             <button class="score-close-btn" title="Close score display" onclick="closeScoreDisplay()">
                 <i class="fas fa-times"></i>
             </button>
             
             <!-- Score Header -->
-            <div class="flex items-center justify-between mb-2">
-                <span class="font-semibold text-sm">Prompt Quality Score</span>
+            <div class="score-header">
+                <div class="score-title">
+                    <i class="fas fa-chart-line"></i>
+                    Prompt Quality Score
+                </div>
                 <div class="score-badge score-${Math.floor(scoreData.score)}">
                     ${scoreData.score}/10
                     ${scoreData.isFallback ? 
-                        '<span class="ml-1 text-xs px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded">local</span>' : 
+                        '<span class="local-fallback-badge">local</span>' : 
                         ''}
                 </div>
             </div>
             
             <!-- Dimensions -->
             ${scoreData.dimensions ? `
-            <div class="dimensions mt-3 space-y-1">
+            <div class="dimensions">
                 ${Object.entries(scoreData.dimensions).map(([dim, value]) => `
                 <div class="dimension">
-                    <div class="flex justify-between text-xs mb-1">
-                        <span>${dim.charAt(0).toUpperCase() + dim.slice(1)}</span>
-                        <span>${value}%</span>
+                    <div class="dimension-header">
+                        <span class="dimension-name">${dim.charAt(0).toUpperCase() + dim.slice(1)}</span>
+                        <span class="dimension-value">${value}%</span>
                     </div>
-                    <div class="h-1 bg-gray-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-500" style="width: ${value}%"></div>
+                    <div class="dimension-bar-container">
+                        <div class="dimension-bar" style="width: ${value}%"></div>
                     </div>
                 </div>
                 `).join('')}
@@ -267,16 +265,18 @@ function updateScoreDisplay(scoreData) {
             
             <!-- Feedback -->
             ${scoreData.feedback ? `
-            <div class="feedback mt-3 p-2 bg-gray-50 rounded text-sm">
-                <i class="fas fa-comment-alt text-gray-500 mr-2"></i>
-                ${scoreData.feedback}
+            <div class="feedback">
+                <div class="feedback-content">
+                    <i class="fas fa-comment-alt feedback-icon"></i>
+                    <div class="feedback-text">${scoreData.feedback}</div>
+                </div>
             </div>
             ` : ''}
             
-            <!-- Close button at bottom (alternative) -->
-            <div class="mt-3 pt-2 border-t border-gray-200">
-                <button class="text-xs text-gray-500 hover:text-gray-700" onclick="closeScoreDisplay()">
-                    <i class="fas fa-times mr-1"></i>
+            <!-- Bottom close button (optional) -->
+            <div class="score-bottom-close">
+                <button class="score-bottom-close-btn" onclick="closeScoreDisplay()">
+                    <i class="fas fa-times"></i>
                     Close
                 </button>
             </div>
@@ -287,6 +287,121 @@ function updateScoreDisplay(scoreData) {
     setTimeout(() => {
         document.addEventListener('click', handleClickOutsideScoreCard);
     }, 100);
+}
+
+// ======================
+// CLOSE SCORE DISPLAY
+// ======================
+function closeScoreDisplay() {
+    const scoreResults = document.getElementById('scoreResults');
+    if (scoreResults) {
+        // Add fade out animation
+        scoreResults.style.opacity = '0';
+        scoreResults.style.transform = 'translateY(10px)';
+        
+        setTimeout(() => {
+            scoreResults.style.display = 'none';
+            scoreResults.innerHTML = '';
+            scoreResults.style.opacity = '';
+            scoreResults.style.transform = '';
+        }, 200);
+        
+        // Remove click outside listener
+        document.removeEventListener('click', handleClickOutsideScoreCard);
+    }
+}
+
+// ======================
+// HANDLE CLICK OUTSIDE
+// ======================
+function handleClickOutsideScoreCard(event) {
+    const scoreResults = document.getElementById('scoreResults');
+    if (!scoreResults || scoreResults.style.display === 'none') return;
+    
+    const scoreCard = scoreResults.querySelector('.score-card');
+    const scorePromptBtn = document.getElementById('scorePromptBtn');
+    
+    // Check if click is outside the score card AND not on the score button
+    if (!scoreCard.contains(event.target) && 
+        event.target !== scorePromptBtn && 
+        !scorePromptBtn.contains(event.target)) {
+        closeScoreDisplay();
+    }
+}
+
+// ======================
+// ENHANCED SCORE CURRENT PROMPT
+// ======================
+async function scoreCurrentPrompt() {
+    // ✅ Use correct DOM element
+    const promptText = document.getElementById('outputArea')?.innerText?.trim();
+    
+    if (!promptText || promptText.length < 10) {
+        showNotification('No valid prompt to score', 'warning');
+        return;
+    }
+    
+    // Check if score card is already open
+    const scoreResults = document.getElementById('scoreResults');
+    if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
+        // Toggle close if already open
+        closeScoreDisplay();
+        showNotification('Score display closed', 'info');
+        return;
+    }
+    
+    try {
+        // Add loading state to score button
+        const scoreBtn = document.getElementById('scorePromptBtn');
+        if (scoreBtn) {
+            const originalHTML = scoreBtn.innerHTML;
+            scoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            scoreBtn.disabled = true;
+            
+            setTimeout(() => {
+                scoreBtn.innerHTML = originalHTML;
+                scoreBtn.disabled = false;
+            }, 2000);
+        }
+        
+        showNotification('Scoring prompt...', 'info');
+        
+        // Try Java backend first
+        const scoreData = await window.scorePrompt?.(promptText);
+        
+        if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
+            // ✅ Ensure it matches our contract
+            const normalizedScoreData = {
+                score: scoreData.score,
+                dimensions: scoreData.dimensions || {
+                    clarity: Math.round((scoreData.score / 10) * 100),
+                    structure: Math.round((scoreData.score / 10) * 100),
+                    intent: Math.round((scoreData.score / 10) * 100)
+                },
+                feedback: scoreData.feedback || 'Backend scoring complete',
+                isFallback: false
+            };
+            
+            showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
+            updateScoreDisplay(normalizedScoreData);
+            
+        } else {
+            throw new Error('Invalid response from scoring service');
+        }
+        
+    } catch (error) {
+        console.warn('Backend scoring failed, using local scoring:', error);
+        
+        // Fallback to local scoring
+        const fallbackScoreData = calculateLocalScore(promptText);
+        
+        showNotification(
+            `Using local scoring: ${fallbackScoreData.score}/10`,
+            'warning'
+        );
+        
+        updateScoreDisplay(fallbackScoreData);
+    }
 }
 
 // ======================
@@ -927,6 +1042,7 @@ class PromptCraftApp {
 // ================================
 // SCORING BUTTON INTEGRATION
 // ================================
+// In your setupEventListeners() function
 const scorePromptBtn = document.getElementById('scorePromptBtn');
 if (scorePromptBtn) {
     scorePromptBtn.addEventListener('click', (e) => {
@@ -939,11 +1055,11 @@ if (scorePromptBtn) {
         if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
             // Toggle close if already open
             closeScoreDisplay();
-            this.showNotification('Score display closed', 'info');
+            window.promptCraftApp.showNotification('Score display closed', 'info');
         } else if (hasGeneratedPrompt) {
             scoreCurrentPrompt();
         } else {
-            this.showNotification('Generate a prompt first before scoring', 'warning');
+            window.promptCraftApp.showNotification('Generate a prompt first before scoring', 'warning');
         }
     });
 }
