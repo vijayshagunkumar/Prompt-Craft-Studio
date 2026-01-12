@@ -60,28 +60,137 @@
         
         /* ✅ ADDED: Workflow highlight - CLEAR AND VISIBLE */
         .workflow-highlight {
-            background: rgba(79, 70, 229, 0.15);
-            color: #d1d5ff;
-            font-weight: 600;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            font-weight: 700;
             font-size: 0.9rem;
-            margin-top: 8px;
-            padding: 8px 12px;
-            border-radius: 8px;
+            margin-top: 12px;
+            padding: 12px 18px;
+            border-radius: 10px;
             display: inline-block;
-            border: 1px solid rgba(79, 70, 229, 0.3);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
             animation: gentle-pulse 3s infinite;
+            white-space: pre-line;
+            line-height: 1.5;
         }
         
         @keyframes gentle-pulse {
             0%, 100% { 
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+                box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
                 transform: translateY(0);
             }
             50% { 
-                box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
-                transform: translateY(-1px);
+                box-shadow: 0 8px 25px rgba(79, 70, 229, 0.7);
+                transform: translateY(-2px);
             }
+        }
+        
+        /* Scoring button styling */
+        #scorePromptBtn {
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+        
+        #scorePromptBtn:hover {
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+        }
+        
+        /* Backend status indicator */
+        .backend-status {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            z-index: 999;
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            backdrop-filter: blur(10px);
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .backend-status.online {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border-color: rgba(16, 185, 129, 0.3);
+        }
+        
+        .backend-status.offline {
+            background: rgba(245, 158, 11, 0.15);
+            color: #f59e0b;
+            border-color: rgba(245, 158, 11, 0.3);
+        }
+        
+        .backend-status span:first-child {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .backend-status.online span:first-child {
+            background-color: #10b981;
+        }
+        
+        .backend-status.offline span:first-child {
+            background-color: #f59e0b;
+        }
+        
+        /* Scoring results */
+        .score-results {
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .score-card {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .score-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 14px;
+            border: 2px solid;
+            animation: pulseScore 0.5s ease;
+        }
+        
+        @keyframes pulseScore {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .score-10 { color: #059669; border-color: #059669; background: #d1fae5; }
+        .score-9 { color: #10b981; border-color: #10b981; background: #ecfdf5; }
+        .score-8 { color: #0d9488; border-color: #0d9488; background: #f0fdfa; }
+        .score-7 { color: #0891b2; border-color: #0891b2; background: #f0f9ff; }
+        .score-6 { color: #4f46e5; border-color: #4f46e5; background: #eef2ff; }
+        .score-5 { color: #f59e0b; border-color: #f59e0b; background: #fffbeb; }
+        .score-4 { color: #f97316; border-color: #f97316; background: #fff7ed; }
+        .score-3 { color: #ef4444; border-color: #ef4444; background: #fef2f2; }
+        .score-2 { color: #dc2626; border-color: #dc2626; background: #fef2f2; }
+        .score-1, .score-0 { color: #991b1b; border-color: #991b1b; background: #fef2f2; }
+        
+        /* Keyboard key styling */
+        kbd {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: monospace;
+            font-size: 0.85em;
+            margin: 0 2px;
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
         }
     </style>
 </head>
@@ -99,14 +208,10 @@
                             <h1>PromptCraft Pro</h1>
                             <p>Enterprise-grade AI prompt optimization for professional workflows</p>
                             <!-- ✅ ADDED: Highlighted workflow instructions in header -->
-                           <div class="workflow-highlight" style="background: #4f46e5; color: white; font-weight: 700; padding: 12px 18px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.4); box-shadow: 0 6px 20px rgba(79,70,229,0.5);">
-    <i class="fas fa-play-circle" style="margin-right: 8px; color: #fbbf24;"></i>
-    1. Type or speak →
-2. Prepare prompt <kbd>Alt</kbd>+<kbd>P</kbd> →
-3. Open AI tool <kbd>Alt</kbd>+<kbd>T</kbd> →
-Paste
-
-</div>
+                            <div class="workflow-highlight">
+                                <i class="fas fa-play-circle" style="margin-right: 8px; color: #fbbf24;"></i>
+                                1. Type or speak → 2. Prepare prompt <kbd>Alt</kbd>+<kbd>P</kbd> → 3. Open AI tool <kbd>Alt</kbd>+<kbd>T</kbd> → Paste
+                            </div>
                         </div>
                     </a>
                     
@@ -152,8 +257,6 @@ Paste
                         </div>
                     </div>
                     
-                    <!-- ✅ REMOVED: Old workflow instructions from here -->
-
                     <div class="textarea-container">
                         <!-- Character Counter (Top-right corner) -->
                         <div class="char-counter" id="charCounter">0/5000</div>
@@ -279,11 +382,11 @@ Paste
                                 <i class="fas fa-expand"></i>
                                 <span class="action-btn-tooltip">Maximize</span>
                             </button>
-                            <button id="scorePromptBtn" class="action-btn" title="Score prompt quality">
-    <i class="fas fa-chart-line"></i>
-    <span class="action-btn-tooltip">Score</span>
-</button>
-
+                            <!-- ✅ FIXED: Single scoring button with proper styling -->
+                            <button id="scorePromptBtn" class="action-btn" title="Score prompt quality (Shift+Alt+S)">
+                                <i class="fas fa-chart-line"></i>
+                                <span class="action-btn-tooltip">Score Prompt</span>
+                            </button>
                         </div>
                         
                         <!-- Save Button (Appears when prompt is edited) -->
@@ -358,19 +461,13 @@ Paste
                 </div>
             </div>
         </div>
-<!-- Add this anywhere in your HTML -->
-<div id="backendStatusIndicator" class="backend-status offline" style="display: none;">
-    <span></span>
-    <span>Checking backend...</span>
-</div>
 
-<!-- If you want a scoring button, add this too -->
-<button onclick="scoreCurrentPrompt()" class="btn-scoring">
-    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M2.5 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2h-11zm5 2h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zm-5 1a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V3zm9-1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h1z"/>
-    </svg>
-    Score Prompt
-</button>
+        <!-- ✅ ADDED: Backend status indicator (Hidden by default, shown by JS) -->
+        <div id="backendStatusIndicator" class="backend-status offline">
+            <span></span>
+            <span>Checking backend...</span>
+        </div>
+
         <!-- Action Bar for proper button layout -->
         <div class="action-bar">
             <button id="stickyPrepareBtn" class="sticky-cta prepare">
@@ -493,32 +590,37 @@ Paste
                         <p class="helper-text">Adjust spacing and density for optimal workflow</p>
                     </div>
                 </div>
-                <!-- ==================== PROMPT SCORING SECTION ==================== -->
-<div class="card" style="margin-top: 20px;">
-    <div class="step-header">
-        <div class="step-number">
-            <i class="fas fa-chart-line"></i>
-        </div>
-        <div>
-            <div class="step-title">Prompt Scoring & Analysis</div>
-            <div class="step-subtitle">Get AI-powered feedback on prompt quality</div>
-        </div>
-    </div>
-    
-    <div class="scoring-container" style="padding: 20px;">
-        <button id="scorePromptBtn" class="sticky-cta prepare" 
-                style="width: 100%; padding: 15px; font-size: 1.1rem;">
-            <i class="fas fa-chart-bar"></i>
-            <span>Score This Prompt</span>
-            <span class="shortcut-hint">(Shift+Alt+S)</span>
-        </button>
-        
-        <!-- Results container with proper CSS class -->
-        <div id="scoreResults" class="score-results" style="display: none;">
-            <!-- Results will be injected here by JavaScript -->
-        </div>
-    </div>
-</div>
+                
+                <!-- ✅ FIXED: Simplified Scoring Section -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">
+                        <i class="fas fa-chart-line"></i>
+                        Prompt Scoring
+                    </h3>
+                    
+                    <div class="setting-item">
+                        <div class="scoring-info">
+                            <p class="helper-text" style="margin-bottom: 10px;">
+                                Get AI-powered feedback on your prompt quality. Score dimensions include:
+                            </p>
+                            <ul style="color: var(--text-secondary); font-size: 0.9rem; margin-left: 20px; margin-bottom: 15px;">
+                                <li><strong>Clarity</strong>: How clear and understandable your prompt is</li>
+                                <li><strong>Structure</strong>: Logical organization and formatting</li>
+                                <li><strong>Intent</strong>: Effectiveness in communicating desired output</li>
+                            </ul>
+                        </div>
+                        
+                        <button id="settingsScoreBtn" class="btn-action" style="width: 100%; padding: 12px; margin-top: 10px;">
+                            <i class="fas fa-chart-bar"></i>
+                            Score Current Prompt (Shift+Alt+S)
+                        </button>
+                        
+                        <div id="settingsScoreResults" class="score-results" style="display: none; margin-top: 15px;">
+                            <!-- Results will appear here -->
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- AI Preferences -->
                 <div class="settings-group">
                     <h3 class="settings-group-title">
@@ -649,6 +751,43 @@ Paste
     <script src="js/ai-tool-ranking.js"></script>
     <script src="js/app.js"></script>
     
+    <!-- ✅ ADDED: Keyboard Shortcut for Scoring -->
+    <script>
+        // Keyboard shortcut handler for scoring (Shift+Alt+S)
+        document.addEventListener('keydown', (e) => {
+            if (e.shiftKey && e.altKey && e.key === 'S') {
+                e.preventDefault();
+                const scoringBtn = document.getElementById('scorePromptBtn');
+                if (scoringBtn) {
+                    scoringBtn.click();
+                    console.log('Scoring triggered via keyboard shortcut: Shift+Alt+S');
+                }
+            }
+        });
+        
+        // Initialize backend status indicator
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                const backendIndicator = document.getElementById('backendStatusIndicator');
+                if (backendIndicator) {
+                    backendIndicator.style.display = 'flex';
+                }
+            }, 1000);
+        });
+        
+        // Connect settings scoring button to main scoring function
+        document.addEventListener('DOMContentLoaded', () => {
+            const settingsScoreBtn = document.getElementById('settingsScoreBtn');
+            if (settingsScoreBtn) {
+                settingsScoreBtn.addEventListener('click', () => {
+                    const scoringBtn = document.getElementById('scorePromptBtn');
+                    if (scoringBtn) {
+                        scoringBtn.click();
+                    }
+                });
+            }
+        });
+    </script>
     
     <!-- Error Suppression for Cosmetic Syntax Errors -->
     <script>
@@ -661,216 +800,217 @@ Paste
             }
         });
     </script>
-    <!-- Performance Monitoring & Fixes -->
-<script>
-// 🔧 FIX: Performance monitoring for all problems
-class PerformanceMonitor {
-    constructor() {
-        this.metrics = {
-            generationTime: [],
-            promptLengths: [],
-            cacheHits: 0,
-            cacheMisses: 0,
-            executablePrompts: 0,
-            nonExecutablePrompts: 0
-        };
-        
-        // Monitor prompt generation
-        this.monitorGenerations();
-        
-        // Monitor copy operations
-        this.monitorCopyOperations();
-        
-        // Log performance periodically
-        setInterval(() => this.logPerformance(), 60000);
-        
-        console.log('Performance monitoring enabled');
-    }
     
-    monitorGenerations() {
-        const originalPrepare = window.promptCraftApp?.preparePrompt;
-        if (originalPrepare) {
-            window.promptCraftApp.preparePrompt = async function(...args) {
-                const start = performance.now();
-                const result = await originalPrepare.apply(this, args);
-                const end = performance.now();
+    <!-- Performance Monitoring & Fixes -->
+    <script>
+        // 🔧 FIX: Performance monitoring for all problems
+        class PerformanceMonitor {
+            constructor() {
+                this.metrics = {
+                    generationTime: [],
+                    promptLengths: [],
+                    cacheHits: 0,
+                    cacheMisses: 0,
+                    executablePrompts: 0,
+                    nonExecutablePrompts: 0
+                };
                 
-                if (window.performanceMonitor) {
-                    window.performanceMonitor.trackGeneration(end - start);
-                    
-                    // Track prompt length and executability
-                    const output = document.getElementById('outputArea');
-                    if (output && output.textContent.trim()) {
-                        const length = output.textContent.length;
-                        window.performanceMonitor.trackPromptLength(length);
+                // Monitor prompt generation
+                this.monitorGenerations();
+                
+                // Monitor copy operations
+                this.monitorCopyOperations();
+                
+                // Log performance periodically
+                setInterval(() => this.logPerformance(), 60000);
+                
+                console.log('Performance monitoring enabled');
+            }
+            
+            monitorGenerations() {
+                const originalPrepare = window.promptCraftApp?.preparePrompt;
+                if (originalPrepare) {
+                    window.promptCraftApp.preparePrompt = async function(...args) {
+                        const start = performance.now();
+                        const result = await originalPrepare.apply(this, args);
+                        const end = performance.now();
                         
-                        // Check if prompt is executable
-                        const isExecutable = window.performanceMonitor.checkExecutability(output.textContent);
-                        if (isExecutable) {
-                            window.performanceMonitor.metrics.executablePrompts++;
-                        } else {
-                            window.performanceMonitor.metrics.nonExecutablePrompts++;
-                            console.warn('Non-executable prompt generated');
+                        if (window.performanceMonitor) {
+                            window.performanceMonitor.trackGeneration(end - start);
+                            
+                            // Track prompt length and executability
+                            const output = document.getElementById('outputArea');
+                            if (output && output.textContent.trim()) {
+                                const length = output.textContent.length;
+                                window.performanceMonitor.trackPromptLength(length);
+                                
+                                // Check if prompt is executable
+                                const isExecutable = window.performanceMonitor.checkExecutability(output.textContent);
+                                if (isExecutable) {
+                                    window.performanceMonitor.metrics.executablePrompts++;
+                                } else {
+                                    window.performanceMonitor.metrics.nonExecutablePrompts++;
+                                    console.warn('Non-executable prompt generated');
+                                }
+                            }
                         }
-                    }
+                        
+                        return result;
+                    };
+                }
+            }
+            
+            monitorCopyOperations() {
+                const originalCopy = window.promptCraftApp?.copyPrompt;
+                if (originalCopy) {
+                    window.promptCraftApp.copyPrompt = async function(...args) {
+                        console.log('Copy operation with execution instructions');
+                        return originalCopy.apply(this, args);
+                    };
+                }
+            }
+            
+            trackGeneration(time) {
+                this.metrics.generationTime.push(time);
+                if (this.metrics.generationTime.length > 100) this.metrics.generationTime.shift();
+                
+                // Show warning if too slow
+                if (time > 10000) {
+                    console.warn(`Slow generation: ${time.toFixed(0)}ms`);
+                }
+            }
+            
+            trackPromptLength(length) {
+                this.metrics.promptLengths.push(length);
+                if (this.metrics.promptLengths.length > 100) this.metrics.promptLengths.shift();
+                
+                // Show warning if too short
+                if (length < 150) {
+                    console.warn(`Short prompt generated: ${length} chars`);
+                    this.showLengthWarning(length);
+                }
+            }
+            
+            checkExecutability(text) {
+                if (!text) return false;
+                
+                // Simple executability check
+                const executableIndicators = [
+                    /^(execute|task|write|create|generate|analyze)/i,
+                    /requirements?:/i,
+                    /instructions?:/i
+                ];
+                
+                const metaIndicators = [
+                    /prompt for/i,
+                    /role:/i,
+                    /objective:/i,
+                    /you should/i
+                ];
+                
+                let execScore = 0;
+                for (const pattern of executableIndicators) {
+                    if (pattern.test(text)) execScore++;
                 }
                 
-                return result;
-            };
-        }
-    }
-    
-    monitorCopyOperations() {
-        const originalCopy = window.promptCraftApp?.copyPrompt;
-        if (originalCopy) {
-            window.promptCraftApp.copyPrompt = async function(...args) {
-                console.log('Copy operation with execution instructions');
-                return originalCopy.apply(this, args);
-            };
-        }
-    }
-    
-    trackGeneration(time) {
-        this.metrics.generationTime.push(time);
-        if (this.metrics.generationTime.length > 100) this.metrics.generationTime.shift();
-        
-        // Show warning if too slow
-        if (time > 10000) {
-            console.warn(`Slow generation: ${time.toFixed(0)}ms`);
-        }
-    }
-    
-    trackPromptLength(length) {
-        this.metrics.promptLengths.push(length);
-        if (this.metrics.promptLengths.length > 100) this.metrics.promptLengths.shift();
-        
-        // Show warning if too short
-        if (length < 150) {
-            console.warn(`Short prompt generated: ${length} chars`);
-            this.showLengthWarning(length);
-        }
-    }
-    
-    checkExecutability(text) {
-        if (!text) return false;
-        
-        // Simple executability check
-        const executableIndicators = [
-            /^(execute|task|write|create|generate|analyze)/i,
-            /requirements?:/i,
-            /instructions?:/i
-        ];
-        
-        const metaIndicators = [
-            /prompt for/i,
-            /role:/i,
-            /objective:/i,
-            /you should/i
-        ];
-        
-        let execScore = 0;
-        for (const pattern of executableIndicators) {
-            if (pattern.test(text)) execScore++;
-        }
-        
-        let metaScore = 0;
-        for (const pattern of metaIndicators) {
-            if (pattern.test(text.toLowerCase())) metaScore++;
-        }
-        
-        return execScore > metaScore && text.length >= 150;
-    }
-    
-    showLengthWarning(length) {
-        // Optional: Show UI warning for short prompts
-        const warning = document.createElement('div');
-        warning.className = 'validation-message';
-        warning.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Prompt may be too short (${length} chars). Consider adding more details.`;
-        warning.style.position = 'fixed';
-        warning.style.bottom = '80px';
-        warning.style.right = '20px';
-        warning.style.zIndex = '9999';
-        warning.style.maxWidth = '300px';
-        
-        document.body.appendChild(warning);
-        setTimeout(() => warning.remove(), 5000);
-    }
-    
-    logPerformance() {
-        if (this.metrics.generationTime.length > 0) {
-            const avgTime = this.metrics.generationTime.reduce((a, b) => a + b, 0) / this.metrics.generationTime.length;
-            const avgLength = this.metrics.promptLengths.length > 0 
-                ? this.metrics.promptLengths.reduce((a, b) => a + b, 0) / this.metrics.promptLengths.length 
-                : 0;
+                let metaScore = 0;
+                for (const pattern of metaIndicators) {
+                    if (pattern.test(text.toLowerCase())) metaScore++;
+                }
+                
+                return execScore > metaScore && text.length >= 150;
+            }
             
-            const execRate = this.metrics.executablePrompts + this.metrics.nonExecutablePrompts > 0
-                ? (this.metrics.executablePrompts / (this.metrics.executablePrompts + this.metrics.nonExecutablePrompts)) * 100
-                : 0;
+            showLengthWarning(length) {
+                // Optional: Show UI warning for short prompts
+                const warning = document.createElement('div');
+                warning.className = 'validation-message';
+                warning.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Prompt may be too short (${length} chars). Consider adding more details.`;
+                warning.style.position = 'fixed';
+                warning.style.bottom = '80px';
+                warning.style.right = '20px';
+                warning.style.zIndex = '9999';
+                warning.style.maxWidth = '300px';
+                
+                document.body.appendChild(warning);
+                setTimeout(() => warning.remove(), 5000);
+            }
             
-            console.log(`📊 Performance: Avg gen ${avgTime.toFixed(0)}ms, Avg length ${avgLength.toFixed(0)} chars, Executable: ${execRate.toFixed(1)}%`);
-        }
-    }
-    
-    getMetrics() {
-        return {
-            ...this.metrics,
-            avgGenerationTime: this.metrics.generationTime.length > 0 
-                ? this.metrics.generationTime.reduce((a, b) => a + b, 0) / this.metrics.generationTime.length 
-                : 0,
-            avgPromptLength: this.metrics.promptLengths.length > 0 
-                ? this.metrics.promptLengths.reduce((a, b) => a + b, 0) / this.metrics.promptLengths.length 
-                : 0,
-            executableRate: this.metrics.executablePrompts + this.metrics.nonExecutablePrompts > 0
-                ? (this.metrics.executablePrompts / (this.metrics.executablePrompts + this.metrics.nonExecutablePrompts)) * 100
-                : 0
-        };
-    }
-}
-
-// Initialize when app is ready
-document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        if (window.promptCraftApp) {
-            window.performanceMonitor = new PerformanceMonitor();
+            logPerformance() {
+                if (this.metrics.generationTime.length > 0) {
+                    const avgTime = this.metrics.generationTime.reduce((a, b) => a + b, 0) / this.metrics.generationTime.length;
+                    const avgLength = this.metrics.promptLengths.length > 0 
+                        ? this.metrics.promptLengths.reduce((a, b) => a + b, 0) / this.metrics.promptLengths.length 
+                        : 0;
+                    
+                    const execRate = this.metrics.executablePrompts + this.metrics.nonExecutablePrompts > 0
+                        ? (this.metrics.executablePrompts / (this.metrics.executablePrompts + this.metrics.nonExecutablePrompts)) * 100
+                        : 0;
+                    
+                    console.log(`📊 Performance: Avg gen ${avgTime.toFixed(0)}ms, Avg length ${avgLength.toFixed(0)} chars, Executable: ${execRate.toFixed(1)}%`);
+                }
+            }
             
-            // 🔧 FIX 5: Add copy instructions to output area
-            const outputArea = document.getElementById('outputArea');
-            if (outputArea) {
-                const observer = new MutationObserver(() => {
-                    if (outputArea.textContent.trim() && !outputArea.textContent.includes('COPY AND PASTE')) {
-                        // Add subtle hint about executability
-                        if (!document.querySelector('.executable-hint')) {
-                            const hint = document.createElement('div');
-                            hint.className = 'executable-hint';
-                            hint.innerHTML = '<i class="fas fa-info-circle"></i> This prompt is ready to execute. Copy and paste directly into AI tools.';
-                            hint.style.cssText = 'font-size: 12px; color: var(--success); margin-top: 5px; padding: 5px; background: rgba(16, 185, 129, 0.1); border-radius: 4px;';
-                            outputArea.parentNode.insertBefore(hint, outputArea.nextSibling);
-                        }
-                    }
-                });
-                observer.observe(outputArea, { childList: true, characterData: true, subtree: true });
+            getMetrics() {
+                return {
+                    ...this.metrics,
+                    avgGenerationTime: this.metrics.generationTime.length > 0 
+                        ? this.metrics.generationTime.reduce((a, b) => a + b, 0) / this.metrics.generationTime.length 
+                        : 0,
+                    avgPromptLength: this.metrics.promptLengths.length > 0 
+                        ? this.metrics.promptLengths.reduce((a, b) => a + b, 0) / this.metrics.promptLengths.length 
+                        : 0,
+                    executableRate: this.metrics.executablePrompts + this.metrics.nonExecutablePrompts > 0
+                        ? (this.metrics.executablePrompts / (this.metrics.executablePrompts + this.metrics.nonExecutablePrompts)) * 100
+                        : 0
+                };
             }
         }
-    }, 3000);
-});
-
-// 🔧 FIX: Cache clearing on settings change
-function clearPromptCache() {
-    if (window.promptCraftApp?.promptGenerator) {
-        window.promptCraftApp.promptGenerator.clearCache();
-        console.log('Prompt cache cleared');
-    }
-}
-
-// Monitor settings changes for cache invalidation
-const settingsModal = document.getElementById('settingsModal');
-if (settingsModal) {
-    settingsModal.addEventListener('change', (e) => {
-        if (e.target.id === 'defaultModel' || e.target.id === 'promptStyle') {
-            clearPromptCache();
+        
+        // Initialize when app is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (window.promptCraftApp) {
+                    window.performanceMonitor = new PerformanceMonitor();
+                    
+                    // 🔧 FIX 5: Add copy instructions to output area
+                    const outputArea = document.getElementById('outputArea');
+                    if (outputArea) {
+                        const observer = new MutationObserver(() => {
+                            if (outputArea.textContent.trim() && !outputArea.textContent.includes('COPY AND PASTE')) {
+                                // Add subtle hint about executability
+                                if (!document.querySelector('.executable-hint')) {
+                                    const hint = document.createElement('div');
+                                    hint.className = 'executable-hint';
+                                    hint.innerHTML = '<i class="fas fa-info-circle"></i> This prompt is ready to execute. Copy and paste directly into AI tools.';
+                                    hint.style.cssText = 'font-size: 12px; color: var(--success); margin-top: 5px; padding: 5px; background: rgba(16, 185, 129, 0.1); border-radius: 4px;';
+                                    outputArea.parentNode.insertBefore(hint, outputArea.nextSibling);
+                                }
+                            }
+                        });
+                        observer.observe(outputArea, { childList: true, characterData: true, subtree: true });
+                    }
+                }
+            }, 3000);
+        });
+        
+        // 🔧 FIX: Cache clearing on settings change
+        function clearPromptCache() {
+            if (window.promptCraftApp?.promptGenerator) {
+                window.promptCraftApp.promptGenerator.clearCache();
+                console.log('Prompt cache cleared');
+            }
         }
-    });
-}
-</script>
+        
+        // Monitor settings changes for cache invalidation
+        const settingsModal = document.getElementById('settingsModal');
+        if (settingsModal) {
+            settingsModal.addEventListener('change', (e) => {
+                if (e.target.id === 'defaultModel' || e.target.id === 'promptStyle') {
+                    clearPromptCache();
+                }
+            });
+        }
+    </script>
 </body>
 </html>
