@@ -21,3 +21,11 @@ const JavaBackendConfig = {
 if (typeof window.AppConfig === 'object') {
     window.AppConfig.JavaBackend = JavaBackendConfig;
 }
+// ======================
+// EXPOSE FUNCTIONS TO WINDOW OBJECT
+// ======================
+if (typeof window !== 'undefined') {
+    window.checkJavaBackendHealth = checkJavaBackendHealth;
+    window.scorePrompt = scorePrompt;
+    console.log('✅ Java backend functions exposed to window');
+}
