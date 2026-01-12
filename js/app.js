@@ -342,27 +342,46 @@ async function scoreCurrentPrompt() {
         
         showNotification('Scoring prompt...', 'info');
         
-        // Try Java backend first
-        const scoreData = await window.scorePrompt?.(promptText);
+        console.log('🔍 Checking if window.scorePrompt exists:', typeof window.scorePrompt);
         
-        if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
-            // ✅ Ensure it matches our contract
-            const normalizedScoreData = {
-                score: scoreData.score,
-                dimensions: scoreData.dimensions || {
-                    clarity: Math.round((scoreData.score / 10) * 100),
-                    structure: Math.round((scoreData.score / 10) * 100),
-                    intent: Math.round((scoreData.score / 10) * 100)
-                },
-                feedback: scoreData.feedback || 'Backend scoring complete',
-                isFallback: false
-            };
+        // Try Java backend first
+        if (typeof window.scorePrompt === 'function') {
+            console.log('🎯 Calling window.scorePrompt()...');
+            const scoreData = await window.scorePrompt(promptText);
+            console.log('📊 Score data received:', scoreData);
             
-            showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
-            updateScoreDisplay(normalizedScoreData);
+            if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
+                // ✅ Ensure it matches our contract
+                const normalizedScoreData = {
+                    score: scoreData.score,
+                    dimensions: scoreData.dimensions || {
+                        clarity: Math.round((scoreData.score / 10) * 100),
+                        structure: Math.round((scoreData.score / 10) * 100),
+                        intent: Math.round((scoreData.score / 10) * 100)
+                    },
+                    feedback: scoreData.feedback || 'Backend scoring complete',
+                    isFallback: scoreData.isFallback || false
+                };
+                
+                console.log('✅ Normalized score data:', normalizedScoreData);
+                
+                // Show appropriate notification
+                if (normalizedScoreData.isFallback) {
+                    showNotification(`Using local scoring: ${normalizedScoreData.score}/10`, 'warning');
+                } else {
+                    showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
+                }
+                
+                updateScoreDisplay(normalizedScoreData);
+                
+            } else {
+                console.warn('Invalid score data format:', scoreData);
+                throw new Error('Invalid response from scoring service');
+            }
             
         } else {
-            throw new Error('Invalid response from scoring service');
+            console.warn('window.scorePrompt is not a function');
+            throw new Error('Scoring function not available');
         }
         
     } catch (error) {
@@ -370,6 +389,7 @@ async function scoreCurrentPrompt() {
         
         // Fallback to local scoring
         const fallbackScoreData = calculateLocalScore(promptText);
+        console.log('🔄 Local fallback score:', fallbackScoreData);
         
         showNotification(
             `Using local scoring: ${fallbackScoreData.score}/10`,
