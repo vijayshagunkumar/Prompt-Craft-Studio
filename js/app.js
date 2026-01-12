@@ -108,9 +108,273 @@ function onStrictModeToggle(isStrict) {
   if (!validation.valid && validation.correctedModel) {
     // Auto-correct and show toast
     document.getElementById('model-selector').value = validation.correctedModel;
-window.promptCraftApp?.showNotification(validation.reason, 'warning');
+    window.promptCraftApp?.showNotification(validation.reason, 'warning');
   }
 }
+
+// ======================
+// SINGLE SCORING CONTRACT
+// ======================
+/**
+ * @typedef {Object} ScoreResult
+ * @property {number} score - Score from 0-10
+ * @property {Object} dimensions - Dimension scores (0-100)
+ * @property {string=} feedback - Optional feedback text
+ * @property {boolean=} isFallback - Whether this is local fallback scoring
+ */
+
+// ======================
+// LOCAL FALLBACK SCORING (SINGLE DEFINITION)
+// ======================
+function calculateLocalScore(prompt) {
+    if (!prompt || prompt.length < 20) {
+        return {
+            score: 5.0,
+            dimensions: {
+                clarity: 50,
+                structure: 50,
+                intent: 50
+            },
+            feedback: 'Prompt too short for meaningful scoring',
+            isFallback: true
+        };
+    }
+    
+    let score = 5.0;
+    const length = prompt.length;
+    
+    // Length optimization (400-800 chars is sweet spot)
+    if (length > 400 && length < 800) score += 1.5;
+    else if (length > 800 && length < 1500) score += 1.0;
+    else if (length >= 1500) score += 0.5;
+    
+    // Structure detection
+    const sections = [
+        /task to perform:/i,
+        /requirements:/i, 
+        /format:/i,
+        /context:/i,
+        /style:/i,
+        /constraints:/i
+    ];
+    
+    const foundSections = sections.filter(pattern => pattern.test(prompt)).length;
+    score += Math.min(foundSections * 0.5, 2.0); // Max 2 bonus
+    
+    // Clarity/readability
+    const sentences = prompt.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const avgSentenceLength = sentences.length > 0 
+        ? prompt.length / sentences.length 
+        : 0;
+    
+    if (avgSentenceLength > 50 && avgSentenceLength < 150) score += 0.5;
+    
+    // Cap between 0-10
+    const finalScore = Math.min(10, Math.max(0, score));
+    
+    return {
+        score: parseFloat(finalScore.toFixed(1)),
+        dimensions: {
+            clarity: Math.round((finalScore / 10) * 100),
+            structure: Math.round((finalScore / 10) * 100),
+            intent: Math.round((finalScore / 10) * 100)
+        },
+        feedback: 'Local heuristic scoring',
+        isFallback: true
+    };
+}
+
+// ======================
+// UPDATE SCORE DISPLAY
+// ======================
+function updateScoreDisplay(scoreData) {
+    // Try to find or create score display
+    let scoreResults = document.getElementById('scoreResults');
+    
+    if (!scoreResults) {
+        // Find a reasonable parent container
+        const parentContainer = 
+            document.querySelector('.scoring-card') ||
+            document.querySelector('.card[data-card-type="scoring"]') ||
+            document.getElementById('scoringSection') ||
+            document.getElementById('settingsPanel') ||
+            document.querySelector('.settings-modal .card-body');
+        
+        if (parentContainer) {
+            scoreResults = document.createElement('div');
+            scoreResults.id = 'scoreResults';
+            scoreResults.className = 'score-results mt-3';
+            parentContainer.appendChild(scoreResults);
+        } else {
+            // Last resort: append to body
+            scoreResults = document.createElement('div');
+            scoreResults.id = 'scoreResults';
+            scoreResults.className = 'score-results fixed bottom-4 right-4 z-50';
+            document.body.appendChild(scoreResults);
+        }
+    }
+    
+    // Render score
+    scoreResults.innerHTML = `
+        <div class="score-card animate-fade-in">
+            <div class="flex items-center justify-between mb-2">
+                <span class="font-semibold text-sm">Prompt Quality</span>
+                <div class="score-badge score-${Math.floor(scoreData.score)}">
+                    ${scoreData.score}/10
+                    ${scoreData.isFallback ? 
+                        '<span class="ml-1 text-xs px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded">local</span>' : 
+                        ''}
+                </div>
+            </div>
+            
+            ${scoreData.dimensions ? `
+            <div class="dimensions mt-3 space-y-1">
+                ${Object.entries(scoreData.dimensions).map(([dim, value]) => `
+                <div class="dimension">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span>${dim.charAt(0).toUpperCase() + dim.slice(1)}</span>
+                        <span>${value}%</span>
+                    </div>
+                    <div class="h-1 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500" style="width: ${value}%"></div>
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+            
+            ${scoreData.feedback ? `
+            <div class="feedback mt-3 p-2 bg-gray-50 rounded text-sm">
+                ${scoreData.feedback}
+            </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// ======================
+// MAIN SCORING FUNCTION
+// ======================
+async function scoreCurrentPrompt() {
+    // ✅ Use correct DOM element
+    const promptText = document.getElementById('outputArea')?.innerText?.trim();
+    
+    if (!promptText || promptText.length < 10) {
+        showNotification('No valid prompt to score', 'warning');
+        return;
+    }
+    
+    try {
+        showNotification('Scoring prompt...', 'info');
+        
+        // Try Java backend first
+        const scoreData = await window.scorePrompt?.(promptText);
+        
+        if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
+            // ✅ Ensure it matches our contract
+            const normalizedScoreData = {
+                score: scoreData.score,
+                dimensions: scoreData.dimensions || {
+                    clarity: Math.round((scoreData.score / 10) * 100),
+                    structure: Math.round((scoreData.score / 10) * 100),
+                    intent: Math.round((scoreData.score / 10) * 100)
+                },
+                feedback: scoreData.feedback || 'Backend scoring complete',
+                isFallback: false
+            };
+            
+            showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
+            updateScoreDisplay(normalizedScoreData);
+            
+        } else {
+            throw new Error('Invalid response from scoring service');
+        }
+        
+    } catch (error) {
+        console.warn('Backend scoring failed, using local scoring:', error);
+        
+        // Fallback to local scoring
+        const fallbackScoreData = calculateLocalScore(promptText);
+        
+        showNotification(
+            `Using local scoring: ${fallbackScoreData.score}/10`,
+            'warning'
+        );
+        
+        updateScoreDisplay(fallbackScoreData);
+    }
+}
+
+// ======================
+// INITIALIZE SCORING
+// ======================
+async function initializeScoring() {
+    // Safety guard: wait for dependencies
+    if (typeof checkJavaBackendHealth !== 'function') {
+        console.warn('Java backend health check not loaded yet - retrying in 1s');
+        setTimeout(initializeScoring, 1000);
+        return;
+    }
+    
+    try {
+        // Test backend connection with timeout
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Health check timeout')), 5000)
+        );
+        
+        const healthPromise = window.checkJavaBackendHealth();
+        const health = await Promise.race([healthPromise, timeoutPromise]);
+        
+        if (health.status === 'healthy') {
+            console.log('✅ Java scoring backend available');
+            window.useJavaScoring = true;
+            
+            // Update UI indicator
+            document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
+                detail: { available: true }
+            }));
+        } else {
+            console.warn('⚠️ Java backend unavailable, using local scoring');
+            window.useJavaScoring = false;
+            
+            showNotification(
+                'Using local scoring (backend offline)', 
+                'info', 
+                3000
+            );
+        }
+    } catch (error) {
+        console.warn('⚠️ Could not reach Java backend:', error.message);
+        window.useJavaScoring = false;
+        
+        // Silently degrade
+        document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
+            detail: { available: false, error: error.message }
+        }));
+    }
+}
+
+// ======================
+// LISTEN FOR BACKEND STATUS
+// ======================
+document.addEventListener('scoringBackendStatus', (event) => {
+    const { available, error } = event.detail;
+    
+    // Update any backend indicator in UI
+    const backendIndicator = document.getElementById('backendStatusIndicator');
+    if (backendIndicator) {
+        backendIndicator.className = `backend-status ${available ? 'online' : 'offline'}`;
+        backendIndicator.innerHTML = available ? 
+            '<span>✓ Scoring active</span>' : 
+            `<span>⚠ Local only</span>`;
+    }
+    
+    // Log for debugging
+    if (!available && error) {
+        console.debug('Scoring backend status:', { available, error });
+    }
+});
+
 // ======================
 // MAIN APPLICATION CONTROLLER
 // ======================
@@ -191,16 +455,16 @@ class PromptCraftApp {
         this.storageManager = new StorageManager();
 
         // In your PromptCraftApp constructor
-this.voiceHandler = new VoiceHandler({
-    continuous: false,
-    interimResults: false, // 🔥 Only final results (no interim)
-    defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
-    maxListenTime: 10000, // 🔥 10 seconds max
-    maxSimilarityThreshold: 0.75, // 🔥 Stricter threshold
-    replaceMode: true, // 🔥 Critical for preventing duplicates
-    mergeProgressiveResults: true,
-    debounceDelay: 400
-});
+        this.voiceHandler = new VoiceHandler({
+            continuous: false,
+            interimResults: false, // 🔥 Only final results (no interim)
+            defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
+            maxListenTime: 10000, // 🔥 10 seconds max
+            maxSimilarityThreshold: 0.75, // 🔥 Stricter threshold
+            replaceMode: true, // 🔥 Critical for preventing duplicates
+            mergeProgressiveResults: true,
+            debounceDelay: 400
+        });
         
         this.platformIntegrations = new PlatformIntegrations();
         this.promptGenerator = new PromptGenerator({
@@ -209,7 +473,7 @@ this.voiceHandler = new VoiceHandler({
             timeout: 30000,
             fallbackToLocal: true,
             enableDebug: true,
-        strictPromptMode: true // 🔥 ADD THIS LINE
+            strictPromptMode: true // 🔥 ADD THIS LINE
         });
 
         // Bind elements (with null safety)
@@ -291,9 +555,7 @@ this.voiceHandler = new VoiceHandler({
             appContainer: document.querySelector('.app-container'),
             
             // Editor elements (with null safety - these might be removed from HTML)
-  
             editorMicBtn: document.getElementById('editorMicBtn'),
- 
             
             // Settings elements
             settingsBtn: document.getElementById('settingsBtn'),
@@ -507,112 +769,124 @@ this.voiceHandler = new VoiceHandler({
         
         // Auto-generation
         this.setupAutoGeneration();
-      // ================================
-// METRICS BUTTON ENABLE / DISABLE
-// ================================
+        
+        // ================================
+        // METRICS BUTTON ENABLE / DISABLE
+        // ================================
+        const metricsBtn = document.querySelector('.metrics-toggle');
+        const metricsBox = document.querySelector('.ranking-explanation');
+        const metricsCloseBtn = document.querySelector('.metrics-close-btn');
 
-const metricsBtn = document.querySelector('.metrics-toggle');
-const metricsBox = document.querySelector('.ranking-explanation');
-const metricsCloseBtn = document.querySelector('.metrics-close-btn');
+        if (metricsBtn && metricsBox && metricsCloseBtn) {
+            // OPEN metrics → disable button
+            metricsBtn.addEventListener('click', () => {
+                metricsBox.classList.add('active');   // open (already working visually)
+                metricsBtn.disabled = true;           // 🔒 disable click
+                metricsBtn.classList.add('disabled'); // optional visual state
+            });
 
-if (metricsBtn && metricsBox && metricsCloseBtn) {
+            // CLOSE metrics → enable button
+            metricsCloseBtn.addEventListener('click', () => {
+                metricsBox.classList.remove('active'); // close (already working)
+                metricsBtn.disabled = false;           // 🔓 re-enable click
+                metricsBtn.classList.remove('disabled');
+            });
+        }
 
-    // OPEN metrics → disable button
-    metricsBtn.addEventListener('click', () => {
-        metricsBox.classList.add('active');   // open (already working visually)
-        metricsBtn.disabled = true;           // 🔒 disable click
-        metricsBtn.classList.add('disabled'); // optional visual state
-    });
-
-    // CLOSE metrics → enable button
-    metricsCloseBtn.addEventListener('click', () => {
-        metricsBox.classList.remove('active'); // close (already working)
-        metricsBtn.disabled = false;           // 🔓 re-enable click
-        metricsBtn.classList.remove('disabled');
-    });
-}
-
+        // ================================
+        // SCORING BUTTON INTEGRATION
+        // ================================
+        const scorePromptBtn = document.getElementById('scorePromptBtn');
+        if (scorePromptBtn) {
+            scorePromptBtn.addEventListener('click', () => {
+                if (window.promptCraftApp?.state?.hasGeneratedPrompt) {
+                    scoreCurrentPrompt();
+                } else {
+                    this.showNotification('Generate a prompt first before scoring', 'warning');
+                }
+            });
+        }
     }
 
     // Set up voice handler callbacks
-setupVoiceCallbacks() {
-    this.voiceHandler.setCallbacks({
-        onListeningStart: () => {
-            this.showNotification('🎤 Listening... Speak now', 'info');
-            // Visual feedback
-            if (this.elements.micBtn) {
-                this.elements.micBtn.classList.add('listening');
-                this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>'; // Red dot
-            }
-        },
-        onListeningEnd: () => {
-            // Clear visual feedback
-            if (this.elements.micBtn) {
-                this.elements.micBtn.classList.remove('listening');
-                this.elements.micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            }
-        },
-        onTranscript: (text, metadata = {}) => {
-            console.log('🎯 Voice input received:', {
-                text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
-                isFinal: metadata.isFinal,
-                replaceMode: metadata.replaceMode,
-                similarityCheck: metadata.similarityCheck
-            });
-            
-            // 🔥 CRITICAL: ONLY process FINAL results
-            if (metadata.isFinal) {
-                // 🔥 CRITICAL: Use REPLACE mode - don't append!
-                if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
-                    const editor = document.getElementById('editorTextarea');
-                    if (editor) {
-                        // REPLACE entire content
-                        editor.value = text;
-                        editor.selectionStart = editor.selectionEnd = text.length;
-                        editor.focus();
-                        // Trigger input event
-                        editor.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                } else if (this.elements.userInput) {
-                    // 🔥 REPLACE main input entirely (not append!)
-                    this.elements.userInput.value = text;
-                    this.elements.userInput.selectionStart = 
-                    this.elements.userInput.selectionEnd = text.length;
-                    this.elements.userInput.focus();
-                    
-                    // Trigger input change handler
-                    this.handleInputChange();
+    setupVoiceCallbacks() {
+        this.voiceHandler.setCallbacks({
+            onListeningStart: () => {
+                this.showNotification('🎤 Listening... Speak now', 'info');
+                // Visual feedback
+                if (this.elements.micBtn) {
+                    this.elements.micBtn.classList.add('listening');
+                    this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>'; // Red dot
                 }
+            },
+            onListeningEnd: () => {
+                // Clear visual feedback
+                if (this.elements.micBtn) {
+                    this.elements.micBtn.classList.remove('listening');
+                    this.elements.micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
+                }
+            },
+            onTranscript: (text, metadata = {}) => {
+                console.log('🎯 Voice input received:', {
+                    text: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+                    isFinal: metadata.isFinal,
+                    replaceMode: metadata.replaceMode,
+                    similarityCheck: metadata.similarityCheck
+                });
                 
-                // Show success notification
-                const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
-                if (wordCount > 2) {
-                    this.showNotification(`✓ ${wordCount} words added via voice`, 'success', 2000);
+                // 🔥 CRITICAL: ONLY process FINAL results
+                if (metadata.isFinal) {
+                    // 🔥 CRITICAL: Use REPLACE mode - don't append!
+                    if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
+                        const editor = document.getElementById('editorTextarea');
+                        if (editor) {
+                            // REPLACE entire content
+                            editor.value = text;
+                            editor.selectionStart = editor.selectionEnd = text.length;
+                            editor.focus();
+                            // Trigger input event
+                            editor.dispatchEvent(new Event('input', { bubbles: true }));
+                        }
+                    } else if (this.elements.userInput) {
+                        // 🔥 REPLACE main input entirely (not append!)
+                        this.elements.userInput.value = text;
+                        this.elements.userInput.selectionStart = 
+                        this.elements.userInput.selectionEnd = text.length;
+                        this.elements.userInput.focus();
+                        
+                        // Trigger input change handler
+                        this.handleInputChange();
+                    }
+                    
+                    // Show success notification
+                    const wordCount = text.split(/\s+/).filter(w => w.length > 0).length;
+                    if (wordCount > 2) {
+                        this.showNotification(`✓ ${wordCount} words added via voice`, 'success', 2000);
+                    }
+                }
+                // 🔥 IGNORE interim results completely (they're disabled anyway)
+            },
+            onSpeakingStart: () => {
+                this.showNotification('🔊 Reading prompt...', 'info');
+            },
+            onSpeakingEnd: () => {
+                this.showNotification('Finished reading prompt', 'info');
+            },
+            onError: (error) => {
+                const errorLower = error.toLowerCase();
+                if (errorLower.includes('not supported')) {
+                    this.showNotification('Voice features not available in your browser', 'warning');
+                } else if (errorLower.includes('permission') || errorLower.includes('not-allowed')) {
+                    this.showNotification('Please allow microphone access', 'error');
+                } else if (errorLower.includes('network')) {
+                    this.showNotification('Network error. Check your connection', 'error');
+                } else if (!errorLower.includes('aborted')) {
+                    // Don't show "aborted" errors (user stopped)
+                    this.showNotification(`Voice error: ${error}`, 'error');
                 }
             }
-            // 🔥 IGNORE interim results completely (they're disabled anyway)
-        },
-        onSpeakingStart: () => {
-            this.showNotification('🔊 Reading prompt...', 'info');
-        },
-        onSpeakingEnd: () => {
-            this.showNotification('Finished reading prompt', 'info');
-        },
-        onError: (error) => {
-            const errorLower = error.toLowerCase();
-            if (errorLower.includes('not supported')) {
-                this.showNotification('Voice features not available in your browser', 'warning');
-            } else if (errorLower.includes('permission') || errorLower.includes('not-allowed')) {
-                this.showNotification('Please allow microphone access', 'error');
-            } else if (errorLower.includes('network')) {
-                this.showNotification('Network error. Check your connection', 'error');
-            } else if (!errorLower.includes('aborted')) {
-                // Don't show "aborted" errors (user stopped)
-                this.showNotification(`Voice error: ${error}`, 'error');
-            }
-        }
-    });
-}
+        });
+    }
 
     // Set up auto-generation
     setupAutoGeneration() {
@@ -702,14 +976,15 @@ setupVoiceCallbacks() {
             return;
         }
         
-let selectedModel = this.state.currentModel || 'gemini-3-flash-preview';
+        let selectedModel = this.state.currentModel || 'gemini-3-flash-preview';
 
-const validation = validateModelForMode(selectedModel, true);
-if (!validation.valid && validation.correctedModel) {
-    this.showNotification(validation.reason, 'warning');
-    selectedModel = validation.correctedModel;     // 🔥 CRITICAL
-    this.state.currentModel = validation.correctedModel;
-}
+        const validation = validateModelForMode(selectedModel, true);
+        if (!validation.valid && validation.correctedModel) {
+            this.showNotification(validation.reason, 'warning');
+            selectedModel = validation.correctedModel;     // 🔥 CRITICAL
+            this.state.currentModel = validation.correctedModel;
+        }
+        
         this.showLoading(true);
         
         try {
@@ -763,13 +1038,15 @@ if (!validation.valid && validation.correctedModel) {
                 if (this.elements.outputSection) {
                     this.elements.outputSection.classList.add('visible');
                 }
+                
                 // ✅ UX FIX: Auto-scroll to generated prompt (Step 2)
-setTimeout(() => {
-    this.elements.outputSection?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start'
-    });
-}, 150);
+                setTimeout(() => {
+                    this.elements.outputSection?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }, 150);
+                
                 if (this.elements.platformsGrid && this.elements.platformsEmptyState) {
                     this.platformIntegrations.renderPlatforms(this.elements.platformsGrid);
                 }
@@ -806,45 +1083,44 @@ setTimeout(() => {
         }
     }
 
-setOutputText(text) {
-    try {
-        if (!this.elements.outputArea) return false;
+    setOutputText(text) {
+        try {
+            if (!this.elements.outputArea) return false;
 
-        this.elements.outputArea.innerHTML = '';
-        this.elements.outputArea.textContent = '';
+            this.elements.outputArea.innerHTML = '';
+            this.elements.outputArea.textContent = '';
 
-        const cleanText = this.cleanTextForDOM(text);
-        this.elements.outputArea.textContent = cleanText;
+            const cleanText = this.cleanTextForDOM(text);
+            this.elements.outputArea.textContent = cleanText;
 
-        // ✅ STORE FOR RANKING
-        window.lastGeneratedPrompt = cleanText;
+            // ✅ STORE FOR RANKING
+            window.lastGeneratedPrompt = cleanText;
 
-        // ✅ DISPATCH EVENT (ONLY ONCE)
-        document.dispatchEvent(new CustomEvent('promptGenerated', {
-            detail: { result: cleanText }
-        }));
+            // ✅ DISPATCH EVENT (ONLY ONCE)
+            document.dispatchEvent(new CustomEvent('promptGenerated', {
+                detail: { result: cleanText }
+            }));
 
-        // UI refresh
-        this.elements.outputArea.style.display = 'none';
-        this.elements.outputArea.offsetHeight;
-        this.elements.outputArea.style.display = '';
+            // UI refresh
+            this.elements.outputArea.style.display = 'none';
+            this.elements.outputArea.offsetHeight;
+            this.elements.outputArea.style.display = '';
 
-        requestAnimationFrame(() => {
-            this.elements.outputArea.scrollTop = this.elements.outputArea.scrollHeight;
-        });
+            requestAnimationFrame(() => {
+                this.elements.outputArea.scrollTop = this.elements.outputArea.scrollHeight;
+            });
 
-        console.log('📢 promptGenerated dispatched:', cleanText.length, 'chars');
-        return true;
+            console.log('📢 promptGenerated dispatched:', cleanText.length, 'chars');
+            return true;
 
-    } catch (e) {
-        console.error('Display failed:', e);
-        if (this.elements.outputArea) {
-            this.elements.outputArea.textContent = text.slice(0, 500);
+        } catch (e) {
+            console.error('Display failed:', e);
+            if (this.elements.outputArea) {
+                this.elements.outputArea.textContent = text.slice(0, 500);
+            }
+            return false;
         }
-        return false;
     }
-}
-
     
     cleanTextForDOM(text) {
         if (!text || typeof text !== 'string') return '';
@@ -857,7 +1133,7 @@ setOutputText(text) {
     }
         
     async tryFallbackModels(inputText) {
-  const fallbackModels = ['gpt-4o-mini'];
+        const fallbackModels = ['gpt-4o-mini'];
         let fallbackSuccess = false;
         
         for (const fallbackModel of fallbackModels) {
@@ -1039,9 +1315,6 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ======================
     // PROMPT ACTIONS
     // ======================
-    // ======================
-    // PROMPT ACTIONS - FIXED FOR PROBLEM 5
-    // ======================
 
     async copyPrompt() {
         if (!this.elements.outputArea) return;
@@ -1186,8 +1459,6 @@ ${text}
         this.updateProgress();
         
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        
-        
     }
 
     clearGeneratedPrompt() {
@@ -1419,7 +1690,6 @@ ${text}
             };
         }
     
-        
         editorTextarea.addEventListener('keydown', (e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 e.preventDefault();
@@ -1667,9 +1937,6 @@ Keep the summary concise yet comprehensive.`,
         if (this.elements.clearInputBtn) {
             this.elements.clearInputBtn.style.display = hasInput ? 'flex' : 'none';
         }
-        
-        // Editor prepare button (if exists)
-     
     }
 
     updateProgress() {
@@ -1777,61 +2044,56 @@ Keep the summary concise yet comprehensive.`,
         });
     }
 
-restoreHistoryItem(id) {
-    const item = this.state.promptHistory.find(h => h.id === id);
-    if (!item) return;
+    restoreHistoryItem(id) {
+        const item = this.state.promptHistory.find(h => h.id === id);
+        if (!item) return;
 
-    this.clearGeneratedPrompt(); // ✅ ADD THIS
+        this.clearGeneratedPrompt(); // ✅ ADD THIS
 
-    if (this.elements.userInput) {
-        this.elements.userInput.value = item.fullInput;
-        this.handleInputChange();
-    }
-
-    if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
-        const editorTextarea = document.getElementById('editorTextarea');
-        const editorPrepareBtn = document.getElementById('editorPrepareBtn');
-
-        if (editorTextarea) editorTextarea.value = item.fullInput;
-        if (editorPrepareBtn) editorPrepareBtn.disabled = false;
-    }
-
-    this.closeHistory();
-}
-
-
-
-
-viewHistoryItem(id) {
-    const item = this.state.promptHistory.find(h => h.id === id);
-    if (!item) return;
-    this.clearGeneratedPrompt(); // ✅ ADD THIS
-
-    if (this.elements.userInput) {
-        this.elements.userInput.value = item.fullInput;
-        this.handleInputChange();
-        this.updateButtonStates();
-    }
-
-    this.openFullScreenEditor('input');
-
-    setTimeout(() => {
-        const editorTextarea = document.getElementById('editorTextarea');
-        const editorPrepareBtn = document.getElementById('editorPrepareBtn');
-
-        if (editorTextarea) {
-            editorTextarea.value = item.fullInput;
+        if (this.elements.userInput) {
+            this.elements.userInput.value = item.fullInput;
+            this.handleInputChange();
         }
 
-        if (editorPrepareBtn) {
-            editorPrepareBtn.disabled = false; // 🔥 KEY LINE
+        if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
+            const editorTextarea = document.getElementById('editorTextarea');
+            const editorPrepareBtn = document.getElementById('editorPrepareBtn');
+
+            if (editorTextarea) editorTextarea.value = item.fullInput;
+            if (editorPrepareBtn) editorPrepareBtn.disabled = false;
         }
-    }, 0);
 
-    this.closeHistory();
-}
+        this.closeHistory();
+    }
 
+    viewHistoryItem(id) {
+        const item = this.state.promptHistory.find(h => h.id === id);
+        if (!item) return;
+        this.clearGeneratedPrompt(); // ✅ ADD THIS
 
+        if (this.elements.userInput) {
+            this.elements.userInput.value = item.fullInput;
+            this.handleInputChange();
+            this.updateButtonStates();
+        }
+
+        this.openFullScreenEditor('input');
+
+        setTimeout(() => {
+            const editorTextarea = document.getElementById('editorTextarea');
+            const editorPrepareBtn = document.getElementById('editorPrepareBtn');
+
+            if (editorTextarea) {
+                editorTextarea.value = item.fullInput;
+            }
+
+            if (editorPrepareBtn) {
+                editorPrepareBtn.disabled = false; // 🔥 KEY LINE
+            }
+        }, 0);
+
+        this.closeHistory();
+    }
 
     // ======================
     // SETTINGS MANAGEMENT
@@ -1985,74 +2247,72 @@ viewHistoryItem(id) {
         }
     }
 
-handleKeyboardShortcuts(e) {
-    const tag = e.target.tagName?.toLowerCase();
+    handleKeyboardShortcuts(e) {
+        const tag = e.target.tagName?.toLowerCase();
 
-    const isTyping =
-        tag === 'input' ||
-        tag === 'textarea' ||
-        e.target.isContentEditable;
+        const isTyping =
+            tag === 'input' ||
+            tag === 'textarea' ||
+            e.target.isContentEditable;
 
-    /* =========================
-       ALT + P → Prepare Prompt
-       (ALLOW while typing)
-       ========================= */
-    if (e.altKey && e.key.toLowerCase() === 'p') {
-        e.preventDefault();
+        /* =========================
+           ALT + P → Prepare Prompt
+           (ALLOW while typing)
+           ========================= */
+        if (e.altKey && e.key.toLowerCase() === 'p') {
+            e.preventDefault();
 
-        if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
-            this.preparePrompt();
-            this.showNotification('⚡ Prepare Prompt (Alt + P)', 'info');
+            if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
+                this.preparePrompt();
+                this.showNotification('⚡ Prepare Prompt (Alt + P)', 'info');
+            }
+            return;
         }
-        return;
-    }
 
-    // Block other shortcuts while typing
-// Block other shortcuts while typing (except Alt-based actions)
-if (isTyping && !e.altKey) return;
+        // Block other shortcuts while typing (except Alt-based actions)
+        if (isTyping && !e.altKey) return;
 
-    /* =========================
-       Ctrl / Cmd + Enter
-       ========================= */
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
-            this.preparePrompt();
+        /* =========================
+           Ctrl / Cmd + Enter
+           ========================= */
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            if (this.elements.stickyPrepareBtn && !this.elements.stickyPrepareBtn.disabled) {
+                this.preparePrompt();
+            }
+        }
+
+        /* =========================
+           ALT + T → Open AI Tool
+           ========================= */
+        if (e.altKey && e.key.toLowerCase() === 't') {
+            e.preventDefault();
+
+            const toolBtn =
+                document.querySelector('.platform-card.selected') ||
+                document.querySelector('.platform-card');
+
+            if (toolBtn) {
+                toolBtn.click();
+                toolBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                this.showNotification('🚀 AI Tool opened (Alt + T)', 'info');
+            } else {
+                this.showNotification('Generate a prompt first', 'warning');
+            }
+            return;
+        }
+
+        /* =========================
+           ESC key handling
+           ========================= */
+        if (e.key === 'Escape') {
+            if (this.state.isEditorOpen) this.closeFullScreenEditor();
+            if (this.state.inspirationPanelOpen) this.closeInspirationPanel();
+            if (this.elements.historySection?.classList.contains('active')) {
+                this.closeHistory();
+            }
         }
     }
-
-    /* =========================
-       ALT + T → Open AI Tool
-       ========================= */
-    if (e.altKey && e.key.toLowerCase() === 't') {
-        e.preventDefault();
-
-        const toolBtn =
-            document.querySelector('.platform-card.selected') ||
-            document.querySelector('.platform-card');
-
-        if (toolBtn) {
-            toolBtn.click();
-            toolBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            this.showNotification('🚀 AI Tool opened (Alt + T)', 'info');
-        } else {
-            this.showNotification('Generate a prompt first', 'warning');
-        }
-        return;
-    }
-
-    /* =========================
-       ESC key handling
-       ========================= */
-    if (e.key === 'Escape') {
-        if (this.state.isEditorOpen) this.closeFullScreenEditor();
-        if (this.state.inspirationPanelOpen) this.closeInspirationPanel();
-        if (this.elements.historySection?.classList.contains('active')) {
-            this.closeHistory();
-        }
-    }
-}
-
 
     updateUI() {
         this.updateButtonStates();
@@ -2064,471 +2324,18 @@ if (isTyping && !e.altKey) return;
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
-});
-// ==================== PROMPT SCORING INTEGRATION ====================
-
-/**
- * Score the current prompt using Java backend
- */
-// ======================
-// SCORE CURRENT PROMPT (REPLACE EXISTING FUNCTION)
-// ======================
-async function scoreCurrentPrompt() {
-    // ✅ CRITICAL FIX: Use correct DOM element ID
-    const promptText = document.getElementById('outputArea')?.innerText?.trim();
     
-    if (!promptText || promptText.length < 10) {
-        showNotification('No valid prompt to score', 'warning');
-        return;
-    }
-    
-    try {
-        showNotification('Sending to scoring service...', 'info');
-        
-        // Use your Java backend service
-        const scoreData = await window.scorePrompt?.(promptText);
-        
-        if (scoreData) {
-            showNotification(`Prompt scored: ${scoreData.score}/10`, 'success');
-            updateScoreDisplay(scoreData);
-        } else {
-            throw new Error('No response from scoring service');
-        }
-        
-    } catch (error) {
-        console.error('Backend scoring failed:', error);
-        
-        // Fallback to local scoring
-        const localScore = calculateLocalScore(promptText);
-        
-        showNotification(
-            `Using local scoring: ${localScore}/10`, 
-            'warning'
-        );
-        
-        updateScoreDisplay({
-            score: localScore,
-            dimensions: {
-                clarity: Math.round((localScore / 10) * 100),
-                structure: Math.round((localScore / 10) * 100),
-                intent: Math.round((localScore / 10) * 100)
-            },
-            feedback: 'Local fallback scoring (Java backend unavailable)',
-            isFallback: true
-        });
-    }
-}
-
-// ======================
-// LOCAL FALLBACK SCORING (ADD NEW FUNCTION)
-// ======================
-function calculateLocalScore(prompt) {
-    if (!prompt || prompt.length < 20) return 5.0;
-    
-    let score = 5.0;
-    const length = prompt.length;
-    
-    // Length optimization (400-800 chars is sweet spot)
-    if (length > 400 && length < 800) score += 1.5;
-    else if (length > 800 && length < 1500) score += 1.0;
-    else if (length >= 1500) score += 0.5;
-    
-    // Structure detection
-    const sections = [
-        /task to perform:/i,
-        /requirements:/i, 
-        /format:/i,
-        /context:/i,
-        /style:/i,
-        /constraints:/i
-    ];
-    
-    const foundSections = sections.filter(pattern => pattern.test(prompt)).length;
-    score += Math.min(foundSections * 0.5, 2.0); // Max 2 bonus
-    
-    // Clarity/readability
-    const sentences = prompt.split(/[.!?]+/).filter(s => s.trim().length > 0);
-    const avgSentenceLength = sentences.length > 0 
-        ? prompt.length / sentences.length 
-        : 0;
-    
-    if (avgSentenceLength > 50 && avgSentenceLength < 150) score += 0.5;
-    
-    // Cap between 0-10
-    return Math.min(10, Math.max(0, score)).toFixed(1);
-}
-
-// ======================
-// UPDATE SCORE DISPLAY (ADD NEW FUNCTION)
-// ======================
-function updateScoreDisplay(scoreData) {
-    // Try to find or create score display
-    let scoreResults = document.getElementById('scoreResults');
-    
-    if (!scoreResults) {
-        // Find a reasonable parent container
-        const parentContainer = 
-            document.querySelector('.scoring-card') ||
-            document.querySelector('.card[data-card-type="scoring"]') ||
-            document.getElementById('scoringSection') ||
-            document.getElementById('settingsPanel') ||
-            document.querySelector('.settings-modal .card-body');
-        
-        if (parentContainer) {
-            scoreResults = document.createElement('div');
-            scoreResults.id = 'scoreResults';
-            scoreResults.className = 'score-results mt-3';
-            parentContainer.appendChild(scoreResults);
-        } else {
-            // Last resort: append to body
-            scoreResults = document.createElement('div');
-            scoreResults.id = 'scoreResults';
-            scoreResults.className = 'score-results fixed bottom-4 right-4 z-50';
-            document.body.appendChild(scoreResults);
-        }
-    }
-    
-    // Render score
-    scoreResults.innerHTML = `
-        <div class="score-card animate-fade-in">
-            <div class="flex items-center justify-between mb-2">
-                <span class="font-semibold text-sm">Prompt Quality</span>
-                <div class="score-badge score-${Math.floor(scoreData.score)}">
-                    ${scoreData.score}/10
-                    ${scoreData.isFallback ? 
-                        '<span class="ml-1 text-xs px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded">local</span>' : 
-                        ''}
-                </div>
-            </div>
-            
-            ${scoreData.dimensions ? `
-            <div class="dimensions mt-3 space-y-1">
-                ${Object.entries(scoreData.dimensions).map(([dim, value]) => `
-                <div class="dimension">
-                    <div class="flex justify-between text-xs mb-1">
-                        <span>${dim.charAt(0).toUpperCase() + dim.slice(1)}</span>
-                        <span>${value}%</span>
-                    </div>
-                    <div class="h-1 bg-gray-200 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue-500" style="width: ${value}%"></div>
-                    </div>
-                </div>
-                `).join('')}
-            </div>
-            ` : ''}
-            
-            ${scoreData.feedback ? `
-            <div class="feedback mt-3 p-2 bg-gray-50 rounded text-sm">
-                ${scoreData.feedback}
-            </div>
-            ` : ''}
-        </div>
-    `;
-}
-
-// ======================
-// INITIALIZE SCORING (ADD NEW FUNCTION)
-// ======================
-async function initializeScoring() {
-    // Safety guard: wait for dependencies
-    if (typeof checkJavaBackendHealth !== 'function') {
-        console.warn('Java backend health check not loaded yet - retrying in 1s');
-        setTimeout(initializeScoring, 1000);
-        return;
-    }
-    
-    try {
-        // Test backend connection with timeout
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Health check timeout')), 5000)
-        );
-        
-        const healthPromise = window.checkJavaBackendHealth();
-        const health = await Promise.race([healthPromise, timeoutPromise]);
-        
-        if (health.status === 'healthy') {
-            console.log('✅ Java scoring backend available');
-            window.useJavaScoring = true;
-            
-            // Update UI indicator
-            document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
-                detail: { available: true }
-            }));
-        } else {
-            console.warn('⚠️ Java backend unavailable, using local scoring');
-            window.useJavaScoring = false;
-            
-            showNotification(
-                'Using local scoring (backend offline)', 
-                'info', 
-                3000
-            );
-        }
-    } catch (error) {
-        console.warn('⚠️ Could not reach Java backend:', error.message);
-        window.useJavaScoring = false;
-        
-        // Silently degrade
-        document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
-            detail: { available: false, error: error.message }
-        }));
-    }
-}
-
-// ======================
-// LISTEN FOR BACKEND STATUS (ADD AT BOTTOM)
-// ======================
-document.addEventListener('scoringBackendStatus', (event) => {
-    const { available, error } = event.detail;
-    
-    // Update any backend indicator in UI
-    const backendIndicator = document.getElementById('backendStatusIndicator');
-    if (backendIndicator) {
-        backendIndicator.className = `backend-status ${available ? 'online' : 'offline'}`;
-        backendIndicator.innerHTML = available ? 
-            '<span>✓ Scoring active</span>' : 
-            `<span>⚠ Local only</span>`;
-    }
-    
-    // Log for debugging
-    if (!available && error) {
-        console.debug('Scoring backend status:', { available, error });
-    }
-});
-
-// Initialize after DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
+    // Initialize scoring after app is ready
     setTimeout(initializeScoring, 1000);
-});
-
-/**
- * Display scoring results in UI
- */
-function displayScoreResults(result) {
-    const container = document.getElementById('scoreResults');
-    if (!container) return;
     
-    const { success, data } = result;
-    
-    if (!success || !data) {
-        container.innerHTML = `
-            <div style="padding: 20px; text-align: center;">
-                <h3 style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Scoring Failed</h3>
-                <p>Unable to score the prompt. Please try again.</p>
-            </div>
-        `;
-        container.style.display = 'block';
-        return;
-    }
-    
-    const { score = 0, message = '', signals = [], suggestions = [] } = data;
-    
-    // Determine score color
-    let scoreColor = '#ef4444'; // red
-    let scoreIcon = 'fa-exclamation-triangle';
-    let scoreLabel = 'Needs Work';
-    
-    if (score >= 80) {
-        scoreColor = '#10b981'; // green
-        scoreIcon = 'fa-trophy';
-        scoreLabel = 'Excellent';
-    } else if (score >= 60) {
-        scoreColor = '#f59e0b'; // yellow
-        scoreIcon = 'fa-chart-line';
-        scoreLabel = 'Good';
-    }
-    
-    // Generate signals HTML
-    const signalsHTML = signals.length > 0 ? `
-        <div class="signals-grid">
-            ${signals.map(signal => {
-                const isGood = signal.includes('GOOD') || signal.includes('CLEAR') || signal.includes('STRUCTURED');
-                const icon = isGood ? 'fa-check-circle' : 'fa-exclamation-circle';
-                const className = isGood ? 'signal-good' : 'signal-needs-work';
-                const displayName = signal.replace(/_/g, ' ');
-                
-                return `
-                    <div class="signal-item ${className}">
-                        <i class="fas ${icon}" style="margin-right: 8px;"></i>
-                        <strong>${displayName}</strong>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    ` : '<p style="color: var(--text-secondary);"><i>No specific signals detected</i></p>';
-    
-    // Generate suggestions HTML
-    const suggestionsHTML = suggestions.length > 0 ? `
-        <div style="margin-top: 25px;">
-            <h4><i class="fas fa-lightbulb"></i> Suggestions for Improvement</h4>
-            ${suggestions.map(suggestion => `
-                <div class="suggestion-item">
-                    <i class="fas fa-arrow-right" style="margin-right: 10px;"></i> 
-                    ${suggestion}
-                </div>
-            `).join('')}
-        </div>
-    ` : '<p style="color: var(--text-secondary); margin-top: 20px;"><i>Great job! No major improvements needed.</i></p>';
-    
-    container.innerHTML = `
-        <div>
-            <div class="score-header">
-                <div>
-                    <h3><i class="fas ${scoreIcon}"></i> Prompt Analysis: <span style="color: ${scoreColor}">${scoreLabel}</span></h3>
-                    <p class="score-message">${message}</p>
-                </div>
-                <div class="score-value" style="color: ${scoreColor}">
-                    ${score}%
-                </div>
-            </div>
-            
-            <div style="margin: 20px 0;">
-                <h4><i class="fas fa-search"></i> Detected Signals</h4>
-                ${signalsHTML}
-            </div>
-            
-            ${suggestionsHTML}
-            
-            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; color: var(--text-secondary);">
-                <i class="fas fa-server"></i> Powered by Java backend AI analysis
-            </div>
-        </div>
-    `;
-    
-    container.style.display = 'block';
-    
-    // Scroll to results
-    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-/**
- * Fallback local scoring when Java backend is unavailable
- */
-function calculateLocalScore(promptText) {
-    let score = 70; // Base score
-    
-    const signals = [];
-    const suggestions = [];
-    
-    // Analyze prompt length
-    if (promptText.length > 300) {
-        score += 10;
-        signals.push('GOOD_LENGTH');
-    } else if (promptText.length < 150) {
-        score -= 15;
-        suggestions.push('Make prompt more detailed (aim for 300+ characters)');
-    }
-    
-    // Check for clarity indicators
-    const hasRole = /role\s*:/i.test(promptText);
-    const hasObjective = /objective\s*:|goal\s*:/i.test(promptText);
-    const hasInstructions = /instructions?\s*:|steps?\s*:/i.test(promptText);
-    
-    if (hasRole) {
-        score += 15;
-        signals.push('ROLE_CLEAR');
-    } else {
-        suggestions.push('Add a clear role (e.g., "Role: Senior Product Manager")');
-    }
-    
-    if (hasObjective) {
-        score += 10;
-        signals.push('OBJECTIVE_DEFINED');
-    }
-    
-    if (hasInstructions) {
-        score += 10;
-        signals.push('INSTRUCTIONS_PROVIDED');
-    } else {
-        suggestions.push('Add numbered instructions or clear steps');
-    }
-    
-    // Check for structure (line breaks)
-    const lineCount = promptText.split('\n').length;
-    if (lineCount > 5) {
-        score += 10;
-        signals.push('WELL_STRUCTURED');
-    } else if (lineCount <= 2) {
-        score -= 5;
-        suggestions.push('Use line breaks to organize your prompt into clear sections');
-    }
-    
-    // Check for examples
-    if (promptText.toLowerCase().includes('example') || promptText.includes('e.g.') || promptText.includes('for example')) {
-        score += 5;
-        signals.push('INCLUDES_EXAMPLES');
-    } else {
-        suggestions.push('Consider adding an example for clarity');
-    }
-    
-    // Check for constraints/requirements
-    if (promptText.toLowerCase().includes('constraint') || promptText.includes('requirement') || promptText.includes('must')) {
-        score += 5;
-        signals.push('CONSTRAINTS_DEFINED');
-    }
-    
-    // Clamp score
-    score = Math.min(Math.max(score, 10), 95);
-    
-    // Determine message based on score
-    let message = 'Prompt has basic structure';
-    if (score >= 80) {
-        message = 'Excellent prompt! Ready for production use.';
-    } else if (score >= 60) {
-        message = 'Good prompt, consider some improvements below.';
-    } else {
-        message = 'Prompt needs significant improvement.';
-    }
-    
-    return {
-        score: Math.round(score),
-        message,
-        signals,
-        suggestions
-    };
-}
-
-/**
- * Initialize scoring functionality
- */
-function initScoring() {
-    const scoreBtn = document.getElementById('scorePromptBtn');
-    if (scoreBtn) {
-        scoreBtn.addEventListener('click', scoreCurrentPrompt);
-    }
-    
-    // Check backend health on init
-    setTimeout(async () => {
-        try {
-            const isHealthy = await checkJavaBackendHealth();
-            console.log(`Java backend health: ${isHealthy ? '✅ Healthy' : '⚠️ Unavailable'}`);
-        } catch (e) {
-            console.warn('Backend health check failed on init:', e);
+    // Scoring keyboard shortcut (Shift + Alt + S)
+    document.addEventListener('keydown', (e) => {
+        if (e.shiftKey && e.altKey && e.key === 'S') {
+            e.preventDefault();
+            const scoreBtn = document.getElementById('scorePromptBtn');
+            if (scoreBtn && !scoreBtn.disabled) {
+                scoreBtn.click();
+            }
         }
-    }, 1000);
-    
-    console.log('Prompt scoring initialized');
-}
-
-// Initialize when app loads
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initScoring);
-} else {
-    initScoring();
-}
-
-// ✅ Keyboard shortcut for scoring (Shift + Alt + S)
-document.addEventListener('keydown', (e) => {
-    if (e.shiftKey && e.altKey && e.key === 'S') {
-        e.preventDefault();
-        const scoreBtn = document.getElementById('scorePromptBtn');
-        if (scoreBtn && !scoreBtn.disabled) {
-            scoreBtn.click();
-        }
-    }
+    });
 });
-
-// Make functions globally available for debugging
-window.scoreCurrentPrompt = scoreCurrentPrompt;
-window.calculateLocalScore = calculateLocalScore;
-window.displayScoreResults = displayScoreResults;
