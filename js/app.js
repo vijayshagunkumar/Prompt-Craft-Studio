@@ -2,10 +2,9 @@
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
 // Version: 2.0.0 - PRODUCTION READY
 // ============================================
-// Add to app.js (somewhere near the top or in your initialization)
 
 // ======================
-// NOTIFICATION WRAPPER (ADD AT TOP OF FILE)
+// NOTIFICATION WRAPPER
 // ======================
 function showNotification(message, type = 'info', duration = 3000) {
     console.log(`[${type.toUpperCase()}] ${message}`);
@@ -113,19 +112,10 @@ function onStrictModeToggle(isStrict) {
 }
 
 // ======================
-// SINGLE SCORING CONTRACT
+// SCORING FUNCTIONS (SINGLE DEFINITIONS)
 // ======================
-/**
- * @typedef {Object} ScoreResult
- * @property {number} score - Score from 0-10
- * @property {Object} dimensions - Dimension scores (0-100)
- * @property {string=} feedback - Optional feedback text
- * @property {boolean=} isFallback - Whether this is local fallback scoring
- */
 
-// ======================
-// LOCAL FALLBACK SCORING (SINGLE DEFINITION)
-// ======================
+// LOCAL FALLBACK SCORING
 function calculateLocalScore(prompt) {
     if (!prompt || prompt.length < 20) {
         return {
@@ -184,15 +174,7 @@ function calculateLocalScore(prompt) {
     };
 }
 
-// ======================
 // UPDATE SCORE DISPLAY
-// ======================
-// ======================
-// UPDATE SCORE DISPLAY
-// ======================
-// ======================
-// UPDATE SCORE DISPLAY
-// ======================
 function updateScoreDisplay(scoreData) {
     // Try to find existing score display
     let scoreResults = document.getElementById('scoreResults');
@@ -289,9 +271,7 @@ function updateScoreDisplay(scoreData) {
     }, 100);
 }
 
-// ======================
 // CLOSE SCORE DISPLAY
-// ======================
 function closeScoreDisplay() {
     const scoreResults = document.getElementById('scoreResults');
     if (scoreResults) {
@@ -311,9 +291,7 @@ function closeScoreDisplay() {
     }
 }
 
-// ======================
 // HANDLE CLICK OUTSIDE
-// ======================
 function handleClickOutsideScoreCard(event) {
     const scoreResults = document.getElementById('scoreResults');
     if (!scoreResults || scoreResults.style.display === 'none') return;
@@ -329,9 +307,7 @@ function handleClickOutsideScoreCard(event) {
     }
 }
 
-// ======================
-// ENHANCED SCORE CURRENT PROMPT
-// ======================
+// SCORE CURRENT PROMPT
 async function scoreCurrentPrompt() {
     // ✅ Use correct DOM element
     const promptText = document.getElementById('outputArea')?.innerText?.trim();
@@ -404,153 +380,7 @@ async function scoreCurrentPrompt() {
     }
 }
 
-// ======================
-// CLOSE SCORE DISPLAY
-// ======================
-function closeScoreDisplay() {
-    const scoreResults = document.getElementById('scoreResults');
-    if (scoreResults) {
-        scoreResults.style.display = 'none';
-        scoreResults.innerHTML = '';
-        
-        // Remove click outside listener
-        document.removeEventListener('click', handleClickOutsideScoreCard);
-    }
-}
-
-// ======================
-// HANDLE CLICK OUTSIDE
-// ======================
-function handleClickOutsideScoreCard(event) {
-    const scoreResults = document.getElementById('scoreResults');
-    if (!scoreResults) return;
-    
-    // Check if click is outside the score card
-    if (!scoreResults.contains(event.target) && 
-        !event.target.closest('#scorePromptBtn') &&
-        !event.target.closest('.score-close-btn')) {
-        closeScoreDisplay();
-    }
-}
-
-// ======================
-// ENHANCED SCORE CURRENT PROMPT
-// ======================
-async function scoreCurrentPrompt() {
-    // ✅ Use correct DOM element
-    const promptText = document.getElementById('outputArea')?.innerText?.trim();
-    
-    if (!promptText || promptText.length < 10) {
-        showNotification('No valid prompt to score', 'warning');
-        return;
-    }
-    
-    // Check if score card is already open
-    const scoreResults = document.getElementById('scoreResults');
-    if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
-        // Toggle close if already open
-        closeScoreDisplay();
-        showNotification('Score display closed', 'info');
-        return;
-    }
-    
-    try {
-        showNotification('Scoring prompt...', 'info');
-        
-        // Try Java backend first
-        const scoreData = await window.scorePrompt?.(promptText);
-        
-        if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
-            // ✅ Ensure it matches our contract
-            const normalizedScoreData = {
-                score: scoreData.score,
-                dimensions: scoreData.dimensions || {
-                    clarity: Math.round((scoreData.score / 10) * 100),
-                    structure: Math.round((scoreData.score / 10) * 100),
-                    intent: Math.round((scoreData.score / 10) * 100)
-                },
-                feedback: scoreData.feedback || 'Backend scoring complete',
-                isFallback: false
-            };
-            
-            showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
-            updateScoreDisplay(normalizedScoreData);
-            
-        } else {
-            throw new Error('Invalid response from scoring service');
-        }
-        
-    } catch (error) {
-        console.warn('Backend scoring failed, using local scoring:', error);
-        
-        // Fallback to local scoring
-        const fallbackScoreData = calculateLocalScore(promptText);
-        
-        showNotification(
-            `Using local scoring: ${fallbackScoreData.score}/10`,
-            'warning'
-        );
-        
-        updateScoreDisplay(fallbackScoreData);
-    }
-}
-
-// ======================
-// MAIN SCORING FUNCTION
-// ======================
-async function scoreCurrentPrompt() {
-    // ✅ Use correct DOM element
-    const promptText = document.getElementById('outputArea')?.innerText?.trim();
-    
-    if (!promptText || promptText.length < 10) {
-        showNotification('No valid prompt to score', 'warning');
-        return;
-    }
-    
-    try {
-        showNotification('Scoring prompt...', 'info');
-        
-        // Try Java backend first
-        const scoreData = await window.scorePrompt?.(promptText);
-        
-        if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
-            // ✅ Ensure it matches our contract
-            const normalizedScoreData = {
-                score: scoreData.score,
-                dimensions: scoreData.dimensions || {
-                    clarity: Math.round((scoreData.score / 10) * 100),
-                    structure: Math.round((scoreData.score / 10) * 100),
-                    intent: Math.round((scoreData.score / 10) * 100)
-                },
-                feedback: scoreData.feedback || 'Backend scoring complete',
-                isFallback: false
-            };
-            
-            showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
-            updateScoreDisplay(normalizedScoreData);
-            
-        } else {
-            throw new Error('Invalid response from scoring service');
-        }
-        
-    } catch (error) {
-        console.warn('Backend scoring failed, using local scoring:', error);
-        
-        // Fallback to local scoring
-        const fallbackScoreData = calculateLocalScore(promptText);
-        
-        showNotification(
-            `Using local scoring: ${fallbackScoreData.score}/10`,
-            'warning'
-        );
-        
-        updateScoreDisplay(fallbackScoreData);
-    }
-}
-
-// ======================
 // INITIALIZE SCORING
-// ======================
 async function initializeScoring() {
     // Safety guard: wait for dependencies
     if (typeof checkJavaBackendHealth !== 'function') {
@@ -597,9 +427,7 @@ async function initializeScoring() {
     }
 }
 
-// ======================
 // LISTEN FOR BACKEND STATUS
-// ======================
 document.addEventListener('scoringBackendStatus', (event) => {
     const { available, error } = event.detail;
     
@@ -697,14 +525,14 @@ class PromptCraftApp {
         // ======================
         this.storageManager = new StorageManager();
 
-        // In your PromptCraftApp constructor
+        // Voice handler
         this.voiceHandler = new VoiceHandler({
             continuous: false,
-            interimResults: false, // 🔥 Only final results (no interim)
+            interimResults: false,
             defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
-            maxListenTime: 10000, // 🔥 10 seconds max
-            maxSimilarityThreshold: 0.75, // 🔥 Stricter threshold
-            replaceMode: true, // 🔥 Critical for preventing duplicates
+            maxListenTime: 10000,
+            maxSimilarityThreshold: 0.75,
+            replaceMode: true,
             mergeProgressiveResults: true,
             debounceDelay: 400
         });
@@ -716,7 +544,7 @@ class PromptCraftApp {
             timeout: 30000,
             fallbackToLocal: true,
             enableDebug: true,
-            strictPromptMode: true // 🔥 ADD THIS LINE
+            strictPromptMode: true
         });
 
         // Bind elements (with null safety)
@@ -749,7 +577,6 @@ class PromptCraftApp {
             // Input
             userInput: document.getElementById('userInput'),
             charCounter: document.getElementById('charCounter'),
-            // ❌ undoBtn REMOVED (button doesn't exist in HTML)
             clearInputBtn: document.getElementById('clearInputBtn'),
             micBtn: document.getElementById('micBtn'),
             maximizeInputBtn: document.getElementById('maximizeInputBtn'),
@@ -768,7 +595,7 @@ class PromptCraftApp {
             platformsGrid: document.getElementById('platformsGrid'),
             platformsEmptyState: document.getElementById('platformsEmptyState'),
             
-            // Buttons (with null safety)
+            // Buttons
             stickyPrepareBtn: document.getElementById('stickyPrepareBtn'),
             stickyResetBtn: document.getElementById('stickyResetBtn'),
             
@@ -797,13 +624,13 @@ class PromptCraftApp {
             // App container
             appContainer: document.querySelector('.app-container'),
             
-            // Editor elements (with null safety - these might be removed from HTML)
+            // Editor elements
             editorMicBtn: document.getElementById('editorMicBtn'),
             
             // Settings elements
             settingsBtn: document.getElementById('settingsBtn'),
             
-            // Notification container (create if doesn't exist)
+            // Notification container
             notificationContainer: document.getElementById('notificationContainer') || this.createNotificationContainer()
         };
         
@@ -842,7 +669,7 @@ class PromptCraftApp {
             // Load history
             this.loadHistory();
             
-            // Test worker connection (don't block initialization)
+            // Test worker connection
             this.testWorkerConnection().catch(error => {
                 console.warn('Worker test failed, continuing with local mode:', error);
             });
@@ -864,7 +691,7 @@ class PromptCraftApp {
             this.elements.userInput.addEventListener('input', () => this.handleInputChange());
         }
         
-        // Clear input button (optional)
+        // Clear input button
         if (this.elements.clearInputBtn) {
             this.elements.clearInputBtn.addEventListener('click', () => {
                 if (this.elements.userInput) {
@@ -875,12 +702,10 @@ class PromptCraftApp {
             });
         }
         
-        // Button events (with null safety)
+        // Button events
         if (this.elements.stickyPrepareBtn) {
             this.elements.stickyPrepareBtn.addEventListener('click', () => this.preparePrompt());
         }
-        
-        // ❌ undoBtn event listener REMOVED (button doesn't exist in HTML)
         
         if (this.elements.copyBtn) {
             this.elements.copyBtn.addEventListener('click', () => this.copyPrompt());
@@ -973,7 +798,7 @@ class PromptCraftApp {
             this.elements.settingsBtn.addEventListener('click', () => this.openSettings());
         }
         
-        // Settings modal buttons (these might be in a different file)
+        // Settings modal buttons
         const closeSettingsBtn = document.getElementById('closeSettingsBtn');
         const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
         const saveSettingsBtn = document.getElementById('saveSettingsBtn');
@@ -1023,15 +848,15 @@ class PromptCraftApp {
         if (metricsBtn && metricsBox && metricsCloseBtn) {
             // OPEN metrics → disable button
             metricsBtn.addEventListener('click', () => {
-                metricsBox.classList.add('active');   // open (already working visually)
-                metricsBtn.disabled = true;           // 🔒 disable click
-                metricsBtn.classList.add('disabled'); // optional visual state
+                metricsBox.classList.add('active');
+                metricsBtn.disabled = true;
+                metricsBtn.classList.add('disabled');
             });
 
             // CLOSE metrics → enable button
             metricsCloseBtn.addEventListener('click', () => {
-                metricsBox.classList.remove('active'); // close (already working)
-                metricsBtn.disabled = false;           // 🔓 re-enable click
+                metricsBox.classList.remove('active');
+                metricsBtn.disabled = false;
                 metricsBtn.classList.remove('disabled');
             });
         }
@@ -1039,30 +864,27 @@ class PromptCraftApp {
         // ================================
         // SCORING BUTTON INTEGRATION
         // ================================
-// ================================
-// SCORING BUTTON INTEGRATION
-// ================================
-// In your setupEventListeners() function
-const scorePromptBtn = document.getElementById('scorePromptBtn');
-if (scorePromptBtn) {
-    scorePromptBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevent event bubbling
-        
-        // Check if score card is already visible
-        const scoreResults = document.getElementById('scoreResults');
-        const hasGeneratedPrompt = window.promptCraftApp?.state?.hasGeneratedPrompt;
-        
-        if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
-            // Toggle close if already open
-            closeScoreDisplay();
-            window.promptCraftApp.showNotification('Score display closed', 'info');
-        } else if (hasGeneratedPrompt) {
-            scoreCurrentPrompt();
-        } else {
-            window.promptCraftApp.showNotification('Generate a prompt first before scoring', 'warning');
+        const scorePromptBtn = document.getElementById('scorePromptBtn');
+        if (scorePromptBtn) {
+            scorePromptBtn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                
+                // Check if score card is already visible
+                const scoreResults = document.getElementById('scoreResults');
+                const hasGeneratedPrompt = this.state?.hasGeneratedPrompt;
+                
+                if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
+                    // Toggle close if already open
+                    closeScoreDisplay();
+                    this.showNotification('Score display closed', 'info');
+                } else if (hasGeneratedPrompt) {
+                    scoreCurrentPrompt();
+                } else {
+                    this.showNotification('Generate a prompt first before scoring', 'warning');
+                }
+            });
         }
-    });
-}
+    }
 
     // Set up voice handler callbacks
     setupVoiceCallbacks() {
@@ -1072,7 +894,7 @@ if (scorePromptBtn) {
                 // Visual feedback
                 if (this.elements.micBtn) {
                     this.elements.micBtn.classList.add('listening');
-                    this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>'; // Red dot
+                    this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>';
                 }
             },
             onListeningEnd: () => {
@@ -1120,7 +942,6 @@ if (scorePromptBtn) {
                         this.showNotification(`✓ ${wordCount} words added via voice`, 'success', 2000);
                     }
                 }
-                // 🔥 IGNORE interim results completely (they're disabled anyway)
             },
             onSpeakingStart: () => {
                 this.showNotification('🔊 Reading prompt...', 'info');
@@ -1237,7 +1058,7 @@ if (scorePromptBtn) {
         const validation = validateModelForMode(selectedModel, true);
         if (!validation.valid && validation.correctedModel) {
             this.showNotification(validation.reason, 'warning');
-            selectedModel = validation.correctedModel;     // 🔥 CRITICAL
+            selectedModel = validation.correctedModel;
             this.state.currentModel = validation.correctedModel;
         }
         
@@ -1254,7 +1075,7 @@ if (scorePromptBtn) {
                 style: 'detailed',
                 temperature: 0.4,
                 timeout: 25000,
-                strictPromptMode: true // 🔥 ADD THIS
+                strictPromptMode: true
             });
             
             console.log('Generation result:', {
@@ -1281,7 +1102,7 @@ if (scorePromptBtn) {
                 this.state.originalPrompt = result.prompt;
                 this.state.promptModified = false;
                 this.state.hasGeneratedPrompt = true;
-                this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
+                this.state.generatedFromInput = inputText;
                 
                 // ✅ FIX: Hide Prepare button, show Reset button
                 if (this.elements.stickyPrepareBtn) {
@@ -1295,7 +1116,7 @@ if (scorePromptBtn) {
                     this.elements.outputSection.classList.add('visible');
                 }
                 
-                // ✅ UX FIX: Auto-scroll to generated prompt (Step 2)
+                // ✅ UX FIX: Auto-scroll to generated prompt
                 setTimeout(() => {
                     this.elements.outputSection?.scrollIntoView({
                         behavior: 'smooth',
@@ -1352,7 +1173,7 @@ if (scorePromptBtn) {
             // ✅ STORE FOR RANKING
             window.lastGeneratedPrompt = cleanText;
 
-            // ✅ DISPATCH EVENT (ONLY ONCE)
+            // ✅ DISPATCH EVENT
             document.dispatchEvent(new CustomEvent('promptGenerated', {
                 detail: { result: cleanText }
             }));
@@ -1414,9 +1235,9 @@ if (scorePromptBtn) {
                     
                     this.state.originalPrompt = fallbackResult.prompt;
                     this.state.hasGeneratedPrompt = true;
-                    this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
+                    this.state.generatedFromInput = inputText;
                     
-                    // ✅ FIX: Hide Prepare button, show Reset button
+                    // Hide Prepare button, show Reset button
                     if (this.elements.stickyPrepareBtn) {
                         this.elements.stickyPrepareBtn.style.display = 'none';
                     }
@@ -1485,9 +1306,9 @@ This structured approach ensures you get detailed, actionable responses tailored
             
             this.state.originalPrompt = localPrompt;
             this.state.hasGeneratedPrompt = true;
-            this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
+            this.state.generatedFromInput = inputText;
             
-            // ✅ FIX: Hide Prepare button, show Reset button
+            // Hide Prepare button, show Reset button
             if (this.elements.stickyPrepareBtn) {
                 this.elements.stickyPrepareBtn.style.display = 'none';
             }
@@ -1528,7 +1349,7 @@ This structured approach ensures you get detailed, actionable responses tailored
     }
 
     // ======================
-    // PLATFORM INTEGRATION - SAFE LAUNCH
+    // PLATFORM INTEGRATION
     // ======================
 
     async handlePlatformClick(platformId) {
@@ -1583,7 +1404,6 @@ This structured approach ensures you get detailed, actionable responses tailored
         }
         
         try {
-            // 🔧 FIX 5: Add execution instructions when copying
             const copyText = `=== COPY AND PASTE BELOW INTO YOUR AI TOOL ===
 
 ${text}
@@ -1618,7 +1438,6 @@ ${text}
             } catch (fallbackErr) {
                 console.error('Fallback copy failed:', fallbackErr);
                 
-                // Last resort: Show prompt for manual copy
                 this.showNotification(`Copy failed. Here's your prompt to copy manually: ${text.substring(0, 100)}...`, 'error', 5000);
             }
         }
@@ -1681,7 +1500,7 @@ ${text}
     // ======================
 
     resetApplication() {
-        // ✅ FIX: Reset button visibility
+        // Reset button visibility
         if (this.elements.stickyPrepareBtn) {
             this.elements.stickyPrepareBtn.style.display = 'flex';
         }
@@ -1691,7 +1510,7 @@ ${text}
         
         this.state.undoStack = [];
         this.state.redoStack = [];
-        this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
+        this.state.generatedFromInput = null;
         
         if (this.elements.userInput) {
             this.elements.userInput.value = '';
@@ -1703,7 +1522,7 @@ ${text}
         this.state.selectedPlatform = null;
         this.state.hasGeneratedPrompt = false;
         
-        // ✅ FIX: Restore model from settings
+        // Restore model from settings
         if (this.state.settings.defaultModel) {
             this.state.currentModel = this.state.settings.defaultModel;
         } else {
@@ -1725,7 +1544,7 @@ ${text}
         this.state.originalPrompt = null;
         this.state.promptModified = false;
         this.state.hasGeneratedPrompt = false;
-        this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
+        this.state.generatedFromInput = null;
         this.state.selectedPlatform = null;
         
         if (this.elements.outputSection) {
@@ -1735,8 +1554,6 @@ ${text}
         this.updateProgress();
         this.updateButtonStates();
     }
-
-    // ❌ undo() method REMOVED (functionality doesn't exist in UI)
 
     // ======================
     // SETTINGS MODAL
@@ -1824,7 +1641,6 @@ ${text}
             this.state.settings.defaultModel = defaultModel.value;
             this.state.currentModel = defaultModel.value;
             console.log('Default model set to:', defaultModel.value);
-            // ✅ FIX: Update model display immediately
             this.updateModelDisplay();
         }
         
@@ -1925,10 +1741,9 @@ ${text}
         
         if (!editorTextarea || !closeEditorBtn) return;
         
-        // Optional editor buttons (check if they exist)
+        // Optional editor buttons
         const editorPrepareBtn = document.getElementById('editorPrepareBtn');
         const editorMicBtn = document.getElementById('editorMicBtn');
-        const editorUndoBtn = document.getElementById('editorUndoBtn');
         
         // Only set up events for buttons that exist
         if (editorPrepareBtn) {
@@ -2080,7 +1895,6 @@ Focus on practical insights that drive decision-making.`,
 
 Keep the summary concise yet comprehensive.`,
             
-            // 🔥 ADDED: Business Strategy template
             strategy: `Develop a comprehensive business strategy for an organization. The strategy should:
 1. Define vision, mission, and long-term objectives
 2. Analyze market, customers, and competitors
@@ -2186,8 +2000,6 @@ Keep the summary concise yet comprehensive.`,
                 this.elements.platformsEmptyState.style.display = 'flex';
             }
         }
-        
-        // ❌ undoBtn state update REMOVED (button doesn't exist in HTML)
         
         // Show/hide clear button
         if (this.elements.clearInputBtn) {
@@ -2304,7 +2116,7 @@ Keep the summary concise yet comprehensive.`,
         const item = this.state.promptHistory.find(h => h.id === id);
         if (!item) return;
 
-        this.clearGeneratedPrompt(); // ✅ ADD THIS
+        this.clearGeneratedPrompt();
 
         if (this.elements.userInput) {
             this.elements.userInput.value = item.fullInput;
@@ -2325,7 +2137,7 @@ Keep the summary concise yet comprehensive.`,
     viewHistoryItem(id) {
         const item = this.state.promptHistory.find(h => h.id === id);
         if (!item) return;
-        this.clearGeneratedPrompt(); // ✅ ADD THIS
+        this.clearGeneratedPrompt();
 
         if (this.elements.userInput) {
             this.elements.userInput.value = item.fullInput;
@@ -2344,7 +2156,7 @@ Keep the summary concise yet comprehensive.`,
             }
 
             if (editorPrepareBtn) {
-                editorPrepareBtn.disabled = false; // 🔥 KEY LINE
+                editorPrepareBtn.disabled = false;
             }
         }, 0);
 
@@ -2361,7 +2173,7 @@ Keep the summary concise yet comprehensive.`,
             this.state.settings = { ...this.loadDefaultSettings(), ...saved };
         }
         
-        // ✅ FIX: Restore model from saved settings
+        // Restore model from saved settings
         if (this.state.settings.defaultModel) {
             this.state.currentModel = this.state.settings.defaultModel;
         }
@@ -2513,7 +2325,6 @@ Keep the summary concise yet comprehensive.`,
 
         /* =========================
            ALT + P → Prepare Prompt
-           (ALLOW while typing)
            ========================= */
         if (e.altKey && e.key.toLowerCase() === 'p') {
             e.preventDefault();
