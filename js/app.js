@@ -4,6 +4,28 @@
 // ============================================
 // Add to app.js (somewhere near the top or in your initialization)
 
+// ======================
+// NOTIFICATION WRAPPER (ADD AT TOP OF FILE)
+// ======================
+function showNotification(message, type = 'info', duration = 3000) {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+    
+    // Use existing notification system if available
+    if (window.promptCraftApp?.notify) {
+        window.promptCraftApp.notify(message, type, duration);
+        return;
+    }
+    
+    // Fallback to console only
+    if (type === 'error') {
+        console.error(message);
+    } else if (type === 'warning') {
+        console.warn(message);
+    } else {
+        console.info(message);
+    }
+}
+
 // MODEL VALIDATION FUNCTIONS
 const MODEL_CAPABILITIES = {
   "gemini-3-flash-preview": {
@@ -2048,94 +2070,236 @@ document.addEventListener('DOMContentLoaded', () => {
 /**
  * Score the current prompt using Java backend
  */
+// ======================
+// SCORE CURRENT PROMPT (REPLACE EXISTING FUNCTION)
+// ======================
 async function scoreCurrentPrompt() {
-    // Get the current prompt from output area
-    const outputArea = document.getElementById('outputArea');
-    const promptText = outputArea?.textContent.trim();
+    // ✅ CRITICAL FIX: Use correct DOM element ID
+    const promptText = document.getElementById('outputArea')?.innerText?.trim();
     
     if (!promptText || promptText.length < 10) {
-        showNotification('Please generate a prompt first!', 'warning');
+        showNotification('No valid prompt to score', 'warning');
         return;
     }
     
-    const scoreBtn = document.getElementById('scorePromptBtn');
-    const originalHtml = scoreBtn.innerHTML;
-    
-    // Show loading state
-    scoreBtn.classList.add('loading');
-    scoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Analyzing Prompt</span>';
-    scoreBtn.disabled = true;
-    
     try {
-        // Use config instead of hardcoded URL
-        const url = `${JavaBackendConfig.BASE_URL}${JavaBackendConfig.ENDPOINTS.SCORE}`;
+        showNotification('Sending to scoring service...', 'info');
         
-        // Call Java backend scoring API
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), JavaBackendConfig.TIMEOUT);
+        // Use your Java backend service
+        const scoreData = await window.scorePrompt?.(promptText);
         
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({
-                prompt: promptText,
-                tool: 'chatgpt' // Default tool
-            }),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        // Display results
-        displayScoreResults(result);
-        showNotification('Prompt scored successfully!', 'success');
-        
-        // Track successful scoring
-        if (window.performanceMonitor?.trackGeneration) {
-            window.performanceMonitor.trackGeneration('java-backend');
+        if (scoreData) {
+            showNotification(`Prompt scored: ${scoreData.score}/10`, 'success');
+            updateScoreDisplay(scoreData);
+        } else {
+            throw new Error('No response from scoring service');
         }
         
     } catch (error) {
-        console.error('Scoring error:', error);
+        console.error('Backend scoring failed:', error);
         
-        // Check if it's a timeout
-        if (error.name === 'AbortError') {
-            showNotification('Scoring timed out (backend took too long)', 'error');
-        } else {
-            showNotification(`Backend error: ${error.message}`, 'error');
-        }
+        // Fallback to local scoring
+        const localScore = calculateLocalScore(promptText);
         
-        // Fallback to local scoring if Java backend is down
-        if (JavaBackendConfig.FEATURES.LOCAL_FALLBACK) {
-            const localScore = calculateLocalScore(promptText);
-            displayScoreResults({
-                success: true,
-                data: {
-                    score: localScore.score,
-                    message: `${localScore.message} (local analysis)`,
-                    signals: localScore.signals,
-                    suggestions: localScore.suggestions
-                }
-            });
-            showNotification('Using local analysis (backend unavailable)', 'info');
-        }
+        showNotification(
+            `Using local scoring: ${localScore}/10`, 
+            'warning'
+        );
         
-    } finally {
-        // Restore button
-        scoreBtn.classList.remove('loading');
-        scoreBtn.innerHTML = originalHtml;
-        scoreBtn.disabled = false;
+        updateScoreDisplay({
+            score: localScore,
+            dimensions: {
+                clarity: Math.round((localScore / 10) * 100),
+                structure: Math.round((localScore / 10) * 100),
+                intent: Math.round((localScore / 10) * 100)
+            },
+            feedback: 'Local fallback scoring (Java backend unavailable)',
+            isFallback: true
+        });
     }
 }
+
+// ======================
+// LOCAL FALLBACK SCORING (ADD NEW FUNCTION)
+// ======================
+function calculateLocalScore(prompt) {
+    if (!prompt || prompt.length < 20) return 5.0;
+    
+    let score = 5.0;
+    const length = prompt.length;
+    
+    // Length optimization (400-800 chars is sweet spot)
+    if (length > 400 && length < 800) score += 1.5;
+    else if (length > 800 && length < 1500) score += 1.0;
+    else if (length >= 1500) score += 0.5;
+    
+    // Structure detection
+    const sections = [
+        /task to perform:/i,
+        /requirements:/i, 
+        /format:/i,
+        /context:/i,
+        /style:/i,
+        /constraints:/i
+    ];
+    
+    const foundSections = sections.filter(pattern => pattern.test(prompt)).length;
+    score += Math.min(foundSections * 0.5, 2.0); // Max 2 bonus
+    
+    // Clarity/readability
+    const sentences = prompt.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const avgSentenceLength = sentences.length > 0 
+        ? prompt.length / sentences.length 
+        : 0;
+    
+    if (avgSentenceLength > 50 && avgSentenceLength < 150) score += 0.5;
+    
+    // Cap between 0-10
+    return Math.min(10, Math.max(0, score)).toFixed(1);
+}
+
+// ======================
+// UPDATE SCORE DISPLAY (ADD NEW FUNCTION)
+// ======================
+function updateScoreDisplay(scoreData) {
+    // Try to find or create score display
+    let scoreResults = document.getElementById('scoreResults');
+    
+    if (!scoreResults) {
+        // Find a reasonable parent container
+        const parentContainer = 
+            document.querySelector('.scoring-card') ||
+            document.querySelector('.card[data-card-type="scoring"]') ||
+            document.getElementById('scoringSection') ||
+            document.getElementById('settingsPanel') ||
+            document.querySelector('.settings-modal .card-body');
+        
+        if (parentContainer) {
+            scoreResults = document.createElement('div');
+            scoreResults.id = 'scoreResults';
+            scoreResults.className = 'score-results mt-3';
+            parentContainer.appendChild(scoreResults);
+        } else {
+            // Last resort: append to body
+            scoreResults = document.createElement('div');
+            scoreResults.id = 'scoreResults';
+            scoreResults.className = 'score-results fixed bottom-4 right-4 z-50';
+            document.body.appendChild(scoreResults);
+        }
+    }
+    
+    // Render score
+    scoreResults.innerHTML = `
+        <div class="score-card animate-fade-in">
+            <div class="flex items-center justify-between mb-2">
+                <span class="font-semibold text-sm">Prompt Quality</span>
+                <div class="score-badge score-${Math.floor(scoreData.score)}">
+                    ${scoreData.score}/10
+                    ${scoreData.isFallback ? 
+                        '<span class="ml-1 text-xs px-1 py-0.5 bg-yellow-100 text-yellow-800 rounded">local</span>' : 
+                        ''}
+                </div>
+            </div>
+            
+            ${scoreData.dimensions ? `
+            <div class="dimensions mt-3 space-y-1">
+                ${Object.entries(scoreData.dimensions).map(([dim, value]) => `
+                <div class="dimension">
+                    <div class="flex justify-between text-xs mb-1">
+                        <span>${dim.charAt(0).toUpperCase() + dim.slice(1)}</span>
+                        <span>${value}%</span>
+                    </div>
+                    <div class="h-1 bg-gray-200 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500" style="width: ${value}%"></div>
+                    </div>
+                </div>
+                `).join('')}
+            </div>
+            ` : ''}
+            
+            ${scoreData.feedback ? `
+            <div class="feedback mt-3 p-2 bg-gray-50 rounded text-sm">
+                ${scoreData.feedback}
+            </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+// ======================
+// INITIALIZE SCORING (ADD NEW FUNCTION)
+// ======================
+async function initializeScoring() {
+    // Safety guard: wait for dependencies
+    if (typeof checkJavaBackendHealth !== 'function') {
+        console.warn('Java backend health check not loaded yet - retrying in 1s');
+        setTimeout(initializeScoring, 1000);
+        return;
+    }
+    
+    try {
+        // Test backend connection with timeout
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Health check timeout')), 5000)
+        );
+        
+        const healthPromise = window.checkJavaBackendHealth();
+        const health = await Promise.race([healthPromise, timeoutPromise]);
+        
+        if (health.status === 'healthy') {
+            console.log('✅ Java scoring backend available');
+            window.useJavaScoring = true;
+            
+            // Update UI indicator
+            document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
+                detail: { available: true }
+            }));
+        } else {
+            console.warn('⚠️ Java backend unavailable, using local scoring');
+            window.useJavaScoring = false;
+            
+            showNotification(
+                'Using local scoring (backend offline)', 
+                'info', 
+                3000
+            );
+        }
+    } catch (error) {
+        console.warn('⚠️ Could not reach Java backend:', error.message);
+        window.useJavaScoring = false;
+        
+        // Silently degrade
+        document.dispatchEvent(new CustomEvent('scoringBackendStatus', {
+            detail: { available: false, error: error.message }
+        }));
+    }
+}
+
+// ======================
+// LISTEN FOR BACKEND STATUS (ADD AT BOTTOM)
+// ======================
+document.addEventListener('scoringBackendStatus', (event) => {
+    const { available, error } = event.detail;
+    
+    // Update any backend indicator in UI
+    const backendIndicator = document.getElementById('backendStatusIndicator');
+    if (backendIndicator) {
+        backendIndicator.className = `backend-status ${available ? 'online' : 'offline'}`;
+        backendIndicator.innerHTML = available ? 
+            '<span>✓ Scoring active</span>' : 
+            `<span>⚠ Local only</span>`;
+    }
+    
+    // Log for debugging
+    if (!available && error) {
+        console.debug('Scoring backend status:', { available, error });
+    }
+});
+
+// Initialize after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(initializeScoring, 1000);
+});
 
 /**
  * Display scoring results in UI
