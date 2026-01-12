@@ -3427,3 +3427,104 @@ kbd {
     margin-left: 6px;
     opacity: 0.85;
 }
+
+/* ==================== SCORING RESULTS STYLES ==================== */
+.score-results {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+    border: 1px solid rgba(79, 70, 229, 0.3);
+    border-radius: 12px;
+    padding: 20px;
+    margin-top: 20px;
+    animation: slideIn 0.3s ease-out;
+}
+
+.score-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.score-value {
+    font-size: 3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.score-message {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+.signals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.signal-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 15px;
+    transition: all 0.3s ease;
+}
+
+.signal-item:hover {
+    transform: translateY(-2px);
+    background: rgba(79, 70, 229, 0.1);
+    border-color: rgba(79, 70, 229, 0.5);
+}
+
+.signal-good {
+    border-left: 4px solid #10b981;
+}
+
+.signal-needs-work {
+    border-left: 4px solid #f59e0b;
+}
+
+.suggestion-item {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-left: 4px solid #ef4444;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+#scorePromptBtn.loading {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+#scorePromptBtn.loading span::after {
+    content: '...';
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+/* Scoring container specific */
+.scoring-container {
+    padding: 20px !important;
+}
+
+.shortcut-hint {
+    font-size: 0.8rem;
+    opacity: 0.7;
+    margin-left: 8px;
+    font-weight: normal;
+}
+
+@keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
