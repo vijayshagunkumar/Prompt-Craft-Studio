@@ -187,9 +187,18 @@ function calculateLocalScore(prompt) {
 // ======================
 // UPDATE SCORE DISPLAY
 // ======================
+// ======================
+// UPDATE SCORE DISPLAY
+// ======================
 function updateScoreDisplay(scoreData) {
-    // Try to find or create score display
+    // Try to find existing score display
     let scoreResults = document.getElementById('scoreResults');
+    
+    // If score card is already visible, close it (toggle functionality)
+    if (scoreResults && scoreResults.style.display !== 'none') {
+        closeScoreDisplay();
+        return;
+    }
     
     if (!scoreResults) {
         // Find a reasonable parent container
@@ -206,19 +215,31 @@ function updateScoreDisplay(scoreData) {
             scoreResults.className = 'score-results mt-3';
             parentContainer.appendChild(scoreResults);
         } else {
-            // Last resort: append to body
-            scoreResults = document.createElement('div');
-            scoreResults.id = 'scoreResults';
-            scoreResults.className = 'score-results fixed bottom-4 right-4 z-50';
-            document.body.appendChild(scoreResults);
+            // Last resort: append to output card
+            const outputCard = document.getElementById('outputCard');
+            if (outputCard) {
+                scoreResults = document.createElement('div');
+                scoreResults.id = 'scoreResults';
+                scoreResults.className = 'score-results mt-3';
+                outputCard.appendChild(scoreResults);
+            }
         }
     }
     
-    // Render score
+    // Show the score results
+    scoreResults.style.display = 'block';
+    
+    // Render score with close button
     scoreResults.innerHTML = `
         <div class="score-card animate-fade-in">
+            <!-- Close Button -->
+            <button class="score-close-btn" title="Close score display" onclick="closeScoreDisplay()">
+                <i class="fas fa-times"></i>
+            </button>
+            
+            <!-- Score Header -->
             <div class="flex items-center justify-between mb-2">
-                <span class="font-semibold text-sm">Prompt Quality</span>
+                <span class="font-semibold text-sm">Prompt Quality Score</span>
                 <div class="score-badge score-${Math.floor(scoreData.score)}">
                     ${scoreData.score}/10
                     ${scoreData.isFallback ? 
@@ -227,6 +248,7 @@ function updateScoreDisplay(scoreData) {
                 </div>
             </div>
             
+            <!-- Dimensions -->
             ${scoreData.dimensions ? `
             <div class="dimensions mt-3 space-y-1">
                 ${Object.entries(scoreData.dimensions).map(([dim, value]) => `
@@ -243,13 +265,119 @@ function updateScoreDisplay(scoreData) {
             </div>
             ` : ''}
             
+            <!-- Feedback -->
             ${scoreData.feedback ? `
             <div class="feedback mt-3 p-2 bg-gray-50 rounded text-sm">
+                <i class="fas fa-comment-alt text-gray-500 mr-2"></i>
                 ${scoreData.feedback}
             </div>
             ` : ''}
+            
+            <!-- Close button at bottom (alternative) -->
+            <div class="mt-3 pt-2 border-t border-gray-200">
+                <button class="text-xs text-gray-500 hover:text-gray-700" onclick="closeScoreDisplay()">
+                    <i class="fas fa-times mr-1"></i>
+                    Close
+                </button>
+            </div>
         </div>
     `;
+    
+    // Add click outside to close functionality
+    setTimeout(() => {
+        document.addEventListener('click', handleClickOutsideScoreCard);
+    }, 100);
+}
+
+// ======================
+// CLOSE SCORE DISPLAY
+// ======================
+function closeScoreDisplay() {
+    const scoreResults = document.getElementById('scoreResults');
+    if (scoreResults) {
+        scoreResults.style.display = 'none';
+        scoreResults.innerHTML = '';
+        
+        // Remove click outside listener
+        document.removeEventListener('click', handleClickOutsideScoreCard);
+    }
+}
+
+// ======================
+// HANDLE CLICK OUTSIDE
+// ======================
+function handleClickOutsideScoreCard(event) {
+    const scoreResults = document.getElementById('scoreResults');
+    if (!scoreResults) return;
+    
+    // Check if click is outside the score card
+    if (!scoreResults.contains(event.target) && 
+        !event.target.closest('#scorePromptBtn') &&
+        !event.target.closest('.score-close-btn')) {
+        closeScoreDisplay();
+    }
+}
+
+// ======================
+// ENHANCED SCORE CURRENT PROMPT
+// ======================
+async function scoreCurrentPrompt() {
+    // ✅ Use correct DOM element
+    const promptText = document.getElementById('outputArea')?.innerText?.trim();
+    
+    if (!promptText || promptText.length < 10) {
+        showNotification('No valid prompt to score', 'warning');
+        return;
+    }
+    
+    // Check if score card is already open
+    const scoreResults = document.getElementById('scoreResults');
+    if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
+        // Toggle close if already open
+        closeScoreDisplay();
+        showNotification('Score display closed', 'info');
+        return;
+    }
+    
+    try {
+        showNotification('Scoring prompt...', 'info');
+        
+        // Try Java backend first
+        const scoreData = await window.scorePrompt?.(promptText);
+        
+        if (scoreData && typeof scoreData === 'object' && 'score' in scoreData) {
+            // ✅ Ensure it matches our contract
+            const normalizedScoreData = {
+                score: scoreData.score,
+                dimensions: scoreData.dimensions || {
+                    clarity: Math.round((scoreData.score / 10) * 100),
+                    structure: Math.round((scoreData.score / 10) * 100),
+                    intent: Math.round((scoreData.score / 10) * 100)
+                },
+                feedback: scoreData.feedback || 'Backend scoring complete',
+                isFallback: false
+            };
+            
+            showNotification(`Prompt scored: ${normalizedScoreData.score}/10`, 'success');
+            updateScoreDisplay(normalizedScoreData);
+            
+        } else {
+            throw new Error('Invalid response from scoring service');
+        }
+        
+    } catch (error) {
+        console.warn('Backend scoring failed, using local scoring:', error);
+        
+        // Fallback to local scoring
+        const fallbackScoreData = calculateLocalScore(promptText);
+        
+        showNotification(
+            `Using local scoring: ${fallbackScoreData.score}/10`,
+            'warning'
+        );
+        
+        updateScoreDisplay(fallbackScoreData);
+    }
 }
 
 // ======================
@@ -796,17 +924,29 @@ class PromptCraftApp {
         // ================================
         // SCORING BUTTON INTEGRATION
         // ================================
-        const scorePromptBtn = document.getElementById('scorePromptBtn');
-        if (scorePromptBtn) {
-            scorePromptBtn.addEventListener('click', () => {
-                if (window.promptCraftApp?.state?.hasGeneratedPrompt) {
-                    scoreCurrentPrompt();
-                } else {
-                    this.showNotification('Generate a prompt first before scoring', 'warning');
-                }
-            });
+// ================================
+// SCORING BUTTON INTEGRATION
+// ================================
+const scorePromptBtn = document.getElementById('scorePromptBtn');
+if (scorePromptBtn) {
+    scorePromptBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent event bubbling
+        
+        // Check if score card is already visible
+        const scoreResults = document.getElementById('scoreResults');
+        const hasGeneratedPrompt = window.promptCraftApp?.state?.hasGeneratedPrompt;
+        
+        if (scoreResults && scoreResults.style.display !== 'none' && scoreResults.innerHTML.trim() !== '') {
+            // Toggle close if already open
+            closeScoreDisplay();
+            this.showNotification('Score display closed', 'info');
+        } else if (hasGeneratedPrompt) {
+            scoreCurrentPrompt();
+        } else {
+            this.showNotification('Generate a prompt first before scoring', 'warning');
         }
-    }
+    });
+}
 
     // Set up voice handler callbacks
     setupVoiceCallbacks() {
@@ -2339,3 +2479,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// Make scoring functions globally available
+window.closeScoreDisplay = closeScoreDisplay;
+window.scoreCurrentPrompt = scoreCurrentPrompt;
+window.updateScoreDisplay = updateScoreDisplay;
