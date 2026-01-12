@@ -476,7 +476,32 @@ Paste
                         <p class="helper-text">Adjust spacing and density for optimal workflow</p>
                     </div>
                 </div>
-                
+                <!-- ==================== PROMPT SCORING SECTION ==================== -->
+<div class="card" style="margin-top: 20px;">
+    <div class="step-header">
+        <div class="step-number">
+            <i class="fas fa-chart-line"></i>
+        </div>
+        <div>
+            <div class="step-title">Prompt Scoring & Analysis</div>
+            <div class="step-subtitle">Get AI-powered feedback on prompt quality</div>
+        </div>
+    </div>
+    
+    <div class="scoring-container" style="padding: 20px;">
+        <button id="scorePromptBtn" class="sticky-cta prepare" 
+                style="width: 100%; padding: 15px; font-size: 1.1rem;">
+            <i class="fas fa-chart-bar"></i>
+            <span>Score This Prompt</span>
+            <span class="shortcut-hint">(Shift+Alt+S)</span>
+        </button>
+        
+        <!-- Results container with proper CSS class -->
+        <div id="scoreResults" class="score-results" style="display: none;">
+            <!-- Results will be injected here by JavaScript -->
+        </div>
+    </div>
+</div>
                 <!-- AI Preferences -->
                 <div class="settings-group">
                     <h3 class="settings-group-title">
