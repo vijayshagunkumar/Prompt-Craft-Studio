@@ -2043,3 +2043,328 @@ if (isTyping && !e.altKey) return;
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
 });
+// ==================== PROMPT SCORING INTEGRATION ====================
+
+/**
+ * Score the current prompt using Java backend
+ */
+async function scoreCurrentPrompt() {
+    // Get the current prompt from output area
+    const outputArea = document.getElementById('outputArea');
+    const promptText = outputArea?.textContent.trim();
+    
+    if (!promptText || promptText.length < 10) {
+        showNotification('Please generate a prompt first!', 'warning');
+        return;
+    }
+    
+    const scoreBtn = document.getElementById('scorePromptBtn');
+    const originalHtml = scoreBtn.innerHTML;
+    
+    // Show loading state
+    scoreBtn.classList.add('loading');
+    scoreBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> <span>Analyzing Prompt</span>';
+    scoreBtn.disabled = true;
+    
+    try {
+        // Use config instead of hardcoded URL
+        const url = `${JavaBackendConfig.BASE_URL}${JavaBackendConfig.ENDPOINTS.SCORE}`;
+        
+        // Call Java backend scoring API
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), JavaBackendConfig.TIMEOUT);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                prompt: promptText,
+                tool: 'chatgpt' // Default tool
+            }),
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        // Display results
+        displayScoreResults(result);
+        showNotification('Prompt scored successfully!', 'success');
+        
+        // Track successful scoring
+        if (window.performanceMonitor?.trackGeneration) {
+            window.performanceMonitor.trackGeneration('java-backend');
+        }
+        
+    } catch (error) {
+        console.error('Scoring error:', error);
+        
+        // Check if it's a timeout
+        if (error.name === 'AbortError') {
+            showNotification('Scoring timed out (backend took too long)', 'error');
+        } else {
+            showNotification(`Backend error: ${error.message}`, 'error');
+        }
+        
+        // Fallback to local scoring if Java backend is down
+        if (JavaBackendConfig.FEATURES.LOCAL_FALLBACK) {
+            const localScore = calculateLocalScore(promptText);
+            displayScoreResults({
+                success: true,
+                data: {
+                    score: localScore.score,
+                    message: `${localScore.message} (local analysis)`,
+                    signals: localScore.signals,
+                    suggestions: localScore.suggestions
+                }
+            });
+            showNotification('Using local analysis (backend unavailable)', 'info');
+        }
+        
+    } finally {
+        // Restore button
+        scoreBtn.classList.remove('loading');
+        scoreBtn.innerHTML = originalHtml;
+        scoreBtn.disabled = false;
+    }
+}
+
+/**
+ * Display scoring results in UI
+ */
+function displayScoreResults(result) {
+    const container = document.getElementById('scoreResults');
+    if (!container) return;
+    
+    const { success, data } = result;
+    
+    if (!success || !data) {
+        container.innerHTML = `
+            <div style="padding: 20px; text-align: center;">
+                <h3 style="color: #ef4444;"><i class="fas fa-exclamation-triangle"></i> Scoring Failed</h3>
+                <p>Unable to score the prompt. Please try again.</p>
+            </div>
+        `;
+        container.style.display = 'block';
+        return;
+    }
+    
+    const { score = 0, message = '', signals = [], suggestions = [] } = data;
+    
+    // Determine score color
+    let scoreColor = '#ef4444'; // red
+    let scoreIcon = 'fa-exclamation-triangle';
+    let scoreLabel = 'Needs Work';
+    
+    if (score >= 80) {
+        scoreColor = '#10b981'; // green
+        scoreIcon = 'fa-trophy';
+        scoreLabel = 'Excellent';
+    } else if (score >= 60) {
+        scoreColor = '#f59e0b'; // yellow
+        scoreIcon = 'fa-chart-line';
+        scoreLabel = 'Good';
+    }
+    
+    // Generate signals HTML
+    const signalsHTML = signals.length > 0 ? `
+        <div class="signals-grid">
+            ${signals.map(signal => {
+                const isGood = signal.includes('GOOD') || signal.includes('CLEAR') || signal.includes('STRUCTURED');
+                const icon = isGood ? 'fa-check-circle' : 'fa-exclamation-circle';
+                const className = isGood ? 'signal-good' : 'signal-needs-work';
+                const displayName = signal.replace(/_/g, ' ');
+                
+                return `
+                    <div class="signal-item ${className}">
+                        <i class="fas ${icon}" style="margin-right: 8px;"></i>
+                        <strong>${displayName}</strong>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    ` : '<p style="color: var(--text-secondary);"><i>No specific signals detected</i></p>';
+    
+    // Generate suggestions HTML
+    const suggestionsHTML = suggestions.length > 0 ? `
+        <div style="margin-top: 25px;">
+            <h4><i class="fas fa-lightbulb"></i> Suggestions for Improvement</h4>
+            ${suggestions.map(suggestion => `
+                <div class="suggestion-item">
+                    <i class="fas fa-arrow-right" style="margin-right: 10px;"></i> 
+                    ${suggestion}
+                </div>
+            `).join('')}
+        </div>
+    ` : '<p style="color: var(--text-secondary); margin-top: 20px;"><i>Great job! No major improvements needed.</i></p>';
+    
+    container.innerHTML = `
+        <div>
+            <div class="score-header">
+                <div>
+                    <h3><i class="fas ${scoreIcon}"></i> Prompt Analysis: <span style="color: ${scoreColor}">${scoreLabel}</span></h3>
+                    <p class="score-message">${message}</p>
+                </div>
+                <div class="score-value" style="color: ${scoreColor}">
+                    ${score}%
+                </div>
+            </div>
+            
+            <div style="margin: 20px 0;">
+                <h4><i class="fas fa-search"></i> Detected Signals</h4>
+                ${signalsHTML}
+            </div>
+            
+            ${suggestionsHTML}
+            
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; color: var(--text-secondary);">
+                <i class="fas fa-server"></i> Powered by Java backend AI analysis
+            </div>
+        </div>
+    `;
+    
+    container.style.display = 'block';
+    
+    // Scroll to results
+    container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/**
+ * Fallback local scoring when Java backend is unavailable
+ */
+function calculateLocalScore(promptText) {
+    let score = 70; // Base score
+    
+    const signals = [];
+    const suggestions = [];
+    
+    // Analyze prompt length
+    if (promptText.length > 300) {
+        score += 10;
+        signals.push('GOOD_LENGTH');
+    } else if (promptText.length < 150) {
+        score -= 15;
+        suggestions.push('Make prompt more detailed (aim for 300+ characters)');
+    }
+    
+    // Check for clarity indicators
+    const hasRole = /role\s*:/i.test(promptText);
+    const hasObjective = /objective\s*:|goal\s*:/i.test(promptText);
+    const hasInstructions = /instructions?\s*:|steps?\s*:/i.test(promptText);
+    
+    if (hasRole) {
+        score += 15;
+        signals.push('ROLE_CLEAR');
+    } else {
+        suggestions.push('Add a clear role (e.g., "Role: Senior Product Manager")');
+    }
+    
+    if (hasObjective) {
+        score += 10;
+        signals.push('OBJECTIVE_DEFINED');
+    }
+    
+    if (hasInstructions) {
+        score += 10;
+        signals.push('INSTRUCTIONS_PROVIDED');
+    } else {
+        suggestions.push('Add numbered instructions or clear steps');
+    }
+    
+    // Check for structure (line breaks)
+    const lineCount = promptText.split('\n').length;
+    if (lineCount > 5) {
+        score += 10;
+        signals.push('WELL_STRUCTURED');
+    } else if (lineCount <= 2) {
+        score -= 5;
+        suggestions.push('Use line breaks to organize your prompt into clear sections');
+    }
+    
+    // Check for examples
+    if (promptText.toLowerCase().includes('example') || promptText.includes('e.g.') || promptText.includes('for example')) {
+        score += 5;
+        signals.push('INCLUDES_EXAMPLES');
+    } else {
+        suggestions.push('Consider adding an example for clarity');
+    }
+    
+    // Check for constraints/requirements
+    if (promptText.toLowerCase().includes('constraint') || promptText.includes('requirement') || promptText.includes('must')) {
+        score += 5;
+        signals.push('CONSTRAINTS_DEFINED');
+    }
+    
+    // Clamp score
+    score = Math.min(Math.max(score, 10), 95);
+    
+    // Determine message based on score
+    let message = 'Prompt has basic structure';
+    if (score >= 80) {
+        message = 'Excellent prompt! Ready for production use.';
+    } else if (score >= 60) {
+        message = 'Good prompt, consider some improvements below.';
+    } else {
+        message = 'Prompt needs significant improvement.';
+    }
+    
+    return {
+        score: Math.round(score),
+        message,
+        signals,
+        suggestions
+    };
+}
+
+/**
+ * Initialize scoring functionality
+ */
+function initScoring() {
+    const scoreBtn = document.getElementById('scorePromptBtn');
+    if (scoreBtn) {
+        scoreBtn.addEventListener('click', scoreCurrentPrompt);
+    }
+    
+    // Check backend health on init
+    setTimeout(async () => {
+        try {
+            const isHealthy = await checkJavaBackendHealth();
+            console.log(`Java backend health: ${isHealthy ? '✅ Healthy' : '⚠️ Unavailable'}`);
+        } catch (e) {
+            console.warn('Backend health check failed on init:', e);
+        }
+    }, 1000);
+    
+    console.log('Prompt scoring initialized');
+}
+
+// Initialize when app loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initScoring);
+} else {
+    initScoring();
+}
+
+// ✅ Keyboard shortcut for scoring (Shift + Alt + S)
+document.addEventListener('keydown', (e) => {
+    if (e.shiftKey && e.altKey && e.key === 'S') {
+        e.preventDefault();
+        const scoreBtn = document.getElementById('scorePromptBtn');
+        if (scoreBtn && !scoreBtn.disabled) {
+            scoreBtn.click();
+        }
+    }
+});
+
+// Make functions globally available for debugging
+window.scoreCurrentPrompt = scoreCurrentPrompt;
+window.calculateLocalScore = calculateLocalScore;
+window.displayScoreResults = displayScoreResults;
