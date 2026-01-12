@@ -2832,3 +2832,13 @@ kbd {
 .score-error i {
     margin-right: 8px;
 }
+
+/* Test backend button */
+#testBackendBtn {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    color: white;
+}
+
+#testBackendBtn:hover {
+    background: linear-gradient(135deg, #0da271, #2bbf89);
+}
