@@ -132,6 +132,11 @@ class PromptGenerator {
     // MAIN GENERATION METHOD - UPDATED WITH PARTIAL CONTENT HANDLING
     // ======================
     async generatePrompt(prompt, options = {}) {
+        // ✅ CRITICAL FIX: Explicit guard to prevent scoring usage
+        if (options.scoreOnly) {
+            throw new Error('PromptGenerator does not support scoring. Use a dedicated scoring client instead.');
+        }
+        
         this.metrics.totalRequests++;
         const startTime = Date.now();
         const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -148,11 +153,11 @@ class PromptGenerator {
             minPromptLength: options.minPromptLength || this.config.minPromptLength,
             ...options
         };
+        
         // ✅ FIX: Disable strict prompt mode for image prompts
-if (this.isLikelyImagePrompt(prompt)) {
-    opts.strictPromptMode = false;
-}
-
+        if (this.isLikelyImagePrompt(prompt)) {
+            opts.strictPromptMode = false;
+        }
         
         // ✅ Validate and correct model selection BEFORE API call
         const modelValidation = this.validateModelSelection(opts.model, opts.strictPromptMode);
@@ -410,11 +415,13 @@ if (this.isLikelyImagePrompt(prompt)) {
                                            responseText.match(/"prompt"\s*:\s*"([^"]*)"/);
                         
                         if (partialMatch && partialMatch[1]) {
-                            throw new Error('Partial response').withPartialResult = {
+                            const error = new Error('Partial response');
+                            error.partialResult = {
                                 prompt: partialMatch[1],
                                 model: requestData.model,
                                 provider: 'unknown'
                             };
+                            throw error;
                         } else {
                             throw new Error(`Invalid JSON response: ${parseError.message}`);
                         }
@@ -488,9 +495,8 @@ if (this.isLikelyImagePrompt(prompt)) {
             }
             
             if (!this.isLikelyImagePrompt(result)) {
-    result = this.ensureCompletePrompt(result);
-}
-
+                result = this.ensureCompletePrompt(result);
+            }
             
             let suggestions = [];
             if (data.suggestions && Array.isArray(data.suggestions)) {
@@ -526,11 +532,6 @@ if (this.isLikelyImagePrompt(prompt)) {
                 url: this.config.workerUrl,
                 requestId: requestData.requestId
             });
-            
-            // Preserve partial result if available
-            if (error.withPartialResult) {
-                error.partialResult = error.withPartialResult;
-            }
             
             if (error.name === 'AbortError') {
                 throw new Error(`Request timeout after ${options.timeout}ms`);
