@@ -813,63 +813,70 @@ Format: Well-structured, actionable output ready for execution`;
     // ======================
     // HEALTH CHECK
     // ======================
-    async testConnection() {
+async testConnection() {
+    try {
+        // ✅ FIX: Always normalize worker URL before appending /health
+        const baseUrl = this.config.workerUrl.replace(/\/$/, '');
+        const healthUrl = `${baseUrl}/health`;
+
+        console.log(`Testing connection to: ${healthUrl}`);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const response = await fetch(healthUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            },
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        const responseText = await response.text();
+
         try {
-            console.log(`Testing connection to: ${this.config.workerUrl}health`);
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            
-            const response = await fetch(`${this.config.workerUrl}health`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json'
-                },
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            const responseText = await response.text();
-            
-            try {
-                const data = JSON.parse(responseText);
-                
-                if (response.ok) {
-                    console.log('Health check successful:', data);
-                    return {
-                        success: true,
-                        status: data.status,
-                        models: data.models,
-                        keys: data.availableModels,
-                        version: data.version,
-                        architecture: data.architecture
-                    };
-                } else {
-                    return {
-                        success: false,
-                        error: data.error || `Health check failed: ${response.status}`,
-                        status: response.status
-                    };
-                }
-            } catch (parseError) {
-                console.error('Health check parse error:', parseError);
+            const data = JSON.parse(responseText);
+
+            if (response.ok) {
+                console.log('Health check successful:', data);
+                return {
+                    success: true,
+                    status: data.status,
+                    models: data.models,
+                    keys: data.availableModels,
+                    version: data.version,
+                    architecture: data.architecture
+                };
+            } else {
                 return {
                     success: false,
-                    error: `Invalid health response: ${responseText.substring(0, 100)}`,
-                    rawResponse: responseText
+                    error: data.error || `Health check failed: ${response.status}`,
+                    status: response.status
                 };
             }
-            
-        } catch (error) {
-            console.error('Health check failed:', error.message);
+        } catch (parseError) {
+            console.error('Health check parse error:', parseError);
             return {
                 success: false,
-                error: error.message,
-                isNetworkError: error.name === 'AbortError' || error.message.includes('fetch')
+                error: `Invalid health response: ${responseText.substring(0, 100)}`,
+                rawResponse: responseText
             };
         }
+
+    } catch (error) {
+        console.error('Health check failed:', error.message);
+        return {
+            success: false,
+            error: error.message,
+            isNetworkError:
+                error.name === 'AbortError' ||
+                error.message.includes('fetch')
+        };
     }
+}
+
     
     // ======================
     // METRICS & DIAGNOSTICS - UPDATED
