@@ -1383,49 +1383,50 @@ ${text}
     // APPLICATION CONTROLS
     // ======================
 
-    resetApplication() {
-        // ✅ FIX: Reset button visibility
-        if (this.elements.stickyPrepareBtn) {
-            this.elements.stickyPrepareBtn.style.display = 'flex';
-        }
-        if (this.elements.stickyResetBtn) {
-            this.elements.stickyResetBtn.style.display = 'none';
-        }
-        
-        this.state.undoStack = [];
-        this.state.redoStack = [];
-        this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
-        this.state.lastPromptScore = null;     // ✅ CLEAR SCORE
-        
-        if (this.elements.userInput) {
-            this.elements.userInput.value = '';
-        }
-        
-        this.clearGeneratedPrompt();
-        this.closeHistory();
-        
-        this.state.selectedPlatform = null;
-        this.state.hasGeneratedPrompt = false;
-        
-        // ✅ FIX: Restore model from settings
-        if (this.state.settings.defaultModel) {
-            this.state.currentModel = this.state.settings.defaultModel;
-        } else {
-            this.state.currentModel = 'gemini-3-flash-preview';
-        }
-        
-        this.updateModelDisplay();
-        this.updateButtonStates();
-        this.updateProgress();
-        
-        // Clear score from metrics button
-        if (this.elements.metricsBtn) {
-            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i>`;
-            this.elements.metricsBtn.classList.remove('has-score');
-        }
-        
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+resetApplication() {
+    // ✅ FIX: Reset button visibility
+    if (this.elements.stickyPrepareBtn) {
+        this.elements.stickyPrepareBtn.style.display = 'flex';
     }
+    if (this.elements.stickyResetBtn) {
+        this.elements.stickyResetBtn.style.display = 'none';
+    }
+    
+    this.state.undoStack = [];
+    this.state.redoStack = [];
+    this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
+    this.state.lastPromptScore = null;     // ✅ CLEAR SCORE
+    
+    if (this.elements.userInput) {
+        this.elements.userInput.value = '';
+    }
+    
+    this.clearGeneratedPrompt();
+    this.closeHistory();
+    
+    this.state.selectedPlatform = null;
+    this.state.hasGeneratedPrompt = false;
+    
+    // ✅ FIX: Restore model from settings
+    if (this.state.settings.defaultModel) {
+        this.state.currentModel = this.state.settings.defaultModel;
+    } else {
+        this.state.currentModel = 'gemini-3-flash-preview';
+    }
+    
+    this.updateModelDisplay();
+    this.updateButtonStates();
+    this.updateProgress();
+    
+    // Clear score from metrics button
+    if (this.elements.metricsBtn) {
+        this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i>`;
+        this.elements.metricsBtn.classList.remove('has-score');
+        this.elements.metricsBtn.title = 'Score prompt';
+    }
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
     clearGeneratedPrompt() {
         if (this.elements.outputArea) {
