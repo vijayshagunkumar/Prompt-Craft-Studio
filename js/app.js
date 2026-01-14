@@ -94,53 +94,126 @@ function onStrictModeToggle(isStrict) {
 // SCORING API HELPER (NEW - DIRECT WORKER CALL)
 // ======================
 // In app.js - Update scorePromptViaWorker to handle new format:
+// ======================
+// SCORING API HELPER (FIXED - WORKING WITH NEW WORKER)
+// ======================
 async function scorePromptViaWorker(prompt) {
-  const workerUrl = window.AppConfig?.WORKER_CONFIG?.workerUrl || 
-                   'https://promptcraft-api.vijay-shagunkumar.workers.dev';
-  
-  const baseUrl = workerUrl.replace(/\/$/, '');
-  
-  try {
-    console.log('Calling scoring endpoint...');
-    const response = await fetch(
-      `${baseUrl}/score`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ 
-          prompt: prompt,
-          tool: 'chatgpt'
-        }),
-        signal: AbortSignal.timeout(8000)
-      }
-    );
+    const workerUrl = window.AppConfig?.WORKER_CONFIG?.workerUrl || 
+                     'https://promptcraft-api.vijay-shagunkumar.workers.dev';
+    
+    // Remove trailing slash to prevent double slashes
+    const baseUrl = workerUrl.replace(/\/$/, '');
+    
+    try {
+        console.log('🔍 Calling scoring endpoint...');
+        const response = await fetch(
+            `${baseUrl}/score`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ 
+                    prompt: prompt,
+                    tool: 'chatgpt'
+                }),
+                signal: AbortSignal.timeout(8000)
+            }
+        );
 
-    if (!response.ok) {
-      console.warn(`Score API returned ${response.status}, using mock data`);
-      return generateMockScore(prompt);
+        if (!response.ok) {
+            console.warn(`⚠️ Score API returned ${response.status}, using fallback data`);
+            return generateMockScore(prompt);
+        }
+
+        const data = await response.json();
+        console.log('✅ Score API response received:', {
+            totalScore: data.totalScore,
+            grade: data.grade,
+            transformed: data.transformed || false
+        });
+        
+        // ✅ Extract from transformed response
+        return {
+            clarityAndIntent: data.clarityAndIntent || 14,
+            structure: data.structure || 11,
+            contextAndRole: data.contextAndRole || 12,
+            totalScore: data.totalScore || 37,
+            grade: data.grade || 'Very Good',
+            feedback: data.feedback || 'Prompt analysis complete.',
+            isMockData: data.isFallback || false,
+            transformed: data.transformed || false,
+            originalJavaData: data.originalJavaData || null
+        };
+        
+    } catch (error) {
+        console.warn('⚠️ Score API error, using mock data:', error.message);
+        return generateMockScore(prompt);
     }
+}
 
-    const data = await response.json();
-    console.log('Score API response:', data);
+// ======================
+// MOCK SCORE GENERATOR (FALLBACK)
+// ======================
+function generateMockScore(prompt) {
+    if (!prompt || typeof prompt !== 'string') {
+        return {
+            clarityAndIntent: 0,
+            structure: 0,
+            contextAndRole: 0,
+            totalScore: 0,
+            grade: 'Inadequate',
+            feedback: 'Prompt is empty or invalid.',
+            isMockData: true
+        };
+    }
     
-    // ✅ Extract from transformed response
+    // Simple heuristic scoring based on prompt length and structure
+    const length = prompt.length;
+    const words = prompt.split(/\s+/).length;
+    const lines = prompt.split('\n').length;
+    const hasStructure = /(task|objective|requirements|instructions):/i.test(prompt);
+    const hasFormat = /format:/i.test(prompt);
+    const hasNumberedList = /\d+\.\s/.test(prompt);
+    
+    // Calculate scores
+    let clarityAndIntent = 10;
+    let structure = 10;
+    let contextAndRole = 10;
+    
+    // Adjust based on content
+    if (length > 500) clarityAndIntent += 5;
+    if (words > 100) clarityAndIntent += 3;
+    if (lines > 5) structure += 5;
+    if (hasStructure) structure += 8;
+    if (hasFormat) structure += 5;
+    if (hasNumberedList) contextAndRole += 5;
+    
+    // Cap at maximums
+    clarityAndIntent = Math.min(clarityAndIntent, 20);
+    structure = Math.min(structure, 15);
+    contextAndRole = Math.min(contextAndRole, 15);
+    
+    const totalScore = clarityAndIntent + structure + contextAndRole;
+    
+    // Determine grade
+    let grade;
+    if (totalScore >= 45) grade = 'Excellent';
+    else if (totalScore >= 40) grade = 'Very Good';
+    else if (totalScore >= 30) grade = 'Good';
+    else if (totalScore >= 20) grade = 'Fair';
+    else if (totalScore >= 10) grade = 'Poor';
+    else grade = 'Inadequate';
+    
     return {
-      clarityAndIntent: data.clarityAndIntent || 14,
-      structure: data.structure || 11,
-      contextAndRole: data.contextAndRole || 12,
-      totalScore: data.totalScore || 37,
-      grade: data.grade || 'Very Good',
-      feedback: data.feedback || 'Prompt analysis complete.',
-      isMockData: data.isFallback || false,
-      transformed: data.transformed || false
+        clarityAndIntent,
+        structure,
+        contextAndRole,
+        totalScore,
+        grade,
+        feedback: `Grade: ${grade}. ${grade === 'Excellent' ? 'Excellent prompt structure!' : 'Consider adding more specific requirements.'}`,
+        isMockData: true
     };
-    
-  } catch (error) {
-    console.warn('Score API error, using mock data:', error.message);
-    return generateMockScore(prompt);
-  }
 }
 
 // Keep the existing generateMockScore function
@@ -539,113 +612,111 @@ class PromptCraftApp {
         this.setupAutoGeneration();
         
         // ================================
-        // METRICS BUTTON - DIRECT WORKER CALL (FIXED)
-        // ================================
-        
-        const metricsBtn = document.querySelector('.metrics-toggle');
-        const metricsBox = document.querySelector('.ranking-explanation');
-        const metricsCloseBtn = document.querySelector('.metrics-close-btn');
-        
-        if (metricsBtn && metricsBox && metricsCloseBtn) {
-            // Prevent duplicate listeners
-            const cleanBtn = metricsBtn.cloneNode(true);
-            metricsBtn.parentNode.replaceChild(cleanBtn, metricsBtn);
-            
-            // Store reference in elements
-            this.elements.metricsBtn = cleanBtn;
-            this.elements.metricsBox = metricsBox;
-            this.elements.metricsCloseBtn = metricsCloseBtn;
-        
-            // OPEN metrics → Call Worker /score endpoint directly
-            cleanBtn.addEventListener('click', async () => {
-                const outputArea = document.getElementById('outputArea');
-                const prompt = outputArea?.textContent?.trim();
-        
-                if (!prompt) {
-                    this.showNotification('No prompt to score', 'warning');
-                    return;
-                }
-        
-                // Show loading state immediately
-                renderPromptScore({}, true);
-                metricsBox.classList.add('active');
-                cleanBtn.disabled = true;
-                cleanBtn.classList.add('disabled');
-                
-                // Show loading notification
-                const loadingNotif = this.showNotification('🔍 Analyzing prompt quality...', 'info', 0);
-        
-                try {
-                    // ✅ FIXED: Direct worker call (not via PromptGenerator)
-                    const scoreData = await scorePromptViaWorker(prompt);
-                    
-                    // ✅ REMOVE THIS MOCK WHEN /score API RETURNS REAL VALUES
-                    // For now, use real data if available, otherwise fallback to mock
-                    const finalScoreData = scoreData || {
-                        clarityAndIntent: 14,
-                        structure: 11,
-                        contextAndRole: 12,
-                        totalScore: 37,
-                        grade: 'Very Good'
-                    };
-                    
-                    // Update UI with score
-                    renderPromptScore(finalScoreData);
-                    
-                    // Remove loading notification safely
-                    if (loadingNotif?.parentNode) {
-                        loadingNotif.remove();
-                    }
-                    
-                    this.showNotification(`✓ Prompt scored: ${finalScoreData.grade}`, 'success');
-                    
-                    // Update button with score
-                    cleanBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(finalScoreData.totalScore/10).toFixed(1)}/10`;
-                    cleanBtn.classList.add('has-score');
-                    
-                    // Store score in app state
-                    this.state.lastPromptScore = finalScoreData;
-                    
-                } catch (err) {
-                    console.error('Worker /score endpoint error:', err);
-                    
-                    // Remove loading notification safely
-                    if (loadingNotif?.parentNode) {
-                        loadingNotif.remove();
-                    }
-                    
-                    // Show error in score UI
-                    const slot = document.getElementById('rankingExplanationSlot');
-                    if (slot) {
-                        slot.innerHTML = `
-                            <div class="prompt-score-ui error">
-                                <div class="score-header">
-                                    <h3>Prompt Quality Score</h3>
-                                    <span class="score-badge">Error</span>
-                                </div>
-                                <div class="score-feedback">
-                                    <p><i class="fas fa-exclamation-triangle"></i> Failed to score prompt.</p>
-                                    <p class="error-detail">${err.message || 'Check backend connection'}</p>
-                                </div>
-                            </div>
-                        `;
-                    }
-                    
-                    this.showNotification('Failed to score prompt', 'error');
-                } finally {
-                    // Re-enable button
-                    cleanBtn.disabled = false;
-                    cleanBtn.classList.remove('disabled');
-                }
-            });
-        
-            // CLOSE metrics → enable button
-            metricsCloseBtn.addEventListener('click', () => {
-                metricsBox.classList.remove('active');
-                cleanBtn.disabled = false;
-                cleanBtn.classList.remove('disabled');
-            });
+// ================================
+// METRICS BUTTON - DIRECT WORKER CALL (UPDATED)
+// ================================
+
+const metricsBtn = document.querySelector('.metrics-toggle');
+const metricsBox = document.querySelector('.ranking-explanation');
+const metricsCloseBtn = document.querySelector('.metrics-close-btn');
+
+if (metricsBtn && metricsBox && metricsCloseBtn) {
+    // Prevent duplicate listeners
+    const cleanBtn = metricsBtn.cloneNode(true);
+    metricsBtn.parentNode.replaceChild(cleanBtn, metricsBtn);
+    
+    // Store reference in elements
+    this.elements.metricsBtn = cleanBtn;
+    this.elements.metricsBox = metricsBox;
+    this.elements.metricsCloseBtn = metricsCloseBtn;
+
+    // OPEN metrics → Call Worker /score endpoint directly
+    cleanBtn.addEventListener('click', async () => {
+        const outputArea = document.getElementById('outputArea');
+        const prompt = outputArea?.textContent?.trim();
+
+        if (!prompt) {
+            this.showNotification('No prompt to score', 'warning');
+            return;
         }
+
+        // Show loading state immediately
+        renderPromptScore({}, true);
+        metricsBox.classList.add('active');
+        cleanBtn.disabled = true;
+        cleanBtn.classList.add('disabled');
+        
+        // Show loading notification
+        const loadingNotif = this.showNotification('🔍 Analyzing prompt quality...', 'info', 0);
+
+        try {
+            // ✅ UPDATED: Call the fixed score function
+            const scoreData = await scorePromptViaWorker(prompt);
+            
+            // Update UI with score
+            renderPromptScore(scoreData);
+            
+            // Remove loading notification safely
+            if (loadingNotif?.parentNode) {
+                loadingNotif.remove();
+            }
+            
+            this.showNotification(`✅ Prompt scored: ${scoreData.grade}`, 'success');
+            
+            // Update button with score
+            cleanBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(scoreData.totalScore/10).toFixed(1)}/10`;
+            cleanBtn.classList.add('has-score');
+            cleanBtn.title = `Score: ${scoreData.grade} - Click for details`;
+            
+            // Store score in app state
+            this.state.lastPromptScore = scoreData;
+            
+        } catch (err) {
+            console.error('Worker /score endpoint error:', err);
+            
+            // Remove loading notification safely
+            if (loadingNotif?.parentNode) {
+                loadingNotif.remove();
+            }
+            
+            // Show error in score UI
+            const slot = document.getElementById('rankingExplanationSlot');
+            if (slot) {
+                slot.innerHTML = `
+                    <div class="prompt-score-ui error">
+                        <div class="score-header">
+                            <h3>Prompt Quality Score</h3>
+                            <span class="score-badge">Error</span>
+                        </div>
+                        <div class="score-feedback">
+                            <p><i class="fas fa-exclamation-triangle"></i> Failed to score prompt.</p>
+                            <p class="error-detail">${err.message || 'Check backend connection'}</p>
+                            <button class="retry-score-btn">Retry</button>
+                        </div>
+                    </div>
+                `;
+                
+                // Add retry button functionality
+                slot.querySelector('.retry-score-btn')?.addEventListener('click', () => {
+                    cleanBtn.click();
+                });
+            }
+            
+            this.showNotification('Failed to score prompt', 'error');
+        } finally {
+            // Re-enable button
+            cleanBtn.disabled = false;
+            cleanBtn.classList.remove('disabled');
+        }
+    });
+
+    // CLOSE metrics → enable button
+    metricsCloseBtn.addEventListener('click', () => {
+        metricsBox.classList.remove('active');
+        cleanBtn.disabled = false;
+        cleanBtn.classList.remove('disabled');
+    });
+}
     }
 
     // Set up voice handler callbacks
@@ -1118,48 +1189,46 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ======================
     // AUTO-SCORE AFTER GENERATION (FIXED)
     // ======================
-    async autoScorePromptIfEnabled() {
-        // Check if auto-scoring is enabled in settings
-        if (!this.state.settings.autoScoreEnabled) return;
+// ======================
+// AUTO-SCORE AFTER GENERATION (IMPROVED)
+// ======================
+async autoScorePromptIfEnabled() {
+    // Check if auto-scoring is enabled in settings
+    if (!this.state.settings.autoScoreEnabled) return;
+    
+    const outputArea = document.getElementById('outputArea');
+    const prompt = outputArea?.textContent?.trim();
+    
+    if (!prompt || prompt.length < 50) return;
+    
+    try {
+        console.log('🔍 Auto-scoring prompt...');
         
-        const outputArea = document.getElementById('outputArea');
-        const prompt = outputArea?.textContent?.trim();
+        // ✅ Use fixed function with fallback
+        const scoreData = await scorePromptViaWorker(prompt);
         
-        if (!prompt || prompt.length < 50) return;
+        // Store score for later display
+        this.state.lastPromptScore = scoreData;
         
-        try {
-            console.log('Auto-scoring prompt...');
-            
-            // ✅ FIXED: Direct worker call (not via PromptGenerator)
-            const scoreData = await scorePromptViaWorker(prompt);
-            
-            // ✅ REMOVE THIS MOCK WHEN /score API RETURNS REAL VALUES
-            // For now, use real data if available, otherwise fallback to mock
-            const finalScoreData = scoreData || {
-                clarityAndIntent: 14,
-                structure: 11,
-                contextAndRole: 12,
-                totalScore: 37,
-                grade: 'Very Good'
-            };
-            
-            // Store score for later display
-            this.state.lastPromptScore = finalScoreData;
-            
-            // Show subtle notification
-            this.showNotification(`✓ Prompt scored: ${finalScoreData.grade} (${(finalScoreData.totalScore/10).toFixed(1)}/10)`, 'success', 3000);
-            
-            // Update UI with score badge if button exists
-            if (this.elements.metricsBtn) {
-                this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(finalScoreData.totalScore/10).toFixed(1)}/10`;
-                this.elements.metricsBtn.classList.add('has-score');
-            }
-            
-        } catch (err) {
-            console.warn('Auto-scoring failed:', err);
-            // Silent fail - don't bother user
+        // Show subtle notification
+        const notificationText = scoreData.isMockData 
+            ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
+            : `📊 Prompt scored: ${scoreData.grade} (${(scoreData.totalScore/10).toFixed(1)}/10)`;
+        
+        this.showNotification(notificationText, 'success', 3000);
+        
+        // Update UI with score badge if button exists
+        if (this.elements.metricsBtn) {
+            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(scoreData.totalScore/10).toFixed(1)}/10`;
+            this.elements.metricsBtn.classList.add('has-score');
+            this.elements.metricsBtn.title = `Score: ${scoreData.grade} - Click for details`;
         }
+        
+    } catch (err) {
+        console.warn('⚠️ Auto-scoring failed:', err);
+        // Silent fail - don't bother user
     }
+}
 
     // ======================
     // PLATFORM INTEGRATION - SAFE LAUNCH
@@ -2226,6 +2295,9 @@ Keep the summary concise yet comprehensive.`,
 // ======================
 // PROMPT SCORE RENDERER (WITH LOADING)
 // ======================
+// ======================
+// PROMPT SCORE RENDERER (IMPROVED)
+// ======================
 function renderPromptScore(score, isLoading = false) {
     const slot = document.getElementById('rankingExplanationSlot');
     if (!slot) return;
@@ -2272,40 +2344,51 @@ function renderPromptScore(score, isLoading = false) {
     
     // Determine grade-based color
     const gradeColor = getGradeColor(score.grade);
+    
+    // Add mock data indicator
+    const mockIndicator = score.isMockData 
+        ? '<span class="mock-indicator" title="Local analysis (backend unavailable)">⚠️ Local</span>' 
+        : '<span class="live-indicator" title="Live backend analysis">✓ Live</span>';
 
     slot.innerHTML = `
         <div class="prompt-score-ui">
             <div class="score-header">
-                <h3>Prompt Quality Score</h3>
+                <h3>Prompt Quality Score ${mockIndicator}</h3>
                 <span class="score-badge" style="background-color: ${gradeColor}">${badgeScore}/10</span>
             </div>
 
             <div class="score-bar">
-                <label>Clarity</label>
+                <label>Clarity & Intent</label>
                 <div class="bar"><div class="fill" style="width:${clarityPct}%; background-color: ${gradeColor}"></div></div>
-                <span>${clarityPct}%</span>
+                <span>${clarityPct}% (${score.clarityAndIntent}/20)</span>
             </div>
 
             <div class="score-bar">
                 <label>Structure</label>
                 <div class="bar"><div class="fill" style="width:${structurePct}%; background-color: ${gradeColor}"></div></div>
-                <span>${structurePct}%</span>
+                <span>${structurePct}% (${score.structure}/15)</span>
             </div>
 
             <div class="score-bar">
-                <label>Intent</label>
+                <label>Context & Role</label>
                 <div class="bar"><div class="fill" style="width:${intentPct}%; background-color: ${gradeColor}"></div></div>
-                <span>${intentPct}%</span>
+                <span>${intentPct}% (${score.contextAndRole}/15)</span>
             </div>
 
             <div class="score-feedback" style="border-left-color: ${gradeColor}">
                 <p>
                     <strong style="color: ${gradeColor}">${score.grade}.</strong>
-                    ${score.grade === 'Excellent' || score.grade === 'Very Good'
-                        ? 'Well-structured, clear, and likely to produce great results.'
-                        : 'Consider improving clarity, structure, or constraints.'}
+                    ${score.feedback || 'Prompt analysis complete.'}
                 </p>
+                ${score.isMockData ? '<p class="mock-note"><small>Note: Using local analysis. Backend scoring will resume when available.</small></p>' : ''}
             </div>
+            
+            ${score.originalJavaData ? `
+                <details class="debug-details">
+                    <summary>Debug Info</summary>
+                    <pre class="debug-json">${JSON.stringify(score.originalJavaData, null, 2)}</pre>
+                </details>
+            ` : ''}
         </div>
     `;
 }
