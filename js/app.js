@@ -2382,3 +2382,132 @@ function getGradeColor(grade) {
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
 });
+// ================================
+// PROMPT SCORE PANEL (COLLAPSIBLE)
+// ================================
+
+let promptScoreState = {
+    expanded: false,
+    stale: false,
+    lastScore: null
+};
+
+function initPromptScorePanel() {
+    const outputCard = document.getElementById('outputCard');
+    if (!outputCard) return;
+
+    if (document.getElementById('promptScorePanel')) return;
+
+    const panel = document.createElement('div');
+    panel.id = 'promptScorePanel';
+    panel.className = 'score-panel collapsed';
+
+    panel.innerHTML = `
+        <div class="score-panel-header">
+            <span class="score-panel-title">Check Prompt Score</span>
+            <button class="score-panel-close" title="Close">×</button>
+        </div>
+
+        <div class="score-panel-body"></div>
+    `;
+
+    outputCard.appendChild(panel);
+
+    // Header click (expand / re-score)
+    panel.querySelector('.score-panel-header').addEventListener('click', (e) => {
+        if (e.target.classList.contains('score-panel-close')) return;
+
+        if (promptScoreState.stale || !promptScoreState.lastScore) {
+            triggerPromptScore();
+        }
+
+        expandScorePanel();
+    });
+
+    // Close button
+    panel.querySelector('.score-panel-close').addEventListener('click', (e) => {
+        e.stopPropagation();
+        collapseScorePanel();
+    });
+}
+
+// ================================
+// PANEL STATE HANDLERS
+// ================================
+
+function expandScorePanel() {
+    const panel = document.getElementById('promptScorePanel');
+    if (!panel) return;
+
+    panel.classList.remove('collapsed');
+    panel.classList.add('expanded');
+    promptScoreState.expanded = true;
+}
+
+function collapseScorePanel() {
+    const panel = document.getElementById('promptScorePanel');
+    if (!panel) return;
+
+    panel.classList.remove('expanded');
+    panel.classList.add('collapsed');
+    promptScoreState.expanded = false;
+}
+
+// ================================
+// RENDER SCORE
+// ================================
+
+function renderPromptScore(score) {
+    initPromptScorePanel();
+
+    const panel = document.getElementById('promptScorePanel');
+    const body = panel.querySelector('.score-panel-body');
+    const title = panel.querySelector('.score-panel-title');
+
+    promptScoreState.lastScore = score;
+    promptScoreState.stale = false;
+
+    title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
+
+    body.innerHTML = `
+        <div class="score-badge score-${score.grade.toLowerCase()}">
+            ${score.grade} — ${score.totalScore}/50
+        </div>
+
+        <p class="score-feedback">${score.feedback}</p>
+
+        <ul class="score-breakdown">
+            <li>Clarity & Intent: ${score.clarityAndIntent}/20</li>
+            <li>Structure: ${score.structure}/15</li>
+            <li>Context & Role: ${score.contextAndRole}/15</li>
+        </ul>
+    `;
+
+    expandScorePanel();
+}
+
+// ================================
+// MARK SCORE STALE ON EDIT
+// ================================
+
+function markScoreAsStale() {
+    const panel = document.getElementById('promptScorePanel');
+    if (!panel) return;
+
+    const title = panel.querySelector('.score-panel-title');
+
+    promptScoreState.stale = true;
+    collapseScorePanel();
+
+    title.innerHTML = `Prompt Changed <span class="rescore-link">· Re-Score</span>`;
+}
+
+// ================================
+// TRIGGER SCORE API
+// ================================
+
+function triggerPromptScore() {
+    console.log('🔍 Re-scoring prompt...');
+    // Reuse existing scoring logic
+    document.dispatchEvent(new CustomEvent('requestPromptScore'));
+}
