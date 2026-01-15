@@ -1,8 +1,7 @@
 // ============================================
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
-// Version: 2.0.0 - PRODUCTION READY
+// Version: 2.0.2 - FINAL FIXES
 // ============================================
-// Add to app.js (somewhere near the top or in your initialization)
 
 // MODEL VALIDATION FUNCTIONS
 const MODEL_CAPABILITIES = {
@@ -93,10 +92,6 @@ function onStrictModeToggle(isStrict) {
 // ======================
 // SCORING API HELPER (NEW - DIRECT WORKER CALL)
 // ======================
-// In app.js - Update scorePromptViaWorker to handle new format:
-// ======================
-// SCORING API HELPER (FIXED - WORKING WITH NEW WORKER)
-// ======================
 async function scorePromptViaWorker(prompt) {
     const workerUrl = window.AppConfig?.WORKER_CONFIG?.workerUrl || 
                      'https://promptcraft-api.vijay-shagunkumar.workers.dev';
@@ -143,7 +138,9 @@ async function scorePromptViaWorker(prompt) {
             feedback: data.feedback || 'Prompt analysis complete.',
             isMockData: data.isFallback || false,
             transformed: data.transformed || false,
-            originalJavaData: data.originalJavaData || null
+            originalJavaData: data.originalJavaData || null,
+            promptLength: prompt.length,
+            promptWords: prompt.split(/\s+/).filter(Boolean).length
         };
         
     } catch (error) {
@@ -164,13 +161,15 @@ function generateMockScore(prompt) {
             totalScore: 0,
             grade: 'Inadequate',
             feedback: 'Prompt is empty or invalid.',
-            isMockData: true
+            isMockData: true,
+            promptLength: 0,
+            promptWords: 0
         };
     }
     
     // Simple heuristic scoring based on prompt length and structure
     const length = prompt.length;
-    const words = prompt.split(/\s+/).length;
+    const words = prompt.split(/\s+/).filter(Boolean).length;
     const lines = prompt.split('\n').length;
     const hasStructure = /(task|objective|requirements|instructions):/i.test(prompt);
     const hasFormat = /format:/i.test(prompt);
@@ -212,11 +211,11 @@ function generateMockScore(prompt) {
         totalScore,
         grade,
         feedback: `Grade: ${grade}. ${grade === 'Excellent' ? 'Excellent prompt structure!' : 'Consider adding more specific requirements.'}`,
-        isMockData: true
+        isMockData: true,
+        promptLength: length,
+        promptWords: words
     };
 }
-
-// Keep the existing generateMockScore function
 
 // ======================
 // MAIN APPLICATION CONTROLLER
@@ -280,8 +279,8 @@ class PromptCraftApp {
             redoStack: [],
             promptHistory: [],
             currentModel: 'gemini-3-flash-preview',
-            generatedFromInput: null,  // ✅ ADDED: tracks which input generated current prompt
-            lastPromptScore: null,     // ✅ ADDED: Store last score
+            generatedFromInput: null,
+            lastPromptScore: null,
             settings: this.loadDefaultSettings()
         };
 
@@ -300,11 +299,11 @@ class PromptCraftApp {
 
         this.voiceHandler = new VoiceHandler({
             continuous: false,
-            interimResults: false, // 🔥 Only final results (no interim)
+            interimResults: false,
             defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
-            maxListenTime: 10000, // 🔥 10 seconds max
-            maxSimilarityThreshold: 0.75, // 🔥 Stricter threshold
-            replaceMode: true, // 🔥 Critical for preventing duplicates
+            maxListenTime: 10000,
+            maxSimilarityThreshold: 0.75,
+            replaceMode: true,
             mergeProgressiveResults: true,
             debounceDelay: 400
         });
@@ -316,7 +315,7 @@ class PromptCraftApp {
             timeout: 30000,
             fallbackToLocal: true,
             enableDebug: true,
-            strictPromptMode: true // 🔥 ADD THIS LINE
+            strictPromptMode: true
         });
 
         // Bind elements (with null safety)
@@ -340,7 +339,7 @@ class PromptCraftApp {
             interfaceLanguage: 'en',
             maxHistoryItems: 25,
             notificationDuration: 3000,
-            autoScoreEnabled: true // ✅ ADDED: Auto-score after generation
+            autoScoreEnabled: true
         };
     }
 
@@ -372,8 +371,11 @@ class PromptCraftApp {
             stickyPrepareBtn: document.getElementById('stickyPrepareBtn'),
             stickyResetBtn: document.getElementById('stickyResetBtn'),
             
-    // Metrics (✅ FIXED)
-    metricsBtn: document.querySelector('.metrics-toggle'),
+            // Metrics
+            metricsBtn: document.querySelector('.metrics-toggle'),
+            metricsBox: document.querySelector('.ranking-explanation'),
+            metricsCloseBtn: document.querySelector('.metrics-close-btn'),
+            
             // Inspiration
             inspirationPanel: document.getElementById('inspirationPanel'),
             closeInspirationBtn: document.getElementById('closeInspirationBtn'),
@@ -399,7 +401,7 @@ class PromptCraftApp {
             // App container
             appContainer: document.querySelector('.app-container'),
             
-            // Editor elements (with null safety - these might be removed from HTML)
+            // Editor elements
             editorMicBtn: document.getElementById('editorMicBtn'),
             
             // Settings elements
@@ -413,7 +415,6 @@ class PromptCraftApp {
         if (this.elements.needInspirationBtn) {
             this.elements.needInspirationBtn.title = 'Click to insert ready-made prompt samples';
         }
-
     }
 
     // Create notification container if it doesn't exist
@@ -435,6 +436,10 @@ class PromptCraftApp {
             
             // Set up event listeners
             this.setupEventListeners();
+            
+            // Set up score invalidation and metrics toggle
+            this.setupScoreInvalidation();
+            this.setupMetricsToggle();
             
             // Set up voice handler callbacks
             this.setupVoiceCallbacks();
@@ -458,6 +463,83 @@ class PromptCraftApp {
             console.error('Failed to initialize PromptCraft:', error);
             this.showNotification('Failed to initialize application. Please refresh the page.', 'error');
         }
+    }
+
+    // Set up score invalidation listeners
+    setupScoreInvalidation() {
+        const outputArea = document.getElementById('outputArea');
+        if (!outputArea) return;
+        
+        let userEditing = false;
+        
+        // ✅ FIXED ISSUE 4: Consolidated edit detection - only listen here
+        outputArea.addEventListener('input', () => {
+            // Mark score stale only once per edit cycle
+            if (!userEditing) {
+                userEditing = true;
+                this.markScoreAsStale();
+            }
+        });
+        
+        // Reset stale flag when a fresh score is rendered
+        document.addEventListener('promptScoreRendered', () => {
+            userEditing = false;
+        });
+    }
+
+    // Set up metrics toggle listener
+    setupMetricsToggle() {
+        if (!this.elements.metricsBtn || !this.elements.metricsBox || !this.elements.metricsCloseBtn) return;
+        
+        this.elements.metricsBtn.addEventListener('click', () => {
+            if (!this.state.lastPromptScore) {
+                this.showNotification('Re-scoring prompt...', 'info');
+                this.autoScorePromptIfEnabled(true);
+                return;
+            }
+            
+            this.elements.metricsBox.classList.add('active');
+        });
+        
+        this.elements.metricsCloseBtn.addEventListener('click', () => {
+            this.elements.metricsBox.classList.remove('active');
+        });
+    }
+
+    // Mark score as stale (with guard to prevent multiple calls)
+    markScoreAsStale() {
+        // Guard against repeated calls
+        if (this.state.lastPromptScore === null) return;
+        
+        const box = document.querySelector('#outputCard .score-results');
+        if (box) {
+            box.style.opacity = '0.5';
+            box.style.filter = 'grayscale(0.6)';
+            
+            let note = box.querySelector('.score-stale-note');
+            if (!note) {
+                note = document.createElement('div');
+                note.className = 'score-stale-note';
+                note.style.cssText = `
+                    margin-top: 8px;
+                    font-size: 12px;
+                    color: #f59e0b;
+                `;
+                box.appendChild(note);
+            }
+            
+            note.textContent = 'Prompt edited — re-score required';
+        }
+        
+        // ✅ FIXED ISSUE 2: Clear metrics button when score is stale
+        if (this.elements.metricsBtn) {
+            this.elements.metricsBtn.innerHTML = '<i class="fas fa-chart-line"></i>';
+            this.elements.metricsBtn.title = 'Score stale — click to re-score';
+            this.elements.metricsBtn.classList.remove('has-score');
+        }
+        
+        // Clear stored score
+        this.state.lastPromptScore = null;
     }
 
     // Set up event listeners with null safety
@@ -547,6 +629,7 @@ class PromptCraftApp {
         
         // Output editing
         if (this.elements.outputArea) {
+            // ✅ FIXED ISSUE 4: Removed duplicate markScoreAsStale call here
             this.elements.outputArea.addEventListener('input', () => this.handlePromptEdit());
             this.elements.outputArea.addEventListener('paste', (e) => {
                 e.preventDefault();
@@ -613,10 +696,6 @@ class PromptCraftApp {
         
         // Auto-generation
         this.setupAutoGeneration();
-        
-        // ================================
-
-     
     }
 
     // Set up voice handler callbacks
@@ -627,7 +706,7 @@ class PromptCraftApp {
                 // Visual feedback
                 if (this.elements.micBtn) {
                     this.elements.micBtn.classList.add('listening');
-                    this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>'; // Red dot
+                    this.elements.micBtn.innerHTML = '<i class="fas fa-circle"></i>';
                 }
             },
             onListeningEnd: () => {
@@ -645,27 +724,22 @@ class PromptCraftApp {
                     similarityCheck: metadata.similarityCheck
                 });
                 
-                // 🔥 CRITICAL: ONLY process FINAL results
+                // Only process FINAL results
                 if (metadata.isFinal) {
-                    // 🔥 CRITICAL: Use REPLACE mode - don't append!
                     if (this.state.isEditorOpen && this.state.currentEditor === 'input') {
                         const editor = document.getElementById('editorTextarea');
                         if (editor) {
-                            // REPLACE entire content
                             editor.value = text;
                             editor.selectionStart = editor.selectionEnd = text.length;
                             editor.focus();
-                            // Trigger input event
                             editor.dispatchEvent(new Event('input', { bubbles: true }));
                         }
                     } else if (this.elements.userInput) {
-                        // 🔥 REPLACE main input entirely (not append!)
                         this.elements.userInput.value = text;
                         this.elements.userInput.selectionStart = 
                         this.elements.userInput.selectionEnd = text.length;
                         this.elements.userInput.focus();
                         
-                        // Trigger input change handler
                         this.handleInputChange();
                     }
                     
@@ -675,7 +749,6 @@ class PromptCraftApp {
                         this.showNotification(`✓ ${wordCount} words added via voice`, 'success', 2000);
                     }
                 }
-                // 🔥 IGNORE interim results completely (they're disabled anyway)
             },
             onSpeakingStart: () => {
                 this.showNotification('🔊 Reading prompt...', 'info');
@@ -692,7 +765,6 @@ class PromptCraftApp {
                 } else if (errorLower.includes('network')) {
                     this.showNotification('Network error. Check your connection', 'error');
                 } else if (!errorLower.includes('aborted')) {
-                    // Don't show "aborted" errors (user stopped)
                     this.showNotification(`Voice error: ${error}`, 'error');
                 }
             }
@@ -733,7 +805,7 @@ class PromptCraftApp {
         this.elements.charCounter.style.color =
             charCount > maxLength * 0.9 ? 'var(--danger)' : 'var(--text-tertiary)';
 
-        // ✅ CORE FIX — input changed AFTER generation
+        // CORE FIX — input changed AFTER generation
         if (
             this.state.hasGeneratedPrompt &&
             text.trim() !== this.state.generatedFromInput
@@ -748,7 +820,6 @@ class PromptCraftApp {
                 this.elements.stickyPrepareBtn.style.display = 'flex';
             }
 
-            // optional but correct UX
             if (this.elements.outputSection) {
                 this.elements.outputSection.classList.remove('visible');
             }
@@ -760,15 +831,20 @@ class PromptCraftApp {
     }
 
     // Handle prompt editing
-handlePromptEdit() {
-    if (!this.elements.outputArea) return;
+    handlePromptEdit() {
+        if (!this.elements.outputArea) return;
 
-    const currentContent = this.elements.outputArea.textContent.trim();
-    this.state.promptModified = currentContent !== this.state.originalPrompt;
+        const currentContent = this.elements.outputArea.textContent.trim();
+        const modified = currentContent !== this.state.originalPrompt;
 
-    this.updateButtonStates();
-}
+        if (modified && !this.state.promptModified) {
+            // ✅ FIXED ISSUE 4: Consolidated - only mark stale via handlePromptEdit
+            this.markScoreAsStale();
+        }
 
+        this.state.promptModified = modified;
+        this.updateButtonStates();
+    }
 
     // ======================
     // PROMPT GENERATION
@@ -794,7 +870,7 @@ handlePromptEdit() {
         const validation = validateModelForMode(selectedModel, true);
         if (!validation.valid && validation.correctedModel) {
             this.showNotification(validation.reason, 'warning');
-            selectedModel = validation.correctedModel;     // 🔥 CRITICAL
+            selectedModel = validation.correctedModel;
             this.state.currentModel = validation.correctedModel;
         }
         
@@ -811,7 +887,7 @@ handlePromptEdit() {
                 style: 'detailed',
                 temperature: 0.4,
                 timeout: 25000,
-                strictPromptMode: true // 🔥 ADD THIS
+                strictPromptMode: true
             });
             
             console.log('Generation result:', {
@@ -823,12 +899,9 @@ handlePromptEdit() {
             });
             
             if (result.success && result.prompt) {
-                if (result.prompt.length < 50) {
-                    console.warn('Generated prompt is too short:', result.prompt.length);
-                    this.showNotification('Generated prompt seems incomplete. Trying fallback...', 'warning');
-                    throw new Error('Prompt too short');
-                }
-                
+                // Clear score immediately before setting new text
+                this.state.lastPromptScore = null;
+
                 const success = this.setOutputText(result.prompt);
                 
                 if (!success) {
@@ -838,9 +911,9 @@ handlePromptEdit() {
                 this.state.originalPrompt = result.prompt;
                 this.state.promptModified = false;
                 this.state.hasGeneratedPrompt = true;
-                this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
+                this.state.generatedFromInput = inputText;
                 
-                // ✅ FIX: Hide Prepare button, show Reset button
+                // Hide Prepare button, show Reset button
                 if (this.elements.stickyPrepareBtn) {
                     this.elements.stickyPrepareBtn.style.display = 'none';
                 }
@@ -851,7 +924,7 @@ handlePromptEdit() {
                 if (this.elements.outputSection) {
                     this.elements.outputSection.classList.add('visible');
                 }
-                // ✅ UX FIX: Auto-scroll to generated prompt (Step 2)
+                // Auto-scroll to generated prompt
                 setTimeout(() => {
                     this.elements.outputSection?.scrollIntoView({
                         behavior: 'smooth',
@@ -880,7 +953,7 @@ handlePromptEdit() {
                 console.log(`Final prompt length: ${result.prompt.length} chars`);
                 console.log(`Prompt preview: ${result.prompt.substring(0, 200)}...`);
                 
-                // ✅ AUTO-SCORE AFTER GENERATION
+                // AUTO-SCORE AFTER GENERATION
                 setTimeout(() => {
                     this.autoScorePromptIfEnabled();
                 }, 1000);
@@ -902,6 +975,7 @@ handlePromptEdit() {
 
     setOutputText(text) {
         try {
+            // ✅ FIXED ISSUE 1: Removed markScoreAsStale() call - new prompt should never be stale
             if (!this.elements.outputArea) return false;
 
             this.elements.outputArea.innerHTML = '';
@@ -910,10 +984,10 @@ handlePromptEdit() {
             const cleanText = this.cleanTextForDOM(text);
             this.elements.outputArea.textContent = cleanText;
 
-            // ✅ STORE FOR RANKING
+            // STORE FOR RANKING
             window.lastGeneratedPrompt = cleanText;
 
-            // ✅ DISPATCH EVENT (ONLY ONCE)
+            // DISPATCH EVENT
             document.dispatchEvent(new CustomEvent('promptGenerated', {
                 detail: { result: cleanText }
             }));
@@ -966,6 +1040,8 @@ handlePromptEdit() {
                 });
                 
                 if (fallbackResult.success && fallbackResult.prompt && fallbackResult.prompt.length > 50) {
+                    this.state.lastPromptScore = null;
+                    
                     const success = this.setOutputText(fallbackResult.prompt);
                     
                     if (!success) {
@@ -975,9 +1051,8 @@ handlePromptEdit() {
                     
                     this.state.originalPrompt = fallbackResult.prompt;
                     this.state.hasGeneratedPrompt = true;
-                    this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
+                    this.state.generatedFromInput = inputText;
                     
-                    // ✅ FIX: Hide Prepare button, show Reset button
                     if (this.elements.stickyPrepareBtn) {
                         this.elements.stickyPrepareBtn.style.display = 'none';
                     }
@@ -1024,6 +1099,8 @@ handlePromptEdit() {
         try {
             this.showNotification('Using local generation...', 'info');
             
+            this.state.lastPromptScore = null;
+            
             const localPrompt = `Based on your request: "${inputText.substring(0, 100)}..."
 
 I'll help you create a comprehensive prompt. Here's a structured approach:
@@ -1046,9 +1123,8 @@ This structured approach ensures you get detailed, actionable responses tailored
             
             this.state.originalPrompt = localPrompt;
             this.state.hasGeneratedPrompt = true;
-            this.state.generatedFromInput = inputText;  // ✅ STORE THE INPUT
+            this.state.generatedFromInput = inputText;
             
-            // ✅ FIX: Hide Prepare button, show Reset button
             if (this.elements.stickyPrepareBtn) {
                 this.elements.stickyPrepareBtn.style.display = 'none';
             }
@@ -1091,55 +1167,119 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ======================
     // AUTO-SCORE AFTER GENERATION (FIXED)
     // ======================
-// ======================
-// AUTO-SCORE AFTER GENERATION (IMPROVED)
-// ======================
-async autoScorePromptIfEnabled() {
-    // Check if auto-scoring is enabled in settings
-    if (!this.state.settings.autoScoreEnabled) return;
-if (!this.state.hasGeneratedPrompt) return;
-if (this.state.promptModified) return;
+    async autoScorePromptIfEnabled(force = false) {
+        if (!this.state.settings.autoScoreEnabled && !force) return;
+        if (!this.state.hasGeneratedPrompt && !force) return;
+        if (this.state.promptModified && !force) return;
+        // ✅ FIXED ISSUE 3: Removed generatedFromInput check - scoring depends on prompt, not origin
+        // if (this.state.generatedFromInput === null) return;
 
-    
-    const outputArea = document.getElementById('outputArea');
-    const prompt = outputArea?.textContent?.trim();
-    
-    if (!prompt || prompt.length < 50) return;
-    
-    try {
-        console.log('🔍 Auto-scoring prompt...');
+        const outputArea = document.getElementById('outputArea');
+        const prompt = outputArea?.textContent?.trim();
         
-        // ✅ Use fixed function with fallback
-        const scoreData = await scorePromptViaWorker(prompt);
+        if (!prompt || prompt.length < 50) return;
         
-        // Store score for later display
-this.state.lastPromptScore = scoreData;
-this.state.promptModified = false; // ✅ ADD THIS LINE
-renderPromptScore(scoreData);
-
-        
-        // Show subtle notification
-const notificationText = scoreData.isMockData 
-    ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
-    : `📊 Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`;
-
-        
-        this.showNotification(notificationText, 'success', 3000);
-        
-        // Update UI with score badge if button exists
-        if (this.elements.metricsBtn) {
-        this.elements.metricsBtn.innerHTML =
-  `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
-this.elements.metricsBtn.title =
-  `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
-
+        try {
+            console.log('🔍 Auto-scoring prompt...');
+            
+            const scoreData = await scorePromptViaWorker(prompt);
+            
+            // Store score for later display
+            this.state.lastPromptScore = scoreData;
+            this.state.promptModified = false;
+            this.renderPromptScore(scoreData);
+            
+            // Show subtle notification
+            const notificationText = scoreData.isMockData 
+                ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
+                : `📊 Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`;
+            
+            this.showNotification(notificationText, 'success', 3000);
+            
+            // Update UI with score badge if button exists
+            if (this.elements.metricsBtn) {
+                this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
+                this.elements.metricsBtn.title = `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
+                this.elements.metricsBtn.classList.add('has-score');
+            }
+            
+        } catch (err) {
+            console.warn('⚠️ Auto-scoring failed:', err);
+            // Silent fail - don't bother user
         }
-        
-    } catch (err) {
-        console.warn('⚠️ Auto-scoring failed:', err);
-        // Silent fail - don't bother user
     }
-}
+
+    // Render prompt score
+    renderPromptScore(score) {
+        // Notify system that a fresh score is rendered
+        document.dispatchEvent(new Event('promptScoreRendered'));
+
+        const outputCard = document.getElementById('outputCard');
+        if (!outputCard) return;
+
+        let box = outputCard.querySelector('.score-results');
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'score-results';
+            outputCard.appendChild(box);
+        }
+
+        // Clear stale styling
+        box.style.opacity = '1';
+        box.style.filter = 'none';
+        box.querySelector('.score-stale-note')?.remove();
+
+        const total = Number(score.totalScore || 0);
+        const badgeClass = `score-${score.grade.toLowerCase().replace(' ', '-')}`;
+
+        const strengths =
+            score.originalJavaData?.strengths?.length
+                ? score.originalJavaData.strengths.map(s => `<li>${s}</li>`).join('')
+                : '<li>No major strengths detected</li>';
+
+        const improvements =
+            score.originalJavaData?.improvements?.length
+                ? score.originalJavaData.improvements.map(i => `<li>${i}</li>`).join('')
+                : '<li>No improvements suggested</li>';
+
+        box.innerHTML = `
+            <div class="score-card">
+                <div class="score-badge ${badgeClass}">
+                    ${score.grade} (${total}/50)
+                </div>
+
+                <p style="margin-top:10px">${score.feedback || ''}</p>
+
+                <ul style="margin-top:10px;font-size:13px">
+                    <li>Clarity & Intent: ${score.clarityAndIntent || 0}/20</li>
+                    <li>Structure: ${score.structure || 0}/15</li>
+                    <li>Context & Role: ${score.contextAndRole || 0}/15</li>
+                </ul>
+
+                ${score.originalJavaData ? `
+                <ul style="margin-top:10px;font-size:13px">
+                    <li>Constraints: ${score.originalJavaData.constraints || 0}/15</li>
+                    <li>Completeness: ${score.originalJavaData.completeness || 0}/15</li>
+                </ul>
+                ` : ''}
+
+                <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
+                    Prompt Length: ${score.promptLength || 0} chars ·
+                    Words: ${score.promptWords || 0}
+                </div>
+
+                <div style="margin-top:12px">
+                    <strong>Strengths</strong>
+                    <ul style="font-size:13px;margin-top:5px">${strengths}</ul>
+                </div>
+
+                <div style="margin-top:10px">
+                    <strong>Improvements</strong>
+                    <ul style="font-size:13px;margin-top:5px">${improvements}</ul>
+                </div>
+            </div>
+        `;
+    }
 
     // ======================
     // PLATFORM INTEGRATION - SAFE LAUNCH
@@ -1183,7 +1323,7 @@ this.elements.metricsBtn.title =
     }
 
     // ======================
-    // PROMPT ACTIONS - FIXED FOR PROBLEM 5
+    // PROMPT ACTIONS
     // ======================
 
     async copyPrompt() {
@@ -1197,7 +1337,6 @@ this.elements.metricsBtn.title =
         }
         
         try {
-            // 🔧 FIX 5: Add execution instructions when copying
             const copyText = `=== COPY AND PASTE BELOW INTO YOUR AI TOOL ===
 
 ${text}
@@ -1294,55 +1433,54 @@ ${text}
     // APPLICATION CONTROLS
     // ======================
 
-resetApplication() {
-    // ✅ FIX: Reset button visibility
-    if (this.elements.stickyPrepareBtn) {
-        this.elements.stickyPrepareBtn.style.display = 'flex';
-    }
-    if (this.elements.stickyResetBtn) {
-        this.elements.stickyResetBtn.style.display = 'none';
-    }
-    
-    this.state.undoStack = [];
-    this.state.redoStack = [];
-    this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
-    this.state.lastPromptScore = null;     // ✅ CLEAR SCORE
-  const scoreBox = document.querySelector('#outputCard .score-results');
-if (scoreBox) scoreBox.remove();
+    resetApplication() {
+        // Reset button visibility
+        if (this.elements.stickyPrepareBtn) {
+            this.elements.stickyPrepareBtn.style.display = 'flex';
+        }
+        if (this.elements.stickyResetBtn) {
+            this.elements.stickyResetBtn.style.display = 'none';
+        }
+        
+        this.state.undoStack = [];
+        this.state.redoStack = [];
+        this.state.generatedFromInput = null;
+        this.state.lastPromptScore = null;
+        const scoreBox = document.querySelector('#outputCard .score-results');
+        if (scoreBox) scoreBox.remove();
+        
+        if (this.elements.userInput) {
+            this.elements.userInput.value = '';
+        }
+        
+        this.clearGeneratedPrompt();
+        this.closeHistory();
+        
+        this.state.selectedPlatform = null;
+        this.state.hasGeneratedPrompt = false;
+        
+        // Restore model from settings
+        if (this.state.settings.defaultModel) {
+            this.state.currentModel = this.state.settings.defaultModel;
+        } else {
+            this.state.currentModel = 'gemini-3-flash-preview';
+        }
+        
+        this.updateModelDisplay();
+        this.updateButtonStates();
+        this.updateProgress();
+        
+        // Clear score from metrics button
+        if (this.elements.metricsBtn) {
+            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i>`;
+            this.elements.metricsBtn.classList.remove('has-score');
+            this.elements.metricsBtn.title = 'Score prompt';
+        }
+        const slot = document.getElementById('rankingExplanationSlot');
+        if (slot) slot.innerHTML = '';
 
-    
-    if (this.elements.userInput) {
-        this.elements.userInput.value = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    
-    this.clearGeneratedPrompt();
-    this.closeHistory();
-    
-    this.state.selectedPlatform = null;
-    this.state.hasGeneratedPrompt = false;
-    
-    // ✅ FIX: Restore model from settings
-    if (this.state.settings.defaultModel) {
-        this.state.currentModel = this.state.settings.defaultModel;
-    } else {
-        this.state.currentModel = 'gemini-3-flash-preview';
-    }
-    
-    this.updateModelDisplay();
-    this.updateButtonStates();
-    this.updateProgress();
-    
-    // Clear score from metrics button
-    if (this.elements.metricsBtn) {
-        this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i>`;
-        this.elements.metricsBtn.classList.remove('has-score');
-        this.elements.metricsBtn.title = 'Score prompt';
-    }
-    const slot = document.getElementById('rankingExplanationSlot');
-if (slot) slot.innerHTML = '';
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
 
     clearGeneratedPrompt() {
         if (this.elements.outputArea) {
@@ -1352,7 +1490,7 @@ if (slot) slot.innerHTML = '';
         this.state.originalPrompt = null;
         this.state.promptModified = false;
         this.state.hasGeneratedPrompt = false;
-        this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
+        this.state.generatedFromInput = null;
         this.state.selectedPlatform = null;
         
         if (this.elements.outputSection) {
@@ -1452,7 +1590,6 @@ if (slot) slot.innerHTML = '';
             this.state.settings.defaultModel = defaultModel.value;
             this.state.currentModel = defaultModel.value;
             console.log('Default model set to:', defaultModel.value);
-            // ✅ FIX: Update model display immediately
             this.updateModelDisplay();
         }
         
@@ -1558,11 +1695,9 @@ if (slot) slot.innerHTML = '';
         
         if (!editorTextarea || !closeEditorBtn) return;
         
-        // Optional editor buttons (check if they exist)
         const editorPrepareBtn = document.getElementById('editorPrepareBtn');
         const editorMicBtn = document.getElementById('editorMicBtn');
         
-        // Only set up events for buttons that exist
         if (editorPrepareBtn) {
             editorPrepareBtn.onclick = () => this.prepareFromEditor();
             editorTextarea.addEventListener('input', () => {
@@ -1621,6 +1756,7 @@ if (slot) slot.innerHTML = '';
             if (this.state.currentEditor === 'output' && this.elements.outputArea) {
                 const newText = editorTextarea.value;
                 this.elements.outputArea.textContent = newText;
+                // ✅ FIXED ISSUE 4: Consolidated - handle edit through handlePromptEdit
                 this.handlePromptEdit();
             }
             
@@ -1712,7 +1848,6 @@ Focus on practical insights that drive decision-making.`,
 
 Keep the summary concise yet comprehensive.`,
             
-            // 🔥 ADDED: Business Strategy template
             strategy: `Develop a comprehensive business strategy for an organization. The strategy should:
 1. Define vision, mission, and long-term objectives
 2. Analyze market, customers, and competitors
@@ -1934,7 +2069,7 @@ Keep the summary concise yet comprehensive.`,
         const item = this.state.promptHistory.find(h => h.id === id);
         if (!item) return;
 
-        this.clearGeneratedPrompt(); // ✅ ADD THIS
+        this.clearGeneratedPrompt();
 
         if (this.elements.userInput) {
             this.elements.userInput.value = item.fullInput;
@@ -1955,7 +2090,7 @@ Keep the summary concise yet comprehensive.`,
     viewHistoryItem(id) {
         const item = this.state.promptHistory.find(h => h.id === id);
         if (!item) return;
-        this.clearGeneratedPrompt(); // ✅ ADD THIS
+        this.clearGeneratedPrompt();
 
         if (this.elements.userInput) {
             this.elements.userInput.value = item.fullInput;
@@ -1974,7 +2109,7 @@ Keep the summary concise yet comprehensive.`,
             }
 
             if (editorPrepareBtn) {
-                editorPrepareBtn.disabled = false; // 🔥 KEY LINE
+                editorPrepareBtn.disabled = false;
             }
         }, 0);
 
@@ -1991,7 +2126,6 @@ Keep the summary concise yet comprehensive.`,
             this.state.settings = { ...this.loadDefaultSettings(), ...saved };
         }
         
-        // ✅ FIX: Restore model from saved settings
         if (this.state.settings.defaultModel) {
             this.state.currentModel = this.state.settings.defaultModel;
         }
@@ -2145,7 +2279,6 @@ Keep the summary concise yet comprehensive.`,
 
         /* =========================
            ALT + P → Prepare Prompt
-           (ALLOW while typing)
            ========================= */
         if (e.altKey && e.key.toLowerCase() === 'p') {
             e.preventDefault();
@@ -2209,18 +2342,17 @@ Keep the summary concise yet comprehensive.`,
     }
 }
 
-
 // ======================
 // GRADE COLOR HELPER
 // ======================
 function getGradeColor(grade) {
     const colors = {
-        'Excellent': '#10b981', // Emerald green
-        'Very Good': '#3b82f6', // Blue
-        'Good': '#8b5cf6',      // Violet
-        'Fair': '#f59e0b',      // Amber
-        'Poor': '#ef4444',      // Red
-        'Inadequate': '#6b7280' // Gray
+        'Excellent': '#10b981',
+        'Very Good': '#3b82f6',
+        'Good': '#8b5cf6',
+        'Fair': '#f59e0b',
+        'Poor': '#ef4444',
+        'Inadequate': '#6b7280'
     };
     return colors[grade] || '#6b7280';
 }
@@ -2229,152 +2361,3 @@ function getGradeColor(grade) {
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
 });
-// Re-apply score whenever a new prompt is generated
-
-// =======================================================
-// METRICS PANEL TOGGLE (SINGLE RESPONSIBILITY)
-// =======================================================
-document.addEventListener('DOMContentLoaded', () => {
-    const metricsBtn = document.querySelector('.metrics-toggle');
-    const metricsBox = document.querySelector('.ranking-explanation');
-    const metricsCloseBtn = document.querySelector('.metrics-close-btn');
-
-    if (!metricsBtn || !metricsBox || !metricsCloseBtn) return;
-metricsBtn.addEventListener('click', () => {
-metricsBtn.addEventListener('click', () => {
-    const app = window.promptCraftApp;
-
-    if (!app?.state?.lastPromptScore) {
-        app.showNotification(
-            'Prompt was edited — re-score to see updated results',
-            'warning'
-        );
-        return;
-    }
-
-    metricsBox.classList.add('active');
-});
-
-    metricsBox.classList.add('active');
-});
-
-    metricsCloseBtn.addEventListener('click', () => {
-        metricsBox.classList.remove('active');
-    });
-});
-function renderPromptScore(score) {
-    // Notify system that a fresh score is rendered
-    document.dispatchEvent(new Event('promptScoreRendered'));
-
-    const outputCard = document.getElementById('outputCard');
-    if (!outputCard) return;
-
-    let box = outputCard.querySelector('.score-results');
-    if (!box) {
-        box = document.createElement('div');
-        box.className = 'score-results';
-        outputCard.appendChild(box);
-    }
-
-    // 🔧 CLEAR STALE STYLING
-    box.style.opacity = '1';
-    box.style.filter = 'none';
-    box.querySelector('.score-stale-note')?.remove();
-
-    const total = Number(score.totalScore || 0);
-    const badgeClass = `score-${Math.floor(total / 5)}`;
-
-    const strengths =
-        score.originalJavaData?.strengths?.length
-            ? score.originalJavaData.strengths.map(s => `<li>${s}</li>`).join('')
-            : '<li>No major strengths detected</li>';
-
-    const improvements =
-        score.originalJavaData?.improvements?.length
-            ? score.originalJavaData.improvements.map(i => `<li>${i}</li>`).join('')
-            : '<li>No improvements suggested</li>';
-
-    box.innerHTML = `
-        <div class="score-card">
-            <div class="score-badge ${badgeClass}">
-                ${score.grade} (${total}/50)
-            </div>
-
-            <p style="margin-top:10px">${score.feedback || ''}</p>
-
-            <ul style="margin-top:10px;font-size:13px">
-                <li>Clarity & Intent: ${score.clarityAndIntent || 0}/20</li>
-                <li>Structure: ${score.structure || 0}/15</li>
-                <li>Context & Role: ${score.contextAndRole || 0}/15</li>
-            </ul>
-
-            <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
-                Prompt Length: ${score.promptLength || 0} chars ·
-                Words: ${score.promptWords || 0}
-            </div>
-
-            <div style="margin-top:12px">
-                <strong>Strengths</strong>
-                <ul style="font-size:13px;margin-top:5px">${strengths}</ul>
-            </div>
-
-            <div style="margin-top:10px">
-                <strong>Improvements</strong>
-                <ul style="font-size:13px;margin-top:5px">${improvements}</ul>
-            </div>
-        </div>
-    `;
-}
-
-function markScoreAsStale() {
-    const app = window.promptCraftApp;
-    if (!app) return;
-
-    // ❌ INVALIDATE LOGICALLY
-    app.state.lastPromptScore = null;
-
-    const box = document.querySelector('#outputCard .score-results');
-    if (!box) return;
-
-    box.style.opacity = '0.5';
-    box.style.filter = 'grayscale(0.6)';
-
-    let note = box.querySelector('.score-stale-note');
-    if (!note) {
-        note = document.createElement('div');
-        note.className = 'score-stale-note';
-        note.style.cssText = `
-            margin-top: 8px;
-            font-size: 12px;
-            color: #f59e0b;
-        `;
-        box.appendChild(note);
-    }
-
-    note.textContent = 'Prompt edited — re-score required';
-}
-
-// ================================
-// MARK SCORE AS STALE WHEN USER EDITS PROMPT
-// ================================
-document.addEventListener('DOMContentLoaded', () => {
-    const outputArea = document.getElementById('outputArea');
-    if (!outputArea) return;
-
-    let userEditing = false;
-
-    outputArea.addEventListener('input', () => {
-        // Mark score stale only once per edit cycle
-        if (!userEditing) {
-            userEditing = true;
-            markScoreAsStale();
-        }
-    });
-
-    // Reset stale flag when a fresh score is rendered
-    document.addEventListener('promptScoreRendered', () => {
-        userEditing = false;
-    });
-});
-
-
