@@ -2397,20 +2397,59 @@ function renderPromptScore(score) {
     }
 
     const total = Number(score.totalScore || 0);
+    const badgeClass = `score-${Math.floor(total / 5)}`;
+
+    const strengths =
+        score.originalJavaData?.strengths?.length
+            ? score.originalJavaData.strengths.map(s => `<li>${s}</li>`).join('')
+            : '<li>No major strengths detected</li>';
+
+    const improvements =
+        score.originalJavaData?.improvements?.length
+            ? score.originalJavaData.improvements.map(i => `<li>${i}</li>`).join('')
+            : '<li>No improvements suggested</li>';
 
     box.innerHTML = `
         <div class="score-card">
-            <div class="score-badge score-${Math.floor(total / 5)}">
-                ${total}/50
+
+            <!-- SCORE BADGE -->
+            <div class="score-badge ${badgeClass}">
+                ${score.grade} (${total}/50)
             </div>
 
+            <!-- FEEDBACK -->
             <p style="margin-top:10px">${score.feedback || ''}</p>
 
+            <!-- NORMALIZED BREAKDOWN -->
             <ul style="margin-top:10px;font-size:13px">
                 <li>Clarity & Intent: ${score.clarityAndIntent || 0}/20</li>
                 <li>Structure: ${score.structure || 0}/15</li>
                 <li>Context & Role: ${score.contextAndRole || 0}/15</li>
             </ul>
+
+            <!-- PROMPT STATS -->
+            <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
+                Prompt Length: ${score.promptLength || 0} chars ·
+                Words: ${score.promptWords || 0}
+            </div>
+
+            <!-- STRENGTHS -->
+            <div style="margin-top:12px">
+                <strong>Strengths</strong>
+                <ul style="font-size:13px;margin-top:5px">
+                    ${strengths}
+                </ul>
+            </div>
+
+            <!-- IMPROVEMENTS -->
+            <div style="margin-top:10px">
+                <strong>Improvements</strong>
+                <ul style="font-size:13px;margin-top:5px">
+                    ${improvements}
+                </ul>
+            </div>
+
         </div>
     `;
 }
+
