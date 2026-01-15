@@ -514,8 +514,8 @@ class PromptCraftApp {
         
         const box = document.querySelector('#outputCard .score-results');
         if (box) {
-            box.style.opacity = '0.5';
-            box.style.filter = 'grayscale(0.6)';
+           box.classList.add('score-stale');
+
             
             let note = box.querySelector('.score-stale-note');
             if (!note) {
