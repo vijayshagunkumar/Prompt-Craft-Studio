@@ -2252,7 +2252,7 @@ function renderPromptScore(score, isLoading = false) {
     const clarityPct = Math.round((score.clarityAndIntent / 20) * 100);
     const structurePct = Math.round((score.structure / 15) * 100);
     const intentPct = Math.round((score.contextAndRole / 15) * 100);
-const badgeScore = score.totalScore;
+
 
 
     
@@ -2384,3 +2384,33 @@ document.addEventListener('DOMContentLoaded', () => {
         metricsBox.classList.remove('active');
     });
 });
+
+function renderPromptScore(score) {
+    const outputCard = document.getElementById('outputCard');
+    if (!outputCard) return;
+
+    let box = outputCard.querySelector('.score-results');
+    if (!box) {
+        box = document.createElement('div');
+        box.className = 'score-results';
+        outputCard.appendChild(box);
+    }
+
+    const total = Number(score.totalScore || 0);
+
+    box.innerHTML = `
+        <div class="score-card">
+            <div class="score-badge score-${Math.floor(total / 5)}">
+                ${total}/50
+            </div>
+
+            <p style="margin-top:10px">${score.feedback || ''}</p>
+
+            <ul style="margin-top:10px;font-size:13px">
+                <li>Clarity & Intent: ${score.clarityAndIntent || 0}/20</li>
+                <li>Structure: ${score.structure || 0}/15</li>
+                <li>Context & Role: ${score.contextAndRole || 0}/15</li>
+            </ul>
+        </div>
+    `;
+}
