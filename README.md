@@ -1,6 +1,6 @@
 # Prompt Craft Studio
 
-Prompt Craft Studio - a web-based prompt engineering and evaluation platform that provides structured scoring and feedback for AI prompts. It uses a Java-based scoring engine exposed securely through a Cloudflare Worker and deployed on Railway. The architecture supports multiple frontend applications using a single backend scoring system.
+Prompt Craft Studio is a web-based prompt engineering and evaluation platform that provides structured scoring and feedback for AI prompts. It uses a Java-based scoring engine exposed securely through a Cloudflare Worker and deployed on Railway. The architecture supports multiple frontend applications using a single backend scoring system.
 
 ---
 
