@@ -477,7 +477,8 @@ class PromptCraftApp {
             // Mark score stale only once per edit cycle
             if (!userEditing) {
                 userEditing = true;
-                this.markScoreAsStale();
+markScoreAsStale();
+
             }
         });
         
@@ -508,60 +509,7 @@ class PromptCraftApp {
     }
 
     // Mark score as stale (with guard to prevent multiple calls)
-    markScoreAsStale() {
-        // Guard against repeated calls
-        if (this.state.lastPromptScore === null) return;
-        
-        const box = document.querySelector('#outputCard .score-results');
-        if (box) {
-           box.classList.add('score-stale');
 
-            
-            let note = box.querySelector('.score-stale-note');
-            if (!note) {
-                note = document.createElement('div');
-                note.className = 'score-stale-note';
-                note.style.cssText = `
-                    margin-top: 8px;
-                    font-size: 12px;
-                    color: #f59e0b;
-                `;
-                box.appendChild(note);
-            }
-            
-note.innerHTML = `
-    Prompt edited — re-score required
-    <button class="rescore-btn" style="
-        margin-left:10px;
-        padding:4px 8px;
-        font-size:12px;
-        cursor:pointer;
-        border-radius:4px;
-        border:1px solid #f59e0b;
-        background:transparent;
-        color:#f59e0b;
-    ">
-        Re-Score
-    </button>
-`;
-
-note.querySelector('.rescore-btn').onclick = () => {
-    note.remove();
-    this.autoScorePromptIfEnabled(true);
-};
-
-        }
-        
-        // ✅ FIXED ISSUE 2: Clear metrics button when score is stale
-        if (this.elements.metricsBtn) {
-            this.elements.metricsBtn.innerHTML = '<i class="fas fa-chart-line"></i>';
-            this.elements.metricsBtn.title = 'Score stale — click to re-score';
-            this.elements.metricsBtn.classList.remove('has-score');
-        }
-        
-        // Clear stored score
-        this.state.lastPromptScore = null;
-    }
 
     // Set up event listeners with null safety
     setupEventListeners() {
@@ -860,7 +808,7 @@ note.querySelector('.rescore-btn').onclick = () => {
 
         if (modified && !this.state.promptModified) {
             // ✅ FIXED ISSUE 4: Consolidated - only mark stale via handlePromptEdit
-            this.markScoreAsStale();
+markScoreAsStale();
         }
 
         this.state.promptModified = modified;
@@ -1208,7 +1156,8 @@ This structured approach ensures you get detailed, actionable responses tailored
             // Store score for later display
             this.state.lastPromptScore = scoreData;
             this.state.promptModified = false;
-            this.renderPromptScore(scoreData);
+ renderPromptScore(scoreData);
+
             
             // Show subtle notification
             const notificationText = scoreData.isMockData 
@@ -1230,77 +1179,7 @@ This structured approach ensures you get detailed, actionable responses tailored
         }
     }
 
-    // Render prompt score
-    renderPromptScore(score) {
-        // Notify system that a fresh score is rendered
-        document.dispatchEvent(new Event('promptScoreRendered'));
 
-        const outputCard = document.getElementById('outputCard');
-        if (!outputCard) return;
-
-        let box = outputCard.querySelector('.score-results');
-        if (!box) {
-            box = document.createElement('div');
-            box.className = 'score-results';
-            outputCard.appendChild(box);
-        }
-
-        // Clear stale styling
-        box.style.opacity = '1';
-        box.style.filter = 'none';
-        box.querySelector('.score-stale-note')?.remove();
-
-        const total = Number(score.totalScore || 0);
-        const badgeClass = `score-${score.grade.toLowerCase().replace(' ', '-')}`;
-
-        const strengths =
-            score.originalJavaData?.strengths?.length
-                ? score.originalJavaData.strengths.map(s => `<li>${s}</li>`).join('')
-                : '<li>No major strengths detected</li>';
-
-        const improvements =
-            score.originalJavaData?.improvements?.length
-                ? score.originalJavaData.improvements.map(i => `<li>${i}</li>`).join('')
-                : '<li>No improvements suggested</li>';
-
-        box.innerHTML = `
-            <div class="score-card">
-                <div class="score-badge ${badgeClass}">
-                    ${score.grade} (${total}/50)
-                </div>
-
-                <p style="margin-top:10px">${score.feedback || ''}</p>
-
-                <ul style="margin-top:10px;font-size:13px">
-                    <li>Clarity & Intent: ${score.clarityAndIntent || 0}/20</li>
-                    <li>Structure: ${score.structure || 0}/15</li>
-                    <li>Context & Role: ${score.contextAndRole || 0}/15</li>
-                </ul>
-
-                ${score.originalJavaData ? `
-                <ul style="margin-top:10px;font-size:13px">
-                    <li>Constraints: ${score.originalJavaData.constraints || 0}/15</li>
-                    <li>Completeness: ${score.originalJavaData.completeness || 0}/15</li>
-                </ul>
-                ` : ''}
-
-                <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
-                    Prompt Length: ${score.promptLength || 0} chars ·
-                    Words: ${score.promptWords || 0}
-                </div>
-
-                <div style="margin-top:12px">
-                    <strong>Strengths</strong>
-                    <ul style="font-size:13px;margin-top:5px">${strengths}</ul>
-                </div>
-
-                <div style="margin-top:10px">
-                    <strong>Improvements</strong>
-                    <ul style="font-size:13px;margin-top:5px">${improvements}</ul>
-                </div>
-            </div>
-        `;
-    }
 
     // ======================
     // PLATFORM INTEGRATION - SAFE LAUNCH
@@ -2516,18 +2395,23 @@ function renderListSection(title, items = []) {
 // ================================
 // MARK SCORE STALE ON EDIT
 // ================================
-
 function markScoreAsStale() {
     const panel = document.getElementById('promptScorePanel');
     if (!panel) return;
 
     const title = panel.querySelector('.score-panel-title');
+    if (!title) return;
 
     promptScoreState.stale = true;
-    collapseScorePanel();
+    promptScoreState.lastScore = null;
 
-    title.innerHTML = `Prompt Changed <span class="rescore-link">· Re-Score</span>`;
+    title.textContent = 'Prompt Changed · Re-Score';
+
+    panel.classList.remove('expanded');
+    panel.classList.add('collapsed');
 }
+
+
 
 // ================================
 // TRIGGER SCORE API
@@ -2538,3 +2422,7 @@ function triggerPromptScore() {
     // Reuse existing scoring logic
     document.dispatchEvent(new CustomEvent('requestPromptScore'));
 }
+document.addEventListener('requestPromptScore', () => {
+    window.promptCraftApp?.autoScorePromptIfEnabled(true);
+});
+
