@@ -1140,71 +1140,87 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ======================
     // AUTO-SCORE AFTER GENERATION (FIXED)
     // ======================
-    async autoScorePromptIfEnabled(force = false) {
-      if (!document.getElementById('promptScorePanel')) {
-    this.initPromptScorePanel();
-}
-
-        // Prevent double API calls
-        if (this._scoreInFlight) return;
-        
-        if (!this.state.settings.autoScoreEnabled && !force) return;
-        if (!this.state.hasGeneratedPrompt && !force) return;
-        if (this.state.promptModified && !force) return;
-        
-        const outputArea = document.getElementById('outputArea');
-        const prompt = outputArea?.textContent?.trim();
-        
-        if (!prompt || prompt.length < 50) return;
-        
-        this._scoreInFlight = true;
-        
-        try {
-            console.log('🔍 Auto-scoring prompt...');
-            
-            const scoreData = await scorePromptViaWorker(prompt);
-            
-            // Store score for later display
-            this.state.lastPromptScore = scoreData;
-            this.state.promptModified = false;
-            this.renderPromptScore(scoreData);
-            
-            // Show subtle notification
-            const notificationText = scoreData.isMockData 
-                ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
-                : `📊 Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`;
-            
-            this.showNotification(notificationText, 'success', 3000);
-            
-            // Update UI with score badge if button exists
-            if (this.elements.metricsBtn) {
-                this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
-                this.elements.metricsBtn.title = `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
-                this.elements.metricsBtn.classList.add('has-score');
-            }
-            
-        } catch (err) {
-            console.warn('⚠️ Auto-scoring failed:', err);
-            // Silent fail - don't bother user
-        } finally {
-            this._scoreInFlight = false;
-        }
+async autoScorePromptIfEnabled(force = false) {
+    console.log('📊 autoScorePromptIfEnabled called, force:', force);
+    
+    if (!document.getElementById('promptScorePanel')) {
+        console.log('Panel not found, initializing...');
+        this.initPromptScorePanel();
     }
+
+    // Prevent double API calls
+    if (this._scoreInFlight) {
+        console.log('⚠️ Score already in flight, skipping');
+        return;
+    }
+    
+    if (!this.state.settings.autoScoreEnabled && !force) return;
+    if (!this.state.hasGeneratedPrompt && !force) return;
+    if (this.state.promptModified && !force) return;
+    
+    const outputArea = document.getElementById('outputArea');
+    const prompt = outputArea?.textContent?.trim();
+    
+    if (!prompt || prompt.length < 50) return;
+    
+    this._scoreInFlight = true;
+    
+    try {
+        console.log('🔍 Auto-scoring prompt...');
+        
+        const scoreData = await scorePromptViaWorker(prompt);
+        console.log('✅ Score data received:', scoreData);
+        
+        // Store score for later display
+        this.state.lastPromptScore = scoreData;
+        this.state.promptModified = false;
+        
+        console.log('🎨 Rendering score...');
+        this.renderPromptScore(scoreData);
+        
+        // Show subtle notification
+        const notificationText = scoreData.isMockData 
+            ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
+            : `📊 Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`;
+        
+        this.showNotification(notificationText, 'success', 3000);
+        
+        // Update UI with score badge if button exists
+        if (this.elements.metricsBtn) {
+            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
+            this.elements.metricsBtn.title = `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
+            this.elements.metricsBtn.classList.add('has-score');
+        }
+        
+    } catch (err) {
+        console.warn('⚠️ Auto-scoring failed:', err);
+        // Silent fail - don't bother user
+    } finally {
+        this._scoreInFlight = false;
+    }
+}
 
     // ======================
     // PROMPT SCORE PANEL (SINGLE SOURCE)
     // ======================
+
 renderPromptScore(score) {
+    console.log('🔥 renderPromptScore called! Score:', score);
+    
     // Initialize panel if it doesn't exist
     this.initPromptScorePanel();
 
-    // Get elements with your current IDs
+    // Get elements with CLASS selectors (FIXED)
     const panel = document.getElementById('promptScorePanel');
-    const title = document.getElementById('promptScoreTitle'); // Changed
-    const body = document.getElementById('promptScoreBody'); // Changed
+    const title = panel ? panel.querySelector('.score-panel-title') : null;
+    const body = panel ? panel.querySelector('.score-panel-body') : null;
 
     if (!panel || !title || !body) {
-        console.error('Score panel elements not found');
+        console.error('❌ Score panel elements not found!', {
+            panel: !!panel,
+            title: !!title,
+            body: !!body
+        });
         return;
     }
 
@@ -1214,9 +1230,9 @@ renderPromptScore(score) {
     title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
 
     const bars = [
-        { label: 'Clarity & Intent', value: score.clarityAndIntent, max: 20 },
-        { label: 'Structure', value: score.structure, max: 15 },
-        { label: 'Context & Role', value: score.contextAndRole, max: 15 }
+        { label: 'Clarity & Intent', value: score.clarityAndIntent || 20, max: 20 },
+        { label: 'Structure', value: score.structure || 15, max: 15 },
+        { label: 'Context & Role', value: score.contextAndRole || 15, max: 15 }
     ];
 
     body.innerHTML = `
@@ -1251,7 +1267,6 @@ renderPromptScore(score) {
     document.dispatchEvent(new Event('promptScoreRendered'));
 }
 
-
     renderScoreList(title, items = []) {
         if (!items || !items.length) return '';
         return `
@@ -1280,7 +1295,7 @@ initPromptScorePanel() {
 
     outputCard.appendChild(panel);
 
-    // Add event listeners with your IDs
+    // Add event listeners
     const closeBtn = panel.querySelector('.score-panel-close');
     if (closeBtn) {
         closeBtn.addEventListener('click', (e) => {
@@ -1310,17 +1325,17 @@ initializeScorePanel() {
         panel.classList.add('collapsed');
     }
 
-    markScoreAsStale() {
-        const panel = document.getElementById('promptScorePanel');
-        if (!panel) return;
+markScoreAsStale() {
+    const panel = document.getElementById('promptScorePanel');
+    if (!panel) return;
 
-        const title = panel.querySelector('.score-panel-title');
-        if (title) title.textContent = 'Prompt Changed · Re-Score';
+    const title = panel.querySelector('.score-panel-title');
+    if (title) title.textContent = 'Prompt Changed · Re-Score';
 
-        this.state.lastPromptScore = null;
-        panel.classList.remove('expanded');
-        panel.classList.add('collapsed');
-    }
+    this.state.lastPromptScore = null;
+    panel.classList.remove('expanded');
+    panel.classList.add('collapsed');
+}
 
     // ======================
     // PLATFORM INTEGRATION - SAFE LAUNCH
