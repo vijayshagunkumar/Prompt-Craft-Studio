@@ -216,10 +216,10 @@ function generateMockScore(prompt) {
         promptWords: words
     };
 }
-    // Initialize application
-  // ============================================
+
+// ======================
 // SCORE PANEL INITIALIZATION - FIX ALL ISSUES
-// ============================================
+// ======================
 
 function initializeScorePanel() {
     console.log('🔄 Initializing score panel...');
@@ -286,6 +286,7 @@ function initializeScorePanel() {
     
     console.log('🎉 Score panel initialization complete');
 }
+
 // ======================
 // MAIN APPLICATION CONTROLLER
 // ======================
@@ -358,6 +359,9 @@ class PromptCraftApp {
         
         // About modal ESC handler
         this._aboutModalEscHandler = null;
+        
+        // Settings modal ESC handler
+        this._settingsEscHandler = null;
 
         // Configuration
         this.config = window.AppConfig || {
@@ -507,88 +511,82 @@ class PromptCraftApp {
         return container;
     }
 
-// Initialize application
-  
-async init() {
-    console.log('Initializing PromptCraft Pro...');
-    
-    try {
-        // Load settings
-        this.loadSettings();
+    // Initialize application
+    async init() {
+        console.log('Initializing PromptCraft Pro...');
         
-        // Set up event listeners
-        this.setupEventListeners();
-        
-        // Set up score invalidation and metrics toggle
-        this.setupScoreInvalidation();
-        this.setupMetricsToggle();
-        
-        // Set up voice handler callbacks
-        this.setupVoiceCallbacks();
-        
-        // Update UI
-        this.updateUI();
-        
-        // Load history
-        this.loadHistory();
-        
-// ✅ Initialize score panel early
-initializeScorePanel();
-        
-        // ✅ FIX 4: Update backend status indicator
-        this.updateBackendStatus();
-        
-        // Test worker connection (don't block initialization)
-        this.testWorkerConnection().catch(error => {
-            console.warn('Worker test failed, continuing with local mode:', error);
-        });
-        
-        // Update model display
-        this.updateModelDisplay();
-        
-        console.log('PromptCraft Pro initialized successfully!');
-    } catch (error) {
-        console.error('Failed to initialize PromptCraft:', error);
-        this.showNotification('Failed to initialize application. Please refresh the page.', 'error');
-    }
-}
-
-// ✅ ADD THIS METHOD RIGHT HERE:
-updateBackendStatus() {
-    const statusElement = document.getElementById('backendStatusIndicator');
-    if (!statusElement) return;
-    
-    // Hide the "Checking backend..." message after 3 seconds
-    setTimeout(() => {
-        statusElement.style.display = 'none';
-    }, 3000);
-    
-    // Update it based on actual status
-    this.testWorkerConnection().then(result => {
-        if (result.success) {
-            statusElement.className = 'backend-status online';
-            statusElement.innerHTML = '<span></span><span>Backend: Online</span>';
+        try {
+            // Load settings
+            this.loadSettings();
             
-            // Hide after showing online status
-            setTimeout(() => {
-                statusElement.style.opacity = '0';
-                setTimeout(() => {
-                    statusElement.style.display = 'none';
-                }, 500);
-            }, 2000);
-        } else {
-            statusElement.className = 'backend-status offline';
-            statusElement.innerHTML = '<span></span><span>Backend: Offline (using local mode)</span>';
+            // Set up event listeners
+            this.setupEventListeners();
+            
+            // Set up score invalidation and metrics toggle
+            this.setupScoreInvalidation();
+            this.setupMetricsToggle();
+            
+            // Set up voice handler callbacks
+            this.setupVoiceCallbacks();
+            
+            // Update UI
+            this.updateUI();
+            
+            // Load history
+            this.loadHistory();
+            
+            // ✅ Initialize score panel early
+            initializeScorePanel();
+            
+            // ✅ FIX 4: Update backend status indicator
+            this.updateBackendStatus();
+            
+            // Test worker connection (don't block initialization)
+            this.testWorkerConnection().catch(error => {
+                console.warn('Worker test failed, continuing with local mode:', error);
+            });
+            
+            // Update model display
+            this.updateModelDisplay();
+            
+            console.log('PromptCraft Pro initialized successfully!');
+        } catch (error) {
+            console.error('Failed to initialize PromptCraft:', error);
+            this.showNotification('Failed to initialize application. Please refresh the page.', 'error');
         }
-    }).catch(() => {
-        statusElement.style.display = 'none';
-    });
-}
+    }
 
-// Then continue with the next method (probably setupEventListeners):
-setupEventListeners() {
-    // ... existing code ...
-}
+    // ✅ ADD THIS METHOD RIGHT HERE:
+    updateBackendStatus() {
+        const statusElement = document.getElementById('backendStatusIndicator');
+        if (!statusElement) return;
+        
+        // Hide the "Checking backend..." message after 3 seconds
+        setTimeout(() => {
+            statusElement.style.display = 'none';
+        }, 3000);
+        
+        // Update it based on actual status
+        this.testWorkerConnection().then(result => {
+            if (result.success) {
+                statusElement.className = 'backend-status online';
+                statusElement.innerHTML = '<span></span><span>Backend: Online</span>';
+                
+                // Hide after showing online status
+                setTimeout(() => {
+                    statusElement.style.opacity = '0';
+                    setTimeout(() => {
+                        statusElement.style.display = 'none';
+                    }, 500);
+                }, 2000);
+            } else {
+                statusElement.className = 'backend-status offline';
+                statusElement.innerHTML = '<span></span><span>Backend: Offline (using local mode)</span>';
+            }
+        }).catch(() => {
+            statusElement.style.display = 'none';
+        });
+    }
 
     // Set up score invalidation listeners
     setupScoreInvalidation() {
@@ -598,14 +596,12 @@ setupEventListeners() {
         let userEditing = false;
         
         // ✅ FIXED ISSUE 4: Consolidated edit detection - only listen here
-      
-outputArea.addEventListener('input', () => {
-    if (!userEditing && !this.state.promptModified) {
-        userEditing = true;
-        this.markScoreAsStale();
-    }
-});
-
+        outputArea.addEventListener('input', () => {
+            if (!userEditing && !this.state.promptModified) {
+                userEditing = true;
+                this.markScoreAsStale();
+            }
+        });
 
         // Reset stale flag when a fresh score is rendered
         document.addEventListener('promptScoreRendered', () => {
@@ -1065,11 +1061,11 @@ outputArea.addEventListener('input', () => {
                 console.log(`Prompt preview: ${result.prompt.substring(0, 200)}...`);
                 
                 // AUTO-SCORE AFTER GENERATION
-            const scoreTimeout = setTimeout(() => {
-    if (this.state.hasGeneratedPrompt) {
-        this.autoScorePromptIfEnabled();
-    }
-}, 1000);
+                const scoreTimeout = setTimeout(() => {
+                    if (this.state.hasGeneratedPrompt) {
+                        this.autoScorePromptIfEnabled();
+                    }
+                }, 1000);
 
                 
             } else {
@@ -1281,133 +1277,133 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ======================
     // AUTO-SCORE AFTER GENERATION (FIXED)
     // ======================
-async autoScorePromptIfEnabled(force = false) {
-    console.log('📊 autoScorePromptIfEnabled called, force:', force);
-    
-    if (!document.getElementById('promptScorePanel')) {
-        console.log('Panel not found, initializing...');
-        this.initPromptScorePanel();
-    }
+    async autoScorePromptIfEnabled(force = false) {
+        console.log('📊 autoScorePromptIfEnabled called, force:', force);
+        
+        if (!document.getElementById('promptScorePanel')) {
+            console.log('Panel not found, initializing...');
+            this.initPromptScorePanel();
+        }
 
-    // Prevent double API calls
-    if (this._scoreInFlight) {
-        console.log('⚠️ Score already in flight, skipping');
-        return;
-    }
-    
-    if (!this.state.settings.autoScoreEnabled && !force) return;
-    if (!this.state.hasGeneratedPrompt && !force) return;
-    if (this.state.promptModified && !force) return;
-    
-    const outputArea = document.getElementById('outputArea');
-    const prompt = outputArea?.textContent?.trim();
-    
-    if (!prompt || prompt.length < 50) return;
-    
-    this._scoreInFlight = true;
-    
-    try {
-        console.log('🔍 Auto-scoring prompt...');
-        
-        const scoreData = await scorePromptViaWorker(prompt);
-        console.log('✅ Score data received:', scoreData);
-        
-        // Store score for later display
-        this.state.lastPromptScore = scoreData;
-        this.state.promptModified = false;
-        
-        console.log('🎨 Rendering score...');
-        this.renderPromptScore(scoreData);
-        
-        // Show subtle notification
-        const notificationText = scoreData.isMockData 
-            ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
-            : `📊 Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`;
-        
-        this.showNotification(notificationText, 'success', 3000);
-        
-        // Update UI with score badge if button exists
-        if (this.elements.metricsBtn) {
-            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
-            this.elements.metricsBtn.title = `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
-            this.elements.metricsBtn.classList.add('has-score');
+        // Prevent double API calls
+        if (this._scoreInFlight) {
+            console.log('⚠️ Score already in flight, skipping');
+            return;
         }
         
-    } catch (err) {
-        console.warn('⚠️ Auto-scoring failed:', err);
-        // Silent fail - don't bother user
-    } finally {
-        this._scoreInFlight = false;
+        if (!this.state.settings.autoScoreEnabled && !force) return;
+        if (!this.state.hasGeneratedPrompt && !force) return;
+        if (this.state.promptModified && !force) return;
+        
+        const outputArea = document.getElementById('outputArea');
+        const prompt = outputArea?.textContent?.trim();
+        
+        if (!prompt || prompt.length < 50) return;
+        
+        this._scoreInFlight = true;
+        
+        try {
+            console.log('🔍 Auto-scoring prompt...');
+            
+            const scoreData = await scorePromptViaWorker(prompt);
+            console.log('✅ Score data received:', scoreData);
+            
+            // Store score for later display
+            this.state.lastPromptScore = scoreData;
+            this.state.promptModified = false;
+            
+            console.log('🎨 Rendering score...');
+            this.renderPromptScore(scoreData);
+            
+            // Show subtle notification
+            const notificationText = scoreData.isMockData 
+                ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
+                : `📊 Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`;
+            
+            this.showNotification(notificationText, 'success', 3000);
+            
+            // Update UI with score badge if button exists
+            if (this.elements.metricsBtn) {
+                this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
+                this.elements.metricsBtn.title = `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
+                this.elements.metricsBtn.classList.add('has-score');
+            }
+            
+        } catch (err) {
+            console.warn('⚠️ Auto-scoring failed:', err);
+            // Silent fail - don't bother user
+        } finally {
+            this._scoreInFlight = false;
+        }
     }
-}
 
     // ======================
     // PROMPT SCORE PANEL (SINGLE SOURCE)
     // ======================
-renderPromptScore(score) {
-    console.log('🔥 renderPromptScore called! Score:', score);
-    
-    // Initialize panel if it doesn't exist
-    this.initPromptScorePanel();
+    renderPromptScore(score) {
+        console.log('🔥 renderPromptScore called! Score:', score);
+        
+        // Initialize panel if it doesn't exist
+        this.initPromptScorePanel();
 
-    // Get elements with CLASS selectors
-    const panel = document.getElementById('promptScorePanel');
-    const title = panel ? panel.querySelector('.score-panel-title') : null;
-    const body = panel ? panel.querySelector('.score-panel-body') : null;
+        // Get elements with CLASS selectors
+        const panel = document.getElementById('promptScorePanel');
+        const title = panel ? panel.querySelector('.score-panel-title') : null;
+        const body = panel ? panel.querySelector('.score-panel-body') : null;
 
-    if (!panel || !title || !body) {
-        console.error('❌ Score panel elements not found!', {
-            panel: !!panel,
-            title: !!title,
-            body: !!body
-        });
-        return;
-    }
+        if (!panel || !title || !body) {
+            console.error('❌ Score panel elements not found!', {
+                panel: !!panel,
+                title: !!title,
+                body: !!body
+            });
+            return;
+        }
 
-    this.state.lastPromptScore = score;
-    this.state.promptModified = false;
+        this.state.lastPromptScore = score;
+        this.state.promptModified = false;
 
-    title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
+        title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
 
-    const bars = [
-        { label: 'Clarity & Intent', value: score.clarityAndIntent || 20, max: 20 },
-        { label: 'Structure', value: score.structure || 15, max: 15 },
-        { label: 'Context & Role', value: score.contextAndRole || 15, max: 15 }
-    ];
+        const bars = [
+            { label: 'Clarity & Intent', value: score.clarityAndIntent || 20, max: 20 },
+            { label: 'Structure', value: score.structure || 15, max: 15 },
+            { label: 'Context & Role', value: score.contextAndRole || 15, max: 15 }
+        ];
 
-    body.innerHTML = `
-        <div class="score-bars">
-            ${bars.map(b => `
-                <div class="score-bar-row">
-                    <div class="score-bar-label">
-                        ${b.label}
-                        <span>${b.value}/${b.max}</span>
-                    </div>
-                    <div class="score-bar-track">
-                        <div class="score-bar-fill"
-                             style="width:${(b.value / b.max) * 100}%">
+        body.innerHTML = `
+            <div class="score-bars">
+                ${bars.map(b => `
+                    <div class="score-bar-row">
+                        <div class="score-bar-label">
+                            ${b.label}
+                            <span>${b.value}/${b.max}</span>
+                        </div>
+                        <div class="score-bar-track">
+                            <div class="score-bar-fill"
+                                 style="width:${(b.value / b.max) * 100}%">
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('')}
-        </div>
+                `).join('')}
+            </div>
 
-        ${this.renderScoreList('Strengths', score.originalJavaData?.strengths)}
-        ${this.renderScoreList('Improvements', score.originalJavaData?.improvements)}
+            ${this.renderScoreList('Strengths', score.originalJavaData?.strengths)}
+            ${this.renderScoreList('Improvements', score.originalJavaData?.improvements)}
 
-        <div class="score-meta">
-            Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
-        </div>
-    `;
+            <div class="score-meta">
+                Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
+            </div>
+        `;
 
-    // ✅ FIX 1: Start COLLAPSED (not expanded)
-    if (panel.classList.contains('expanded')) {
-        panel.classList.remove('expanded');
-        panel.classList.add('collapsed');
+        // ✅ FIX 1: Start COLLAPSED (not expanded)
+        if (panel.classList.contains('expanded')) {
+            panel.classList.remove('expanded');
+            panel.classList.add('collapsed');
+        }
+
+        document.dispatchEvent(new Event('promptScoreRendered'));
     }
-
-    document.dispatchEvent(new Event('promptScoreRendered'));
-}
 
     renderScoreList(title, items = []) {
         if (!items || !items.length) return '';
@@ -1418,54 +1414,54 @@ renderPromptScore(score) {
             </div>
         `;
     }
-initPromptScorePanel() {
-    const outputCard = document.getElementById('outputCard');
-    if (!outputCard || document.getElementById('promptScorePanel')) return;
 
-    const panel = document.createElement('div');
-    panel.id = 'promptScorePanel';
-    panel.className = 'score-panel collapsed';
+    initPromptScorePanel() {
+        const outputCard = document.getElementById('outputCard');
+        if (!outputCard || document.getElementById('promptScorePanel')) return;
 
-    panel.innerHTML = `
-        <div class="score-panel-header">
-            <span class="score-panel-title">Check Prompt Score</span>
-            <button class="score-panel-close">×</button>
-        </div>
-        <div class="score-panel-body"></div>
-    `;
+        const panel = document.createElement('div');
+        panel.id = 'promptScorePanel';
+        panel.className = 'score-panel collapsed';
 
-    outputCard.appendChild(panel);
-  // Initialize the new panel
-initializeScorePanel();
+        panel.innerHTML = `
+            <div class="score-panel-header">
+                <span class="score-panel-title">Check Prompt Score</span>
+                <button class="score-panel-close">×</button>
+            </div>
+            <div class="score-panel-body"></div>
+        `;
 
-    // ✅ FIX 2: Proper close button event listener
-    const closeBtn = panel.querySelector('.score-panel-close');
-    const header = panel.querySelector('.score-panel-header');
-    
-    if (closeBtn) {
-        closeBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.collapseScorePanel();
-        });
-    }
-    
-    if (header) {
-        header.addEventListener('click', (e) => {
-            // Don't toggle if clicking the close button
-            if (e.target.classList.contains('score-panel-close') || 
-                e.target.closest('.score-panel-close')) {
-                return;
-            }
-            
-            if (panel.classList.contains('collapsed')) {
-                this.expandScorePanel();
-            } else {
+        outputCard.appendChild(panel);
+        // Initialize the new panel
+        initializeScorePanel();
+
+        // ✅ FIX 2: Proper close button event listener
+        const closeBtn = panel.querySelector('.score-panel-close');
+        const header = panel.querySelector('.score-panel-header');
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
                 this.collapseScorePanel();
-            }
-        });
+            });
+        }
+        
+        if (header) {
+            header.addEventListener('click', (e) => {
+                // Don't toggle if clicking the close button
+                if (e.target.classList.contains('score-panel-close') || 
+                    e.target.closest('.score-panel-close')) {
+                    return;
+                }
+                
+                if (panel.classList.contains('collapsed')) {
+                    this.expandScorePanel();
+                } else {
+                    this.collapseScorePanel();
+                }
+            });
+        }
     }
-}
-
 
     expandScorePanel() {
         const panel = document.getElementById('promptScorePanel');
@@ -1481,17 +1477,17 @@ initializeScorePanel();
         panel.classList.add('collapsed');
     }
 
-markScoreAsStale() {
-    const panel = document.getElementById('promptScorePanel');
-    if (!panel) return;
+    markScoreAsStale() {
+        const panel = document.getElementById('promptScorePanel');
+        if (!panel) return;
 
-    const title = panel.querySelector('.score-panel-title');
-    if (title) title.textContent = 'Prompt Changed · Re-Score';
+        const title = panel.querySelector('.score-panel-title');
+        if (title) title.textContent = 'Prompt Changed · Re-Score';
 
-    this.state.lastPromptScore = null;
-    panel.classList.remove('expanded');
-    panel.classList.add('collapsed');
-}
+        this.state.lastPromptScore = null;
+        panel.classList.remove('expanded');
+        panel.classList.add('collapsed');
+    }
 
     // ======================
     // ABOUT MODAL METHODS
@@ -1702,8 +1698,6 @@ ${text}
         this.state.generatedFromInput = null;
         this.state.lastPromptScore = null;
 
-
-        
         if (this.elements.userInput) {
             this.elements.userInput.value = '';
         }
@@ -1738,8 +1732,8 @@ ${text}
     }
 
     clearGeneratedPrompt() {
-      const panel = document.getElementById('promptScorePanel');
-if (panel) panel.remove();
+        const panel = document.getElementById('promptScorePanel');
+        if (panel) panel.remove();
 
         if (this.elements.outputArea) {
             this.elements.outputArea.textContent = '';
@@ -1772,6 +1766,18 @@ if (panel) panel.remove();
         if (modal) {
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
+            
+            // Add ESC listener for settings modal
+            const closeOnEsc = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeSettings();
+                    document.removeEventListener('keydown', closeOnEsc);
+                }
+            };
+            document.addEventListener('keydown', closeOnEsc);
+            
+            // Store for cleanup
+            this._settingsEscHandler = closeOnEsc;
         } else {
             console.error('Settings modal not found!');
             this.showNotification('Settings modal not found. Please refresh the page.', 'error');
@@ -1783,6 +1789,12 @@ if (panel) panel.remove();
         if (modal) {
             modal.classList.remove('active');
             document.body.style.overflow = '';
+            
+            // Remove ESC listener
+            if (this._settingsEscHandler) {
+                document.removeEventListener('keydown', this._settingsEscHandler);
+                this._settingsEscHandler = null;
+            }
         }
     }
 
@@ -1832,76 +1844,203 @@ if (panel) panel.remove();
         const voiceOutputLanguage = document.getElementById('voiceOutputLanguage');
         const autoScoreEnabled = document.getElementById('autoScoreEnabled');
         
-        if (themeSelect) {
+        let settingsChanged = false;
+        
+        if (themeSelect && this.state.settings.theme !== themeSelect.value) {
             this.state.settings.theme = themeSelect.value;
             console.log('Theme set to:', themeSelect.value);
             this.applyTheme();
+            settingsChanged = true;
         }
         
-        if (uiDensity) {
+        if (uiDensity && this.state.settings.uiDensity !== uiDensity.value) {
             this.state.settings.uiDensity = uiDensity.value;
             console.log('UI Density set to:', uiDensity.value);
             this.applyUIDensity();
+            settingsChanged = true;
         }
         
-        if (defaultModel) {
+        if (defaultModel && this.state.settings.defaultModel !== defaultModel.value) {
             this.state.settings.defaultModel = defaultModel.value;
             this.state.currentModel = defaultModel.value;
             console.log('Default model set to:', defaultModel.value);
             this.updateModelDisplay();
+            settingsChanged = true;
         }
         
-        if (promptStyle) {
+        if (promptStyle && this.state.settings.promptStyle !== promptStyle.value) {
             this.state.settings.promptStyle = promptStyle.value;
             console.log('Prompt style set to:', promptStyle.value);
+            settingsChanged = true;
         }
         
-        if (autoConvertDelay) {
+        if (autoConvertDelay && this.state.settings.autoConvertDelay !== parseInt(autoConvertDelay.value)) {
             this.state.settings.autoConvertDelay = parseInt(autoConvertDelay.value);
             console.log('Auto-convert delay set to:', autoConvertDelay.value);
+            settingsChanged = true;
         }
         
-        if (notificationDuration) {
+        if (notificationDuration && this.state.settings.notificationDuration !== parseInt(notificationDuration.value)) {
             this.state.settings.notificationDuration = parseInt(notificationDuration.value);
             console.log('Notification duration set to:', notificationDuration.value);
+            settingsChanged = true;
         }
         
-        if (maxHistoryItems) {
+        if (maxHistoryItems && this.state.settings.maxHistoryItems !== parseInt(maxHistoryItems.value)) {
             this.state.settings.maxHistoryItems = parseInt(maxHistoryItems.value);
             console.log('Max history items set to:', maxHistoryItems.value);
+            settingsChanged = true;
         }
         
-        if (interfaceLanguage) {
+        if (interfaceLanguage && this.state.settings.interfaceLanguage !== interfaceLanguage.value) {
             this.state.settings.interfaceLanguage = interfaceLanguage.value;
             console.log('Interface language set to:', interfaceLanguage.value);
+            settingsChanged = true;
         }
         
-        if (voiceInputLanguage) {
+        if (voiceInputLanguage && this.state.settings.voiceInputLanguage !== voiceInputLanguage.value) {
             this.state.settings.voiceInputLanguage = voiceInputLanguage.value;
             console.log('Voice input language set to:', voiceInputLanguage.value);
+            settingsChanged = true;
         }
         
-        if (voiceOutputLanguage) {
+        if (voiceOutputLanguage && this.state.settings.voiceOutputLanguage !== voiceOutputLanguage.value) {
             this.state.settings.voiceOutputLanguage = voiceOutputLanguage.value;
             console.log('Voice output language set to:', voiceOutputLanguage.value);
+            settingsChanged = true;
         }
         
-        if (autoScoreEnabled) {
+        if (autoScoreEnabled && this.state.settings.autoScoreEnabled !== autoScoreEnabled.checked) {
             this.state.settings.autoScoreEnabled = autoScoreEnabled.checked;
             console.log('Auto-score enabled:', autoScoreEnabled.checked);
+            settingsChanged = true;
         }
         
         console.log('Settings to save:', this.state.settings);
         
-        const saveResult = this.saveSettings();
-        console.log('Save result:', saveResult);
-        
-        this.closeSettings();
-        
-        if (saveResult) {
-            this.showNotification('Settings saved successfully!', 'success');
+        if (settingsChanged) {
+            const saveResult = this.saveSettings();
+            console.log('Save result:', saveResult);
+            
+            this.closeSettings();
+            
+            if (saveResult) {
+                this.showNotification('Settings saved successfully!', 'success');
+            } else {
+                this.showNotification('Failed to save settings. Please try again.', 'error');
+            }
         } else {
-            this.showNotification('Failed to save settings. Please try again.', 'error');
+            this.closeSettings();
+            this.showNotification('No changes made to settings.', 'info');
+        }
+    }
+
+    // ======================
+    // THEME MANAGEMENT (FIXED)
+    // ======================
+
+    applyTheme() {
+        const theme = this.state.settings.theme || 'dark';
+        console.log('Applying theme:', theme);
+        
+        // Set the theme attribute on document element
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Also update body class for compatibility
+        document.body.className = theme === 'dark' ? 'dark-theme' : 'light-theme';
+        
+        // Update theme display in footer
+        if (this.elements.currentTheme) {
+            this.elements.currentTheme.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
+        }
+        
+        // Save to localStorage for persistence across page reloads
+        localStorage.setItem('promptcraft-theme', theme);
+        
+        console.log('Theme applied successfully:', theme);
+    }
+
+    applyUIDensity() {
+        const density = this.state.settings.uiDensity || 'comfortable';
+        console.log('Applying UI density:', density);
+        
+        document.documentElement.setAttribute('data-density', density);
+        
+        // Save to localStorage
+        localStorage.setItem('promptcraft-ui-density', density);
+    }
+
+    // ======================
+    // SETTINGS MANAGEMENT (UPDATED)
+    // ======================
+
+    loadSettings() {
+        try {
+            // Try to load from localStorage first
+            const savedTheme = localStorage.getItem('promptcraft-theme');
+            const savedUIDensity = localStorage.getItem('promptcraft-ui-density');
+            const saved = this.storageManager.load('appSettings');
+            
+            console.log('Loading settings:', {
+                savedTheme,
+                savedUIDensity,
+                saved
+            });
+            
+            if (saved) {
+                this.state.settings = { ...this.loadDefaultSettings(), ...saved };
+            }
+            
+            // Override with localStorage values if they exist
+            if (savedTheme) {
+                this.state.settings.theme = savedTheme;
+            }
+            
+            if (savedUIDensity) {
+                this.state.settings.uiDensity = savedUIDensity;
+            }
+            
+            if (this.state.settings.defaultModel) {
+                this.state.currentModel = this.state.settings.defaultModel;
+            }
+            
+            // Apply theme and density
+            this.applyTheme();
+            this.applyUIDensity();
+            
+            console.log('Settings loaded:', this.state.settings);
+            
+        } catch (error) {
+            console.error('Error loading settings:', error);
+            // Fall back to defaults
+            this.state.settings = this.loadDefaultSettings();
+            this.applyTheme();
+            this.applyUIDensity();
+        }
+    }
+
+    saveSettings() {
+        try {
+            console.log('Saving settings to storage:', this.state.settings);
+            
+            // Save to app storage
+            this.storageManager.save('appSettings', this.state.settings);
+            this.state.settingsModified = false;
+            
+            // Also save theme and density to localStorage for immediate persistence
+            if (this.state.settings.theme) {
+                localStorage.setItem('promptcraft-theme', this.state.settings.theme);
+            }
+            
+            if (this.state.settings.uiDensity) {
+                localStorage.setItem('promptcraft-ui-density', this.state.settings.uiDensity);
+            }
+            
+            console.log('Settings saved successfully');
+            return true;
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            return false;
         }
     }
 
@@ -2375,49 +2514,6 @@ Keep the summary concise yet comprehensive.`,
     }
 
     // ======================
-    // SETTINGS MANAGEMENT
-    // ======================
-
-    loadSettings() {
-        const saved = this.storageManager.load('appSettings');
-        if (saved) {
-            this.state.settings = { ...this.loadDefaultSettings(), ...saved };
-        }
-        
-        if (this.state.settings.defaultModel) {
-            this.state.currentModel = this.state.settings.defaultModel;
-        }
-        
-        this.applyTheme();
-        this.applyUIDensity();
-    }
-
-    saveSettings() {
-        try {
-            this.storageManager.save('appSettings', this.state.settings);
-            this.state.settingsModified = false;
-            return true;
-        } catch (error) {
-            console.error('Failed to save settings:', error);
-            return false;
-        }
-    }
-
-    applyTheme() {
-        const theme = this.state.settings.theme || 'dark';
-        document.documentElement.setAttribute('data-theme', theme);
-        
-        if (this.elements.currentTheme) {
-            this.elements.currentTheme.textContent = theme.charAt(0).toUpperCase() + theme.slice(1);
-        }
-    }
-
-    applyUIDensity() {
-        const density = this.state.settings.uiDensity || 'comfortable';
-        document.documentElement.setAttribute('data-density', density);
-    }
-
-    // ======================
     // NOTIFICATIONS
     // ======================
 
@@ -2603,6 +2699,9 @@ Keep the summary concise yet comprehensive.`,
             if (this.elements.aboutModal?.classList.contains('active')) {
                 this.closeAboutModal();
             }
+            if (document.getElementById('settingsModal')?.classList.contains('active')) {
+                this.closeSettings();
+            }
         }
     }
 
@@ -2630,5 +2729,13 @@ function getGradeColor(grade) {
 
 // Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing PromptCraft...');
+    
+    // Apply theme immediately from localStorage to avoid flash
+    const savedTheme = localStorage.getItem('promptcraft-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.body.className = savedTheme === 'dark' ? 'dark-theme' : 'light-theme';
+    
+    // Initialize app
     window.promptCraftApp = new PromptCraftApp();
 });
