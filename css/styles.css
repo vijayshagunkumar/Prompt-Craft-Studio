@@ -3208,3 +3208,65 @@ input:checked + .toggle-slider:before {
 .score-stale-note {
     color: #3b82f6;
 }
+/* ================================
+   Re-Score CTA Button Styling
+   ================================ */
+
+.score-card {
+    position: relative;
+}
+
+/* Re-Score button (top-right CTA) */
+.score-stale-note {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    padding: 6px 12px;
+    border-radius: 999px;
+
+    background: #3b82f6;              /* primary blue */
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.35);
+    transition: all 0.2s ease;
+}
+
+/* Hover = obvious action */
+.score-stale-note:hover {
+    background: #2563eb;
+    box-shadow: 0 6px 14px rgba(37, 99, 235, 0.45);
+    transform: translateY(-1px);
+}
+
+/* Active click feedback */
+.score-stale-note:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 8px rgba(37, 99, 235, 0.35);
+}
+
+/* Optional subtle pulse to attract attention */
+@keyframes rescore-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(59,130,246,0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(59,130,246,0); }
+    100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); }
+}
+
+.score-stale-note {
+    animation: rescore-pulse 1.8s ease-out infinite;
+}
+
+/* Keep score badge readable */
+.score-badge {
+    padding-right: 110px;
+}
