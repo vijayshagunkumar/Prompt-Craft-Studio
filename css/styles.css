@@ -2605,3 +2605,126 @@ input:checked + .toggle-slider:before {
     color: white !important;
     font-weight: 600;
 }
+
+/* ======================
+   ABOUT MODAL STYLES
+   ====================== */
+
+.about-modal-content {
+    max-width: 700px;
+    max-height: 85vh;
+}
+
+.about-content {
+    padding: var(--spacing-xl);
+}
+
+.about-section {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-lg);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.about-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.about-section h3 {
+    font-size: var(--font-size-lg);
+    color: var(--primary);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-weight: 600;
+}
+
+.about-section h3 i {
+    font-size: var(--font-size-base);
+    color: var(--primary-light);
+}
+
+.about-section p {
+    color: var(--text-primary);
+    line-height: 1.7;
+    font-size: var(--font-size-base);
+    margin: 0;
+}
+
+.about-footer {
+    margin-top: var(--spacing-2xl);
+    padding-top: var(--spacing-lg);
+    border-top: 2px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.version-info,
+.architecture-info {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: var(--card-bg-alt);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.version-info i,
+.architecture-info i {
+    color: var(--primary-light);
+}
+
+/* Dark theme adjustments for about modal */
+.dark-theme .about-section p {
+    color: var(--text-secondary);
+}
+
+.dark-theme .version-info,
+.dark-theme .architecture-info {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+}
+
+/* Responsive adjustments for about modal */
+@media (max-width: 768px) {
+    .about-modal-content {
+        max-height: 90vh;
+    }
+    
+    .about-content {
+        padding: var(--spacing-lg);
+    }
+    
+    .about-footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .version-info,
+    .architecture-info {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .about-content {
+        padding: var(--spacing-md);
+    }
+    
+    .about-section h3 {
+        font-size: var(--font-size-base);
+    }
+    
+    .about-section p {
+        font-size: var(--font-size-sm);
+    }
+}
