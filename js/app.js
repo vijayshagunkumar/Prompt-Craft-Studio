@@ -372,6 +372,8 @@ class PromptCraftApp {
             stickyPrepareBtn: document.getElementById('stickyPrepareBtn'),
             stickyResetBtn: document.getElementById('stickyResetBtn'),
             
+    // Metrics (✅ FIXED)
+    metricsBtn: document.querySelector('.metrics-toggle'),
             // Inspiration
             inspirationPanel: document.getElementById('inspirationPanel'),
             closeInspirationBtn: document.getElementById('closeInspirationBtn'),
@@ -411,6 +413,7 @@ class PromptCraftApp {
         if (this.elements.needInspirationBtn) {
             this.elements.needInspirationBtn.title = 'Click to insert ready-made prompt samples';
         }
+
     }
 
     // Create notification container if it doesn't exist
@@ -612,123 +615,8 @@ class PromptCraftApp {
         this.setupAutoGeneration();
         
         // ================================
-// ================================
-// METRICS BUTTON - DIRECT WORKER CALL (UPDATED)
-// ================================
 
-const metricsBtn = document.querySelector('.metrics-toggle');
-const metricsBox = document.querySelector('.ranking-explanation');
-const metricsCloseBtn = document.querySelector('.metrics-close-btn');
-
-if (metricsBtn && metricsBox && metricsCloseBtn) {
-    // Prevent duplicate listeners
-    const cleanBtn = metricsBtn.cloneNode(true);
-    metricsBtn.parentNode.replaceChild(cleanBtn, metricsBtn);
-    
-    // Store reference in elements
-    this.elements.metricsBtn = cleanBtn;
-    this.elements.metricsBox = metricsBox;
-    this.elements.metricsCloseBtn = metricsCloseBtn;
-
-    // OPEN metrics → Call Worker /score endpoint directly
-    cleanBtn.addEventListener('click', async () => {
-        const outputArea = document.getElementById('outputArea');
-        const prompt = outputArea?.textContent?.trim();
-
-        if (!prompt) {
-            this.showNotification('No prompt to score', 'warning');
-            return;
-        }
-
-        // Show loading state immediately
-        renderPromptScore({}, true);
-        metricsBox.classList.add('active');
-        cleanBtn.disabled = true;
-        cleanBtn.classList.add('disabled');
-        
-        // Show loading notification
-        const loadingNotif = this.showNotification('🔍 Analyzing prompt quality...', 'info', 0);
-
-        try {
-            // ✅ UPDATED: Call the fixed score function
-            const scoreData = await scorePromptViaWorker(prompt);
-            
-            // Update UI with score
-            renderPromptScore(scoreData);
-            
-            // Remove loading notification safely
-            if (loadingNotif?.parentNode) {
-                loadingNotif.remove();
-            }
-            
-            this.showNotification(`✅ Prompt scored: ${scoreData.grade}`, 'success');
-            
-            // Update button with score
-            cleanBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(scoreData.totalScore/10).toFixed(1)}/10`;
-            cleanBtn.classList.add('has-score');
-            cleanBtn.title = `Score: ${scoreData.grade} - Click for details`;
-            
-            // Store score in app state
-            this.state.lastPromptScore = scoreData;
-            
-        } catch (err) {
-            console.error('Worker /score endpoint error:', err);
-            
-            // Remove loading notification safely
-            if (loadingNotif?.parentNode) {
-                loadingNotif.remove();
-            }
-            
-            // Show error in score UI
-            const slot = document.getElementById('rankingExplanationSlot');
-            if (slot) {
-                slot.innerHTML = `
-                    <div class="prompt-score-ui error">
-                        <div class="score-header">
-                            <h3>Prompt Quality Score</h3>
-                            <span class="score-badge">Error</span>
-                        </div>
-                        <div class="score-feedback">
-                            <p><i class="fas fa-exclamation-triangle"></i> Failed to score prompt.</p>
-                            <p class="error-detail">${err.message || 'Check backend connection'}</p>
-                            <button class="retry-score-btn">Retry</button>
-                        </div>
-                    </div>
-                `;
-                
-                // Add retry button functionality
-                slot.querySelector('.retry-score-btn')?.addEventListener('click', () => {
-                    cleanBtn.click();
-                });
-            }
-            
-            this.showNotification('Failed to score prompt', 'error');
-        } finally {
-            // Re-enable button
-            cleanBtn.disabled = false;
-            cleanBtn.classList.remove('disabled');
-        }
-    });
-
-    // CLOSE metrics → enable button
-    metricsCloseBtn.addEventListener('click', () => {
-        metricsBox.classList.remove('active');
-        cleanBtn.disabled = false;
-        cleanBtn.classList.remove('disabled');
-    });
-}
-// ================================
-// SCORE PROMPT BUTTON → REUSE METRICS LOGIC
-// ================================
-const scorePromptBtn = document.getElementById('scorePromptBtn');
-
-if (scorePromptBtn && this.elements.metricsBtn) {
-    scorePromptBtn.addEventListener('click', () => {
-        // Delegate to metrics button logic
-        this.elements.metricsBtn.click();
-    });
-}
-      
+     
     }
 
     // Set up voice handler callbacks
@@ -1220,7 +1108,16 @@ async autoScorePromptIfEnabled() {
         const scoreData = await scorePromptViaWorker(prompt);
         
         // Store score for later display
-        this.state.lastPromptScore = scoreData;
+this.state.lastPromptScore = scoreData;
+
+// ✅ RENDER UI ON AUTO SCORE
+renderPromptScore(scoreData);
+persistPromptScoreUI();
+
+    
+   
+      
+
         
         // Show subtle notification
         const notificationText = scoreData.isMockData 
@@ -1436,7 +1333,9 @@ resetApplication() {
         this.elements.metricsBtn.classList.remove('has-score');
         this.elements.metricsBtn.title = 'Score prompt';
     }
-    
+    const slot = document.getElementById('rankingExplanationSlot');
+if (slot) slot.innerHTML = '';
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2425,8 +2324,61 @@ function getGradeColor(grade) {
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
 });
+// Re-apply score whenever a new prompt is generated
 
 // ... existing app.js code ...
 
+// =======================================================
+// 🔒 SCORE UI PERSISTENCE (SINGLE DROP-IN SOLUTION)
+// =======================================================
+
+// This function safely re-renders the last known score
+// into the existing #rankingExplanationSlot container.
+// It prevents the score UI from disappearing due to reflows.
+function persistPromptScoreUI() {
+    const app = window.promptCraftApp;
+
+    if (!app || !app.state || !app.state.lastPromptScore) {
+        return;
+    }
+
+    // Ensure renderPromptScore exists before calling
+    if (typeof renderPromptScore !== 'function') {
+        console.warn('renderPromptScore() not found — score UI cannot be rendered');
+        return;
+    }
+
+    const slot = document.getElementById('rankingExplanationSlot');
+    if (!slot) return;
+
+    // Re-render score from app state (single source of truth)
+    renderPromptScore(app.state.lastPromptScore);
+}
+
+// Re-apply score whenever a prompt is generated
+document.addEventListener('promptGenerated', () => {
+    persistPromptScoreUI();
+});
 
 
+
+
+// =======================================================
+// METRICS PANEL TOGGLE (SINGLE RESPONSIBILITY)
+// =======================================================
+document.addEventListener('DOMContentLoaded', () => {
+    const metricsBtn = document.querySelector('.metrics-toggle');
+    const metricsBox = document.querySelector('.ranking-explanation');
+    const metricsCloseBtn = document.querySelector('.metrics-close-btn');
+
+    if (!metricsBtn || !metricsBox || !metricsCloseBtn) return;
+
+    metricsBtn.addEventListener('click', () => {
+        metricsBox.classList.add('active');
+        persistPromptScoreUI(); // ✅ always re-render last score
+    });
+
+    metricsCloseBtn.addEventListener('click', () => {
+        metricsBox.classList.remove('active');
+    });
+});
