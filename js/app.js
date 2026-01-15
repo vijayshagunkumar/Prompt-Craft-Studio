@@ -430,43 +430,46 @@ class PromptCraftApp {
     }
 
     // Initialize application
-    async init() {
-        console.log('Initializing PromptCraft Pro...');
+async init() {
+    console.log('Initializing PromptCraft Pro...');
+    
+    try {
+        // Load settings
+        this.loadSettings();
         
-        try {
-            // Load settings
-            this.loadSettings();
-            
-            // Set up event listeners
-            this.setupEventListeners();
-            
-            // Set up score invalidation and metrics toggle
-            this.setupScoreInvalidation();
-            this.setupMetricsToggle();
-            
-            // Set up voice handler callbacks
-            this.setupVoiceCallbacks();
-            
-            // Update UI
-            this.updateUI();
-            
-            // Load history
-            this.loadHistory();
-            
-            // Test worker connection (don't block initialization)
-            this.testWorkerConnection().catch(error => {
-                console.warn('Worker test failed, continuing with local mode:', error);
-            });
-            
-            // Update model display
-            this.updateModelDisplay();
-            
-            console.log('PromptCraft Pro initialized successfully!');
-        } catch (error) {
-            console.error('Failed to initialize PromptCraft:', error);
-            this.showNotification('Failed to initialize application. Please refresh the page.', 'error');
-        }
+        // Set up event listeners
+        this.setupEventListeners();
+        
+        // Set up score invalidation and metrics toggle
+        this.setupScoreInvalidation();
+        this.setupMetricsToggle();
+        
+        // Set up voice handler callbacks
+        this.setupVoiceCallbacks();
+        
+        // Update UI
+        this.updateUI();
+        
+        // Load history
+        this.loadHistory();
+        
+        // ✅ ADD THIS LINE: Initialize score panel early
+        this.initializeScorePanel();
+        
+        // Test worker connection (don't block initialization)
+        this.testWorkerConnection().catch(error => {
+            console.warn('Worker test failed, continuing with local mode:', error);
+        });
+        
+        // Update model display
+        this.updateModelDisplay();
+        
+        console.log('PromptCraft Pro initialized successfully!');
+    } catch (error) {
+        console.error('Failed to initialize PromptCraft:', error);
+        this.showNotification('Failed to initialize application. Please refresh the page.', 'error');
     }
+}
 
     // Set up score invalidation listeners
     setupScoreInvalidation() {
@@ -1286,7 +1289,13 @@ initPromptScorePanel() {
         });
     }
 }
-
+// Add this method to initialize the panel on app startup
+initializeScorePanel() {
+    // Check if panel already exists in HTML
+    if (!document.getElementById('promptScorePanel')) {
+        this.initPromptScorePanel();
+    }
+}
     expandScorePanel() {
         const panel = document.getElementById('promptScorePanel');
         if (!panel) return;
