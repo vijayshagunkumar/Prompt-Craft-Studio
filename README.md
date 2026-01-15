@@ -1,9 +1,3 @@
-Perfect 👍
-Below is **ONE SINGLE, CONTINUOUS MARKDOWN BLOCK** — no breaks, no commentary in between — so you can **copy-paste it in one shot** directly into `README.md`.
-
----
-
-```md
 # Prompt Craft Studio
 
 Prompt Craft Studio is a web-based prompt engineering and evaluation platform that provides structured scoring and feedback for AI prompts. It uses a Java-based scoring engine exposed securely through a Cloudflare Worker and deployed on Railway. The architecture supports multiple frontend applications using a single backend scoring system.
@@ -226,12 +220,3 @@ set SERVER_PORT=9090
 * Multi-client architecture
 * Enterprise-grade deployment
 * Extensible design
-
-```
-
----
-
-✅ **You can now copy everything in one go and paste directly into `README.md`.**
-
-When ready, say **“Proceed to Word format”** and I’ll convert the same content cleanly into a `.docx` structure.
-```
