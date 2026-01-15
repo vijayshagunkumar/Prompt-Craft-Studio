@@ -355,6 +355,9 @@ class PromptCraftApp {
 
         // Score mutex flag to prevent double API calls
         this._scoreInFlight = false;
+        
+        // About modal ESC handler
+        this._aboutModalEscHandler = null;
 
         // Configuration
         this.config = window.AppConfig || {
@@ -457,6 +460,12 @@ class PromptCraftApp {
             historySection: document.getElementById('historySection'),
             historyList: document.getElementById('historyList'),
             closeHistoryBtn: document.getElementById('closeHistoryBtn'),
+            
+            // About
+            aboutBtn: document.getElementById('aboutBtn'),
+            aboutModal: document.getElementById('aboutModal'),
+            closeAboutBtn: document.getElementById('closeAboutBtn'),
+            closeAboutFooterBtn: document.getElementById('closeAboutFooterBtn'),
             
             // Suggestions
             suggestionsPanel: document.getElementById('suggestionsPanel'),
@@ -696,6 +705,28 @@ outputArea.addEventListener('input', () => {
         
         if (this.elements.closeHistoryBtn) {
             this.elements.closeHistoryBtn.addEventListener('click', () => this.closeHistory());
+        }
+        
+        // About button events
+        if (this.elements.aboutBtn) {
+            this.elements.aboutBtn.addEventListener('click', () => this.openAboutModal());
+        }
+        
+        if (this.elements.closeAboutBtn) {
+            this.elements.closeAboutBtn.addEventListener('click', () => this.closeAboutModal());
+        }
+        
+        if (this.elements.closeAboutFooterBtn) {
+            this.elements.closeAboutFooterBtn.addEventListener('click', () => this.closeAboutModal());
+        }
+        
+        // Close about modal when clicking outside
+        if (this.elements.aboutModal) {
+            this.elements.aboutModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.aboutModal) {
+                    this.closeAboutModal();
+                }
+            });
         }
         
         // Platform clicks
@@ -1461,6 +1492,49 @@ markScoreAsStale() {
     panel.classList.remove('expanded');
     panel.classList.add('collapsed');
 }
+
+    // ======================
+    // ABOUT MODAL METHODS
+    // ======================
+
+    openAboutModal() {
+        console.log('Opening about modal...');
+        
+        const modal = document.getElementById('aboutModal');
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // Add keyboard shortcut for closing with ESC
+            const closeOnEsc = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeAboutModal();
+                    document.removeEventListener('keydown', closeOnEsc);
+                }
+            };
+            document.addEventListener('keydown', closeOnEsc);
+            
+            // Store the event listener for cleanup
+            this._aboutModalEscHandler = closeOnEsc;
+        } else {
+            console.error('About modal not found!');
+            this.showNotification('About modal not found. Please refresh the page.', 'error');
+        }
+    }
+
+    closeAboutModal() {
+        const modal = document.getElementById('aboutModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Remove the ESC event listener
+            if (this._aboutModalEscHandler) {
+                document.removeEventListener('keydown', this._aboutModalEscHandler);
+                this._aboutModalEscHandler = null;
+            }
+        }
+    }
 
     // ======================
     // PLATFORM INTEGRATION - SAFE LAUNCH
@@ -2474,6 +2548,16 @@ Keep the summary concise yet comprehensive.`,
             return;
         }
 
+        /* =========================
+           ALT + A → About Modal
+           ========================= */
+        if (e.altKey && e.key.toLowerCase() === 'a') {
+            e.preventDefault();
+            this.openAboutModal();
+            this.showNotification('📘 About PromptCraft (Alt + A)', 'info');
+            return;
+        }
+
         // Block other shortcuts while typing (except Alt-based actions)
         if (isTyping && !e.altKey) return;
 
@@ -2515,6 +2599,9 @@ Keep the summary concise yet comprehensive.`,
             if (this.state.inspirationPanelOpen) this.closeInspirationPanel();
             if (this.elements.historySection?.classList.contains('active')) {
                 this.closeHistory();
+            }
+            if (this.elements.aboutModal?.classList.contains('active')) {
+                this.closeAboutModal();
             }
         }
     }
