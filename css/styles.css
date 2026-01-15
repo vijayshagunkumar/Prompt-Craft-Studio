@@ -3275,3 +3275,34 @@ input:checked + .toggle-slider:before {
     opacity: 1 !important;
     filter: none !important;
 }
+/* ================================
+   Score stale visual treatment
+   ================================ */
+
+.score-results {
+    position: relative;
+}
+
+/* Dim ONLY the content, not the CTA */
+.score-results.score-stale .score-card {
+    filter: grayscale(0.6);
+}
+
+/* Soft overlay instead of opacity */
+.score-results.score-stale::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    border-radius: 12px;
+}
+
+/* Re-Score button must stay fully active */
+.score-results.score-stale .score-stale-note {
+    opacity: 1;
+    filter: none;
+    pointer-events: auto;
+    z-index: 5;
+}
+
