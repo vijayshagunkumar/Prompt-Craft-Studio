@@ -1,106 +1,307 @@
-# PromptCraft Pro — Deployment & Architecture Guide
+Below is **STEP 2 – GitHub `README.md`**, fully aligned with the Confluence version and written in **clean, professional Markdown**, ready to drop directly into your repository root.
 
-## Overview
+---
 
-PromptCraft Pro is a production-grade AI prompt engineering platform with a clean, secure, multi-layer architecture.
+```md
+# Prompt Craft Studio
 
-### Live URLs
+Prompt Craft Studio is a web-based prompt engineering and evaluation platform that provides structured scoring and feedback for AI prompts. It uses a Java-based scoring engine exposed securely through a Cloudflare Worker and deployed on Railway. The architecture supports multiple frontend applications using a single backend scoring system.
 
-- **Frontend (Cloudflare Pages)**  
+---
+
+## 🌐 Live Applications
+
+- **Prompt Craft Studio**  
+  https://vijayshagunkumar.github.io/Prompt-Craft-Studio/
+
+- **Prompt Craft Pro**  
   https://prompt-crafter-pro.pages.dev/
 
-- **API Proxy (Cloudflare Worker)**  
-  https://promptcraft-api.vijay-shagunkumar.workers.dev
+---
 
-- **Java Backend (Railway)**  
-  https://promptcraft-java-backend-production.up.railway.app
+## 🏗️ Architecture Overview
+
+**Frontend (UI)**
+- HTML, CSS, JavaScript
+- Hosted on GitHub Pages / Cloudflare Pages
+
+**Middleware**
+- Cloudflare Worker (`worker.js`)
+- Secure gateway and response transformer
+
+**Backend**
+- Java Spring Boot Scoring API
+- Deployed on Railway
+
+**Flow**
+```
+
+Frontend → Cloudflare Worker → Java Scoring API → Transformed Response → UI
+
+```
 
 ---
 
-## Architecture (Final)
+## 📁 Repositories
 
-Browser  
-→ Cloudflare Pages (Frontend)  
-→ Cloudflare Worker (API Proxy & CORS)  
-→ Railway (Spring Boot Java Backend)
+### Frontend
+- Hosted on GitHub
+- Deployed via GitHub Pages
 
----
-
-## Why This Architecture
-
-- Frontend never talks to Java directly (security)
-- Worker handles CORS, routing, versioning
-- Java backend is isolated and scalable
-- Each layer deploys independently
+### Java Backend (Scoring API)
+- Repository:  
+  https://github.com/vijayshagunkumar/promptcraft-java-backend
 
 ---
 
-## Repository Responsibilities
+## 🧠 Java Backend (Scoring API)
 
-### 1. Frontend Repository
-**Purpose:** UI, UX, prompt generation, scoring UI
+### Local Project Path
+```
 
-**Tech:**
-- HTML / CSS / JavaScript
-- Hosted on Cloudflare Pages
+D:\PrompCraftStudio\promptcraft-java-backend
 
-**Deployment:**
-- Triggered automatically on GitHub push to `main`
+````
 
-**No manual deploy commands required**
+### Technology Stack
+- Java 17+
+- Spring Boot
+- Maven Wrapper
 
----
-
-### 2. Cloudflare Worker
-**Purpose:** API proxy layer
-
-**Responsibilities:**
-- `/health`
-- `/score`
-- CORS handling
-- Secure backend communication
-
-**Deployment Tool:**
-- Wrangler CLI
+### Development Environment
+- IDE: IntelliJ IDEA 2025.3.1.1
+- Build Tool: Maven Wrapper (`mvnw.cmd`)
 
 ---
 
-### 3. Java Backend (Spring Boot)
-**Purpose:** Prompt scoring logic and APIs
+## ▶️ Running the Backend Locally
 
-**Responsibilities:**
-- `/api/v1/health`
-- `/api/prompts/score`
-- Scoring algorithms
+Navigate to the project root:
 
-**Deployment Platform:**
-- Railway (GitHub auto-deploy)
+```powershell
+cd D:\PrompCraftStudio\promptcraft-java-backend
+````
 
----
+Run the application:
 
-## Deployment Rules (Golden)
+```powershell
+.\mvnw.cmd spring-boot:run
+```
 
-- ❌ Browser must never call Java backend directly
-- ✅ Browser → Worker → Java only
-- ❌ Never deploy Worker from GitHub Web UI
-- ✅ Always deploy Worker via `wrangler deploy`
-- ✅ Test Java changes locally before pushing
-- ⚠️ GitHub Web UI edits allowed only for small frontend changes
+### Local Health Check
+
+```
+http://localhost:8080/api/v1/health
+```
 
 ---
 
-## Frontend Deployment (Cloudflare Pages)
+## 📦 Building the Application
 
-### Small Changes
-1. Edit file in GitHub Web UI
-2. Commit to `main`
-3. Cloudflare auto-deploys
+To build the executable JAR:
 
-### Larger Changes (Recommended)
+```powershell
+.\mvnw.cmd clean package
+```
+
+Output:
+
+```
+target/promptcraft-java-backend-0.0.1-SNAPSHOT.jar
+```
+
+### Run JAR Manually
+
+```powershell
+java -jar target/promptcraft-java-backend-0.0.1-SNAPSHOT.jar
+```
+
+---
+
+## ☁️ Railway Deployment (Java Backend)
+
+### Deployment Model
+
+* GitHub repository connected to Railway
+* Automatic CI/CD on each push
+* No manual infrastructure setup required
+
+### Railway Build & Run
+
+**Build**
+
 ```bash
-git clone <frontend-repo>
-cd frontend
-# make changes
-git add .
-git commit -m "Update frontend logic"
-git push origin main
+./mvnw clean package
+```
+
+**Run**
+
+```bash
+java -jar target/*.jar
+```
+
+### Production Health Endpoint
+
+```
+https://promptcraft-java-backend-production.up.railway.app/api/v1/health
+```
+
+---
+
+## ⚙️ Environment Variables & Profiles
+
+### Spring Profiles
+
+* `default` – Local
+* `prod` – Railway
+
+Example:
+
+```bash
+--spring.profiles.active=prod
+```
+
+### Common Variables
+
+| Variable               | Description | Example  |
+| ---------------------- | ----------- | -------- |
+| SERVER_PORT            | Server port | 8080     |
+| SPRING_PROFILES_ACTIVE | Profile     | prod     |
+| JAVA_OPTS              | JVM options | -Xmx512m |
+
+> Railway automatically injects `PORT` at runtime.
+
+---
+
+## 🌍 Cloudflare Worker (Scoring Gateway)
+
+### Purpose
+
+* Acts as a middleware layer
+* Calls Java scoring API
+* Normalizes scores for frontend (0–50 scale)
+* Adds metadata (requestId, timestamp)
+
+### Local Worker Path
+
+```
+C:\Users\Vijay Kumar\promptcraft-backend
+```
+
+### Deploy Worker
+
+```powershell
+wrangler deploy
+```
+
+---
+
+## 🔌 Public Scoring API
+
+### Endpoint
+
+```
+POST https://promptcraft-api.vijay-shagunkumar.workers.dev/score
+```
+
+### Request Body
+
+```json
+{
+  "prompt": "Create a professional follow-up email for a product demo",
+  "tool": "chatgpt"
+}
+```
+
+### Response
+
+* Final normalized score
+* Grade & feedback
+* Original Java scoring preserved
+* Transformation flag
+* Request ID for traceability
+
+---
+
+## 🔄 CI/CD Integration
+
+* GitHub → Railway (Java backend)
+* GitHub → Cloudflare Pages (Frontend)
+* Shared Cloudflare Worker for all clients
+* Zero-downtime deployments
+
+---
+
+## 🧩 Shared Architecture
+
+* One Java scoring engine
+* One Cloudflare Worker
+* Multiple frontend clients:
+
+  * Prompt Craft Studio
+  * Prompt Craft Pro
+
+---
+
+## 🛠️ Troubleshooting
+
+### Maven Wrapper Not Found
+
+```powershell
+.\mvnw.cmd spring-boot:run
+```
+
+### Port Already in Use
+
+```powershell
+set SERVER_PORT=9090
+```
+
+### Worker Cannot Reach Backend
+
+* Verify backend `/health` endpoint
+* Confirm backend URL in `worker.js`
+* Check Railway service status
+
+---
+
+## 🔐 Security Notes
+
+* No user PII stored
+* Stateless API design
+* Health endpoint is public (read-only)
+* Scoring access controlled via Cloudflare Worker
+* Architecture supports future auth if required
+
+---
+
+## 📌 Status
+
+* ✅ Production-ready
+* ✅ Multi-client architecture
+* ✅ Enterprise-grade deployment
+* ✅ Extensible design
+
+---
+
+## 📄 License
+
+Private / Internal Project (as applicable)
+
+```
+
+---
+
+## ✅ STEP 2 STATUS
+✔ GitHub-ready  
+✔ Markdown-compliant  
+✔ Matches Confluence content exactly  
+
+---
+
+### 🔜 NEXT
+**STEP 3:** Word document format  
+**STEP 4:** PNG architecture diagram  
+
+👉 Reply **“Proceed to Word format”** and I’ll continue.
+```
