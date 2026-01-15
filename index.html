@@ -362,23 +362,16 @@
                             data-placeholder="Your optimized prompt will appear here. Describe your task in Step 1 and click 'Prepare Prompt' to generate."
                         ></div>
                         
-                        <!-- ✅ FIXED: PROMPT SCORE PANEL with correct classes -->
-                        <div id="promptScorePanel" class="prompt-score collapsed">
-                            <div class="prompt-score-header">
-                                <span id="promptScoreTitle">Check Prompt Score</span>
-
-                                <div class="prompt-score-actions">
-                                    <button id="promptScoreActionBtn" class="prompt-score-btn">
-                                        <i class="fas fa-chart-line"></i> Re-Score
-                                    </button>
-                                    <button id="promptScoreCloseBtn" class="prompt-score-close">×</button>
-                                </div>
-                            </div>
-
-                            <div id="promptScoreBody" class="prompt-score-body">
-                                <!-- score UI injected by JS -->
-                            </div>
-                        </div>
+                  <!-- ✅ FIXED: PROMPT SCORE PANEL with correct classes for JS -->
+<div id="promptScorePanel" class="score-panel collapsed">
+    <div class="score-panel-header">
+        <span class="score-panel-title">Check Prompt Score</span>
+        <button class="score-panel-close">×</button>
+    </div>
+    <div class="score-panel-body">
+        <!-- score UI will be injected here -->
+    </div>
+</div>
                     </div>
                     
                     <!-- ✅ ADDED: Why Tool Recommendation Anchor (FOR JS INJECTION) -->
