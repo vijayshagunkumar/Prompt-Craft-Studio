@@ -760,17 +760,15 @@ class PromptCraftApp {
     }
 
     // Handle prompt editing
-    handlePromptEdit() {
-        if (!this.elements.outputArea) return;
-        
-        const currentContent = this.elements.outputArea.textContent.trim();
-        this.state.promptModified = currentContent !== this.state.originalPrompt;
-      // 🔥 ADD THIS LINE
-    if (this.state.promptModified) {
-        markScoreAsStale();
-    }
-        this.updateButtonStates();
-    }
+handlePromptEdit() {
+    if (!this.elements.outputArea) return;
+
+    const currentContent = this.elements.outputArea.textContent.trim();
+    this.state.promptModified = currentContent !== this.state.originalPrompt;
+
+    this.updateButtonStates();
+}
+
 
     // ======================
     // PROMPT GENERATION
@@ -1114,9 +1112,9 @@ async autoScorePromptIfEnabled() {
         
         // Store score for later display
 this.state.lastPromptScore = scoreData;
-
-// ✅ RENDER UI ON AUTO SCORE
+this.state.promptModified = false; // ✅ ADD THIS LINE
 renderPromptScore(scoreData);
+
         
         // Show subtle notification
 const notificationText = scoreData.isMockData 
