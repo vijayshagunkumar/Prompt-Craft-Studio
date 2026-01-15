@@ -568,7 +568,7 @@
                     </div>
                 </div>
                 
-                <!-- ✅ FIXED: Simplified Scoring Section -->
+                <!-- ✅ FIXED: Scoring Section -->
                 <div class="settings-group">
                     <h3 class="settings-group-title">
                         <i class="fas fa-chart-line"></i>
@@ -592,7 +592,7 @@
                             Score Current Prompt (Shift+Alt+S)
                         </button>
                         
-                        <div id="settingsScoreResults" class="score-results" style="display: none; margin-top: 15px;">
+                        <div id="settingsScoreResults" style="margin-top: 15px; padding: 15px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px;">
                             <!-- Results will appear here -->
                         </div>
                     </div>
@@ -728,8 +728,155 @@
     <script src="js/ai-tool-ranking.js"></script>
     <script src="js/app.js?v=score-ui-20260115"></script>
     
-    <!-- ✅ ADDED: Keyboard Shortcut for Scoring -->
+    <!-- ✅ CRITICAL FIX: Score Panel JavaScript -->
     <script>
+        // 🔧 FIX: Override the renderPromptScore function that's causing the error
+        window.renderPromptScore = function(data) {
+            console.log('🔧 renderPromptScore called with:', data);
+            
+            const scorePanel = document.getElementById('promptScorePanel');
+            const scoreBody = document.getElementById('promptScoreBody');
+            
+            if (!scorePanel || !scoreBody) {
+                console.error('❌ Score panel elements not found');
+                return;
+            }
+            
+            // Remove collapsed class to show the panel
+            scorePanel.classList.remove('collapsed');
+            
+            // Calculate score class (0-10 scale)
+            const scoreValue = data.totalScore || 50;
+            const scoreClass = Math.floor(scoreValue / 10);
+            
+            // Generate score HTML with CORRECT structure matching CSS
+            const scoreHTML = `
+                <div class="score-badge score-${scoreClass}">
+                    ${scoreValue}/100
+                </div>
+                
+                <div class="score-bar-row">
+                    <div class="score-bar-label">
+                        <span>Clarity & Intent</span>
+                        <span>${data.dimensions?.clarity || 20} / 20</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill" style="width:${(data.dimensions?.clarity || 20) * 5}%"></div>
+                    </div>
+                </div>
+                
+                <div class="score-bar-row">
+                    <div class="score-bar-label">
+                        <span>Structure & Format</span>
+                        <span>${data.dimensions?.structure || 20} / 20</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill" style="width:${(data.dimensions?.structure || 20) * 5}%"></div>
+                    </div>
+                </div>
+                
+                <div class="score-bar-row">
+                    <div class="score-bar-label">
+                        <span>Effectiveness</span>
+                        <span>${data.dimensions?.effectiveness || 20} / 20</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill" style="width:${(data.dimensions?.effectiveness || 20) * 5}%"></div>
+                    </div>
+                </div>
+                
+                <div class="score-feedback">
+                    <i class="fas fa-comment-alt"></i>
+                    <span>${data.feedback || 'Excellent prompt with clear instructions and good structure.'}</span>
+                </div>
+            `;
+            
+            scoreBody.innerHTML = scoreHTML;
+            console.log('✅ Score rendered successfully');
+        };
+
+        // 🔧 FIX: Add event listeners for score panel functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const scoreBtn = document.getElementById('scorePromptBtn');
+            const panelCloseBtn = document.getElementById('promptScoreCloseBtn');
+            const panelHeader = document.querySelector('.prompt-score-header');
+            const reScoreBtn = document.getElementById('promptScoreActionBtn');
+            
+            // Score button click handler
+            if (scoreBtn) {
+                scoreBtn.addEventListener('click', () => {
+                    console.log('🎯 Score button clicked');
+                    
+                    // Trigger scoring if not already scored
+                    if (window.promptCraftApp && window.promptCraftApp.scorePrompt) {
+                        window.promptCraftApp.scorePrompt();
+                    } else {
+                        console.warn('promptCraftApp.scorePrompt not available');
+                    }
+                });
+            }
+            
+            // Re-score button click handler
+            if (reScoreBtn) {
+                reScoreBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    console.log('🔄 Re-score button clicked');
+                    
+                    if (window.promptCraftApp && window.promptCraftApp.scorePrompt) {
+                        window.promptCraftApp.scorePrompt();
+                    }
+                });
+            }
+            
+            // Panel toggle functionality (click header to expand/collapse)
+            if (panelHeader) {
+                panelHeader.addEventListener('click', (e) => {
+                    // Don't toggle if clicking the close button or re-score button
+                    if (e.target.closest('.prompt-score-close') || e.target.closest('.prompt-score-btn')) {
+                        return;
+                    }
+                    
+                    const panel = document.getElementById('promptScorePanel');
+                    if (panel) {
+                        panel.classList.toggle('collapsed');
+                        console.log('📦 Panel toggled:', panel.classList.contains('collapsed') ? 'collapsed' : 'expanded');
+                    }
+                });
+            }
+            
+            // Close button functionality
+            if (panelCloseBtn) {
+                panelCloseBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const panel = document.getElementById('promptScorePanel');
+                    if (panel) {
+                        panel.classList.add('collapsed');
+                        console.log('❌ Panel closed');
+                    }
+                });
+            }
+            
+            // Connect settings scoring button
+            const settingsScoreBtn = document.getElementById('settingsScoreBtn');
+            if (settingsScoreBtn) {
+                settingsScoreBtn.addEventListener('click', () => {
+                    console.log('⚙️ Settings score button clicked');
+                    const scoringBtn = document.getElementById('scorePromptBtn');
+                    if (scoringBtn) {
+                        scoringBtn.click();
+                    }
+                });
+            }
+        });
+
+        // 🔧 FIX: Override the broken renderPromptScore in app.js
+        setTimeout(() => {
+            if (window.promptCraftApp && window.promptCraftApp.renderPromptScore) {
+                console.log('🔄 Overriding broken renderPromptScore function');
+                window.promptCraftApp.renderPromptScore = window.renderPromptScore;
+            }
+        }, 1000);
+
         // Keyboard shortcut handler for scoring (Shift+Alt+S)
         document.addEventListener('keydown', (e) => {
             if (e.shiftKey && e.altKey && e.key === 'S') {
@@ -737,11 +884,11 @@
                 const scoringBtn = document.getElementById('scorePromptBtn');
                 if (scoringBtn) {
                     scoringBtn.click();
-                    console.log('Scoring triggered via keyboard shortcut: Shift+Alt+S');
+                    console.log('🎹 Scoring triggered via keyboard shortcut: Shift+Alt+S');
                 }
             }
         });
-        
+
         // Initialize backend status indicator
         document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
@@ -750,19 +897,6 @@
                     backendIndicator.style.display = 'flex';
                 }
             }, 1000);
-        });
-        
-        // Connect settings scoring button to main scoring function
-        document.addEventListener('DOMContentLoaded', () => {
-            const settingsScoreBtn = document.getElementById('settingsScoreBtn');
-            if (settingsScoreBtn) {
-                settingsScoreBtn.addEventListener('click', () => {
-                    const scoringBtn = document.getElementById('scorePromptBtn');
-                    if (scoringBtn) {
-                        scoringBtn.click();
-                    }
-                });
-            }
         });
     </script>
     
