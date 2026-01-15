@@ -1138,6 +1138,10 @@ This structured approach ensures you get detailed, actionable responses tailored
     // AUTO-SCORE AFTER GENERATION (FIXED)
     // ======================
     async autoScorePromptIfEnabled(force = false) {
+      if (!document.getElementById('promptScorePanel')) {
+    this.initPromptScorePanel();
+}
+
         // Prevent double API calls
         if (this._scoreInFlight) return;
         
