@@ -1203,14 +1203,13 @@ async autoScorePromptIfEnabled(force = false) {
     // ======================
     // PROMPT SCORE PANEL (SINGLE SOURCE)
     // ======================
-
 renderPromptScore(score) {
     console.log('🔥 renderPromptScore called! Score:', score);
     
     // Initialize panel if it doesn't exist
     this.initPromptScorePanel();
 
-    // Get elements with CLASS selectors (FIXED)
+    // Get elements with CLASS selectors
     const panel = document.getElementById('promptScorePanel');
     const title = panel ? panel.querySelector('.score-panel-title') : null;
     const body = panel ? panel.querySelector('.score-panel-body') : null;
@@ -1260,8 +1259,10 @@ renderPromptScore(score) {
         </div>
     `;
 
-    if (!panel.classList.contains('expanded')) {
-        this.expandScorePanel();
+    // ✅ FIX 1: Start COLLAPSED (not expanded)
+    if (panel.classList.contains('expanded')) {
+        panel.classList.remove('expanded');
+        panel.classList.add('collapsed');
     }
 
     document.dispatchEvent(new Event('promptScoreRendered'));
@@ -1276,7 +1277,6 @@ renderPromptScore(score) {
             </div>
         `;
     }
-
 initPromptScorePanel() {
     const outputCard = document.getElementById('outputCard');
     if (!outputCard || document.getElementById('promptScorePanel')) return;
@@ -1295,15 +1295,34 @@ initPromptScorePanel() {
 
     outputCard.appendChild(panel);
 
-    // Add event listeners
+    // ✅ FIX 2: Proper close button event listener
     const closeBtn = panel.querySelector('.score-panel-close');
+    const header = panel.querySelector('.score-panel-header');
+    
     if (closeBtn) {
         closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.collapseScorePanel();
         });
     }
+    
+    if (header) {
+        header.addEventListener('click', (e) => {
+            // Don't toggle if clicking the close button
+            if (e.target.classList.contains('score-panel-close') || 
+                e.target.closest('.score-panel-close')) {
+                return;
+            }
+            
+            if (panel.classList.contains('collapsed')) {
+                this.expandScorePanel();
+            } else {
+                this.collapseScorePanel();
+            }
+        });
+    }
 }
+
 // Add this method to initialize the panel on app startup
 initializeScorePanel() {
     // Check if panel already exists in HTML
