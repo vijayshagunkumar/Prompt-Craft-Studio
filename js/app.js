@@ -2453,10 +2453,6 @@ function collapseScorePanel() {
     promptScoreState.expanded = false;
 }
 
-// ================================
-// RENDER SCORE
-// ================================
-
 function renderPromptScore(score) {
     initPromptScorePanel();
 
@@ -2469,22 +2465,53 @@ function renderPromptScore(score) {
 
     title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
 
+    const bars = [
+        { label: 'Clarity & Intent', value: score.clarityAndIntent, max: 20 },
+        { label: 'Structure', value: score.structure, max: 15 },
+        { label: 'Context & Role', value: score.contextAndRole, max: 15 },
+        { label: 'Constraints', value: score.constraints ?? 15, max: 15 },
+        { label: 'Completeness', value: score.completeness ?? 15, max: 15 }
+    ];
+
     body.innerHTML = `
-        <div class="score-badge score-${score.grade.toLowerCase()}">
-            ${score.grade} — ${score.totalScore}/50
+        <div class="score-bars">
+            ${bars.map(b => `
+                <div class="score-bar-row">
+                    <div class="score-bar-label">
+                        ${b.label}
+                        <span>${b.value}/${b.max}</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill"
+                             style="width:${(b.value / b.max) * 100}%">
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
         </div>
 
-        <p class="score-feedback">${score.feedback}</p>
+        ${renderListSection('Strengths', score.originalJavaData?.strengths)}
+        ${renderListSection('Improvements', score.originalJavaData?.improvements)}
 
-        <ul class="score-breakdown">
-            <li>Clarity & Intent: ${score.clarityAndIntent}/20</li>
-            <li>Structure: ${score.structure}/15</li>
-            <li>Context & Role: ${score.contextAndRole}/15</li>
-        </ul>
+        <div class="score-meta">
+            Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
+        </div>
     `;
 
     expandScorePanel();
 }
+
+function renderListSection(title, items = []) {
+    if (!items || !items.length) return '';
+
+    return `
+        <div class="score-list">
+            <div class="score-list-title">${title}</div>
+            ${items.map(i => `<span class="score-chip">${i}</span>`).join('')}
+        </div>
+    `;
+}
+
 
 // ================================
 // MARK SCORE STALE ON EDIT
