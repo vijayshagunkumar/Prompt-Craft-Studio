@@ -2541,3 +2541,67 @@ input:checked + .toggle-slider:before {
     color: var(--text-tertiary);
     text-align: right;
 }
+/* ================================
+   PROMPT SCORE PANEL TEXT FIXES
+   ================================ */
+
+/* Fix for dark text visibility */
+.score-panel-body {
+    color: var(--text-primary) !important;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Make score text more visible */
+.score-bar-label {
+    color: var(--text-primary) !important;
+    font-weight: 500;
+}
+
+.score-bar-label span {
+    color: var(--primary) !important;
+    font-weight: 600;
+}
+
+/* Make chips more visible */
+.score-chip {
+    background: var(--primary-50) !important;
+    color: var(--primary) !important;
+    border: 1px solid var(--primary-light) !important;
+    font-weight: 500;
+}
+
+.dark-theme .score-chip {
+    background: rgba(79, 70, 229, 0.2) !important;
+    color: var(--primary-light) !important;
+    border-color: var(--primary) !important;
+}
+
+/* Make meta text visible */
+.score-meta {
+    color: var(--text-secondary) !important;
+    font-size: 12px;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Improve list titles */
+.score-list-title {
+    color: var(--text-primary) !important;
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 13px;
+}
+
+/* Make bars more vibrant */
+.score-bar-fill {
+    background: linear-gradient(90deg, var(--success), var(--success-light)) !important;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+}
+
+/* Improve header text visibility */
+.score-panel-header {
+    color: white !important;
+    font-weight: 600;
+}
