@@ -2252,7 +2252,8 @@ function renderPromptScore(score, isLoading = false) {
     const clarityPct = Math.round((score.clarityAndIntent / 20) * 100);
     const structurePct = Math.round((score.structure / 15) * 100);
     const intentPct = Math.round((score.contextAndRole / 15) * 100);
- const badgeScore = `${score.totalScore}/50`;
+const badgeScore = score.totalScore;
+
 
     
     // Determine grade-based color
