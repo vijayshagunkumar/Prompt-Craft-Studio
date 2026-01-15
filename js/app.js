@@ -1119,9 +1119,10 @@ this.state.lastPromptScore = scoreData;
 renderPromptScore(scoreData);
         
         // Show subtle notification
-        const notificationText = scoreData.isMockData 
-            ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
-            : `📊 Prompt scored: ${scoreData.grade} (${(scoreData.totalScore/10).toFixed(1)}/10)`;
+const notificationText = scoreData.isMockData 
+    ? `📊 Prompt scored: ${scoreData.grade} (local analysis)` 
+    : `📊 Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`;
+
         
         this.showNotification(notificationText, 'success', 3000);
         
@@ -1129,12 +1130,9 @@ renderPromptScore(scoreData);
         if (this.elements.metricsBtn) {
         this.elements.metricsBtn.innerHTML =
   `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
-
 this.elements.metricsBtn.title =
-  `Score: ${scoreData.grade} (${scoreData.totalScore}/50)`;
+  `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
 
-            this.elements.metricsBtn.classList.add('has-score');
-            this.elements.metricsBtn.title = `Score: ${scoreData.grade} - Click for details`;
         }
         
     } catch (err) {
@@ -2239,11 +2237,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const metricsCloseBtn = document.querySelector('.metrics-close-btn');
 
     if (!metricsBtn || !metricsBox || !metricsCloseBtn) return;
-
-    metricsBtn.addEventListener('click', () => {
-        metricsBox.classList.add('active');
-       
-    });
+metricsBtn.addEventListener('click', () => {
+    if (!window.promptCraftApp?.state?.lastPromptScore) {
+        window.promptCraftApp?.showNotification(
+            'Score the prompt first',
+            'warning'
+        );
+        return;
+    }
+    metricsBox.classList.add('active');
+});
 
     metricsCloseBtn.addEventListener('click', () => {
         metricsBox.classList.remove('active');
