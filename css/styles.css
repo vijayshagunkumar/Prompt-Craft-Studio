@@ -3386,3 +3386,71 @@ input:checked + .toggle-slider:before {
     font-weight: 600;
 }
 
+/* ================================
+   Score Bars
+   ================================ */
+
+.score-bars {
+    margin-top: 10px;
+}
+
+.score-bar-row {
+    margin-bottom: 10px;
+}
+
+.score-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    margin-bottom: 4px;
+    color: #cbd5f5;
+}
+
+.score-bar-track {
+    background: #1e293b;
+    border-radius: 999px;
+    height: 8px;
+    overflow: hidden;
+}
+
+.score-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    transition: width 0.4s ease;
+}
+
+/* ================================
+   Strengths / Improvements
+   ================================ */
+
+.score-list {
+    margin-top: 14px;
+}
+
+.score-list-title {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #e5e7eb;
+}
+
+.score-chip {
+    display: inline-block;
+    margin: 4px 6px 0 0;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: #020617;
+    border: 1px solid #334155;
+    font-size: 12px;
+    color: #cbd5f5;
+}
+
+/* ================================
+   Footer Meta
+   ================================ */
+
+.score-meta {
+    margin-top: 12px;
+    font-size: 12px;
+    color: #94a3b8;
+}
