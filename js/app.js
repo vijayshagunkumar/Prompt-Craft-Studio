@@ -1193,7 +1193,8 @@ This structured approach ensures you get detailed, actionable responses tailored
 
         const panel = document.getElementById('promptScorePanel');
         const body = panel.querySelector('.score-panel-body');
-        const title = panel.querySelector('.score-panel-title');
+       const title = panel.querySelector('#promptScoreTitle');
+
 
         this.state.lastPromptScore = score;
         this.state.promptModified = false;
