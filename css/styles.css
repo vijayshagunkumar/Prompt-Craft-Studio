@@ -3270,3 +3270,8 @@ input:checked + .toggle-slider:before {
 .score-badge {
     padding-right: 110px;
 }
+/* Force Re-Score button to stay vivid even when parent is faded */
+.score-stale-note {
+    opacity: 1 !important;
+    filter: none !important;
+}
