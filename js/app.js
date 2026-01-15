@@ -1191,57 +1191,63 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ======================
     // PROMPT SCORE PANEL (SINGLE SOURCE)
     // ======================
+renderPromptScore(score) {
+    // Initialize panel if it doesn't exist
+    this.initPromptScorePanel();
 
-    renderPromptScore(score) {
-        this.initPromptScorePanel();
+    // Get elements with your current IDs
+    const panel = document.getElementById('promptScorePanel');
+    const title = document.getElementById('promptScoreTitle'); // Changed
+    const body = document.getElementById('promptScoreBody'); // Changed
 
- const panel = document.getElementById('promptScorePanel');
-const body  = panel.querySelector('.score-panel-body');
-const title = panel.querySelector('.score-panel-title');
+    if (!panel || !title || !body) {
+        console.error('Score panel elements not found');
+        return;
+    }
 
+    this.state.lastPromptScore = score;
+    this.state.promptModified = false;
 
-        this.state.lastPromptScore = score;
-        this.state.promptModified = false;
+    title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
 
-        title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
+    const bars = [
+        { label: 'Clarity & Intent', value: score.clarityAndIntent, max: 20 },
+        { label: 'Structure', value: score.structure, max: 15 },
+        { label: 'Context & Role', value: score.contextAndRole, max: 15 }
+    ];
 
-        const bars = [
-            { label: 'Clarity & Intent', value: score.clarityAndIntent, max: 20 },
-            { label: 'Structure', value: score.structure, max: 15 },
-            { label: 'Context & Role', value: score.contextAndRole, max: 15 }
-        ];
-
-        body.innerHTML = `
-            <div class="score-bars">
-                ${bars.map(b => `
-                    <div class="score-bar-row">
-                        <div class="score-bar-label">
-                            ${b.label}
-                            <span>${b.value}/${b.max}</span>
-                        </div>
-                        <div class="score-bar-track">
-                            <div class="score-bar-fill"
-                                 style="width:${(b.value / b.max) * 100}%">
-                            </div>
+    body.innerHTML = `
+        <div class="score-bars">
+            ${bars.map(b => `
+                <div class="score-bar-row">
+                    <div class="score-bar-label">
+                        ${b.label}
+                        <span>${b.value}/${b.max}</span>
+                    </div>
+                    <div class="score-bar-track">
+                        <div class="score-bar-fill"
+                             style="width:${(b.value / b.max) * 100}%">
                         </div>
                     </div>
-                `).join('')}
-            </div>
+                </div>
+            `).join('')}
+        </div>
 
-            ${this.renderScoreList('Strengths', score.originalJavaData?.strengths)}
-            ${this.renderScoreList('Improvements', score.originalJavaData?.improvements)}
+        ${this.renderScoreList('Strengths', score.originalJavaData?.strengths)}
+        ${this.renderScoreList('Improvements', score.originalJavaData?.improvements)}
 
-            <div class="score-meta">
-                Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
-            </div>
-        `;
+        <div class="score-meta">
+            Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
+        </div>
+    `;
 
-if (!panel.classList.contains('expanded')) {
-    this.expandScorePanel();
+    if (!panel.classList.contains('expanded')) {
+        this.expandScorePanel();
+    }
+
+    document.dispatchEvent(new Event('promptScoreRendered'));
 }
 
-        document.dispatchEvent(new Event('promptScoreRendered'));
-    }
 
     renderScoreList(title, items = []) {
         if (!items || !items.length) return '';
@@ -1253,46 +1259,33 @@ if (!panel.classList.contains('expanded')) {
         `;
     }
 
-    initPromptScorePanel() {
-        const outputCard = document.getElementById('outputCard');
-        if (!outputCard || document.getElementById('promptScorePanel')) return;
+initPromptScorePanel() {
+    const outputCard = document.getElementById('outputCard');
+    if (!outputCard || document.getElementById('promptScorePanel')) return;
 
-        const panel = document.createElement('div');
-        panel.id = 'promptScorePanel';
-        panel.className = 'score-panel collapsed';
+    const panel = document.createElement('div');
+    panel.id = 'promptScorePanel';
+    panel.className = 'score-panel collapsed';
 
-        panel.innerHTML = `
-            <div class="score-panel-header">
-                <span class="score-panel-title">Check Prompt Score</span>
-                <button class="score-panel-close">×</button>
-            </div>
-            <div class="score-panel-body"></div>
-        `;
+    panel.innerHTML = `
+        <div class="score-panel-header">
+            <span class="score-panel-title">Check Prompt Score</span>
+            <button class="score-panel-close">×</button>
+        </div>
+        <div class="score-panel-body"></div>
+    `;
 
-        outputCard.appendChild(panel);
+    outputCard.appendChild(panel);
 
-panel.querySelector('.score-panel-header').addEventListener('click', (e) => {
-    if (e.target.classList.contains('score-panel-close')) return;
-
-    if (
-        (!this.state.lastPromptScore || this.state.promptModified) &&
-        !this._scoreInFlight
-    ) {
-        this.autoScorePromptIfEnabled(true);
-    }
-
-if (!panel.classList.contains('expanded')) {
-    this.expandScorePanel();
-}
-
-});
-
-
-        panel.querySelector('.score-panel-close').addEventListener('click', (e) => {
+    // Add event listeners with your IDs
+    const closeBtn = panel.querySelector('.score-panel-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             this.collapseScorePanel();
         });
     }
+}
 
     expandScorePanel() {
         const panel = document.getElementById('promptScorePanel');
