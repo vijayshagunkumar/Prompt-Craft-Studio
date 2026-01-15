@@ -1097,7 +1097,9 @@ This structured approach ensures you get detailed, actionable responses tailored
 async autoScorePromptIfEnabled() {
     // Check if auto-scoring is enabled in settings
     if (!this.state.settings.autoScoreEnabled) return;
-     if (this.state.promptModified) return; // 🔥 ADD THIS
+if (!this.state.hasGeneratedPrompt) return;
+if (this.state.promptModified) return;
+
     
     const outputArea = document.getElementById('outputArea');
     const prompt = outputArea?.textContent?.trim();
@@ -1305,6 +1307,9 @@ resetApplication() {
     this.state.redoStack = [];
     this.state.generatedFromInput = null;  // ✅ CLEAR STORED INPUT
     this.state.lastPromptScore = null;     // ✅ CLEAR SCORE
+  const scoreBox = document.querySelector('#outputCard .score-results');
+if (scoreBox) scoreBox.remove();
+
     
     if (this.elements.userInput) {
         this.elements.userInput.value = '';
@@ -2236,13 +2241,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!metricsBtn || !metricsBox || !metricsCloseBtn) return;
 metricsBtn.addEventListener('click', () => {
-    if (!window.promptCraftApp?.state?.lastPromptScore) {
-        window.promptCraftApp?.showNotification(
-            'Score the prompt first',
+metricsBtn.addEventListener('click', () => {
+    const app = window.promptCraftApp;
+
+    if (!app?.state?.lastPromptScore) {
+        app.showNotification(
+            'Prompt was edited — re-score to see updated results',
             'warning'
         );
         return;
     }
+
+    metricsBox.classList.add('active');
+});
+
     metricsBox.classList.add('active');
 });
 
@@ -2315,28 +2327,33 @@ function renderPromptScore(score) {
 }
 
 function markScoreAsStale() {
+    const app = window.promptCraftApp;
+    if (!app) return;
+
+    // ❌ INVALIDATE LOGICALLY
+    app.state.lastPromptScore = null;
+
     const box = document.querySelector('#outputCard .score-results');
     if (!box) return;
 
-    // Visually mark score as outdated
     box.style.opacity = '0.5';
     box.style.filter = 'grayscale(0.6)';
 
-    // Add / update stale message
-    let staleNote = box.querySelector('.score-stale-note');
-    if (!staleNote) {
-        staleNote = document.createElement('div');
-        staleNote.className = 'score-stale-note';
-        staleNote.style.cssText = `
+    let note = box.querySelector('.score-stale-note');
+    if (!note) {
+        note = document.createElement('div');
+        note.className = 'score-stale-note';
+        note.style.cssText = `
             margin-top: 8px;
             font-size: 12px;
-            color: var(--warning, #f59e0b);
+            color: #f59e0b;
         `;
-        box.appendChild(staleNote);
+        box.appendChild(note);
     }
 
-    staleNote.textContent = 'Prompt edited — re-score to update results';
+    note.textContent = 'Prompt edited — re-score required';
 }
+
 // ================================
 // MARK SCORE AS STALE WHEN USER EDITS PROMPT
 // ================================
