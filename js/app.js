@@ -492,11 +492,12 @@ class PromptCraftApp {
         if (!this.elements.metricsBtn || !this.elements.metricsBox || !this.elements.metricsCloseBtn) return;
         
         this.elements.metricsBtn.addEventListener('click', () => {
-            if (!this.state.lastPromptScore) {
-                this.showNotification('Re-scoring prompt...', 'info');
-                this.autoScorePromptIfEnabled(true);
-                return;
-            }
+  if (!this.state.lastPromptScore) {
+    this.showNotification('📊 Re-scoring edited prompt…', 'info');
+    this.autoScorePromptIfEnabled(true);
+    return;
+}
+   
             
             this.elements.metricsBox.classList.add('active');
         });
@@ -528,7 +529,27 @@ class PromptCraftApp {
                 box.appendChild(note);
             }
             
-            note.textContent = 'Prompt edited — re-score required';
+note.innerHTML = `
+    Prompt edited — re-score required
+    <button class="rescore-btn" style="
+        margin-left:10px;
+        padding:4px 8px;
+        font-size:12px;
+        cursor:pointer;
+        border-radius:4px;
+        border:1px solid #f59e0b;
+        background:transparent;
+        color:#f59e0b;
+    ">
+        Re-Score
+    </button>
+`;
+
+note.querySelector('.rescore-btn').onclick = () => {
+    note.remove();
+    this.autoScorePromptIfEnabled(true);
+};
+
         }
         
         // ✅ FIXED ISSUE 2: Clear metrics button when score is stale
