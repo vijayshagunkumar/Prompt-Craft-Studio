@@ -1099,6 +1099,7 @@ This structured approach ensures you get detailed, actionable responses tailored
 async autoScorePromptIfEnabled() {
     // Check if auto-scoring is enabled in settings
     if (!this.state.settings.autoScoreEnabled) return;
+     if (this.state.promptModified) return; // 🔥 ADD THIS
     
     const outputArea = document.getElementById('outputArea');
     const prompt = outputArea?.textContent?.trim();
@@ -1126,7 +1127,12 @@ renderPromptScore(scoreData);
         
         // Update UI with score badge if button exists
         if (this.elements.metricsBtn) {
-            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${(scoreData.totalScore/10).toFixed(1)}/10`;
+        this.elements.metricsBtn.innerHTML =
+  `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
+
+this.elements.metricsBtn.title =
+  `Score: ${scoreData.grade} (${scoreData.totalScore}/50)`;
+
             this.elements.metricsBtn.classList.add('has-score');
             this.elements.metricsBtn.title = `Score: ${scoreData.grade} - Click for details`;
         }
@@ -2223,21 +2229,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
 });
 // Re-apply score whenever a new prompt is generated
-
-// ... existing app.js code ...
-
-// =======================================================
-// 🔒 SCORE UI PERSISTENCE (SINGLE DROP-IN SOLUTION)
-// =======================================================
-
-// This function safely re-renders the last known score
-// into the existing #rankingExplanationSlot container.
-// It prevents the score UI from disappearing due to reflows.
-
-
-
-
-
 
 // =======================================================
 // METRICS PANEL TOGGLE (SINGLE RESPONSIBILITY)
