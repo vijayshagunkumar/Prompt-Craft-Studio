@@ -765,6 +765,10 @@ class PromptCraftApp {
         
         const currentContent = this.elements.outputArea.textContent.trim();
         this.state.promptModified = currentContent !== this.state.originalPrompt;
+      // 🔥 ADD THIS LINE
+    if (this.state.promptModified) {
+        markScoreAsStale();
+    }
         this.updateButtonStates();
     }
 
@@ -1112,12 +1116,6 @@ this.state.lastPromptScore = scoreData;
 
 // ✅ RENDER UI ON AUTO SCORE
 renderPromptScore(scoreData);
-persistPromptScoreUI();
-
-    
-   
-      
-
         
         // Show subtle notification
         const notificationText = scoreData.isMockData 
@@ -2204,108 +2202,6 @@ Keep the summary concise yet comprehensive.`,
     }
 }
 
-// ======================
-// PROMPT SCORE RENDERER (WITH LOADING)
-// ======================
-// ======================
-// PROMPT SCORE RENDERER (IMPROVED)
-// ======================
-function renderPromptScore(score, isLoading = false) {
-    const slot = document.getElementById('rankingExplanationSlot');
-    if (!slot) return;
-
-    if (isLoading) {
-        slot.innerHTML = `
-            <div class="prompt-score-ui loading">
-                <div class="score-header">
-                    <h3>Prompt Quality Score</h3>
-                    <span class="score-badge shimmer">•••</span>
-                </div>
-                
-                <div class="score-bar">
-                    <label>Clarity</label>
-                    <div class="bar"><div class="fill shimmer" style="width:70%"></div></div>
-                    <span class="shimmer">--%</span>
-                </div>
-                
-                <div class="score-bar">
-                    <label>Structure</label>
-                    <div class="bar"><div class="fill shimmer" style="width:50%"></div></div>
-                    <span class="shimmer">--%</span>
-                </div>
-                
-                <div class="score-bar">
-                    <label>Intent</label>
-                    <div class="bar"><div class="fill shimmer" style="width:30%"></div></div>
-                    <span class="shimmer">--%</span>
-                </div>
-                
-                <div class="score-feedback">
-                    <p class="shimmer">Analyzing prompt quality...</p>
-                </div>
-            </div>
-        `;
-        return;
-    }
-
-    // Normalize values for UI
-    const clarityPct = Math.round((score.clarityAndIntent / 20) * 100);
-    const structurePct = Math.round((score.structure / 15) * 100);
-    const intentPct = Math.round((score.contextAndRole / 15) * 100);
-
-
-
-    
-    // Determine grade-based color
-    const gradeColor = getGradeColor(score.grade);
-    
-    // Add mock data indicator
-    const mockIndicator = score.isMockData 
-        ? '<span class="mock-indicator" title="Local analysis (backend unavailable)">⚠️ Local</span>' 
-        : '<span class="live-indicator" title="Live backend analysis">✓ Live</span>';
-
-    slot.innerHTML = `
-        <div class="prompt-score-ui">
-            <div class="score-header">
-                <h3>Prompt Quality Score ${mockIndicator}</h3>
-                <span class="score-badge" style="background-color: ${gradeColor}">${badgeScore}/10</span>
-            </div>
-
-            <div class="score-bar">
-                <label>Clarity & Intent</label>
-                <div class="bar"><div class="fill" style="width:${clarityPct}%; background-color: ${gradeColor}"></div></div>
-                <span>${clarityPct}% (${score.clarityAndIntent}/20)</span>
-            </div>
-
-            <div class="score-bar">
-                <label>Structure</label>
-                <div class="bar"><div class="fill" style="width:${structurePct}%; background-color: ${gradeColor}"></div></div>
-                <span>${structurePct}% (${score.structure}/15)</span>
-            </div>
-
-            <div class="score-bar">
-                <label>Context & Role</label>
-                <div class="bar"><div class="fill" style="width:${intentPct}%; background-color: ${gradeColor}"></div></div>
-                <span>${intentPct}% (${score.contextAndRole}/15)</span>
-            </div>
-
-            <div class="score-feedback" style="border-left-color: ${gradeColor}">
-                <p>
-                    <strong style="color: ${gradeColor}">${score.grade}.</strong>
-                    ${score.feedback || 'Prompt analysis complete.'}
-                </p>
-                ${score.isMockData ? '<p class="mock-note"><small>Note: Using local analysis. Backend scoring will resume when available.</small></p>' : ''}
-            </div>
-            
-            ${score.originalJavaData ? `
-                <details class="debug-details">
-                    <summary>Debug Info</summary>
-                    <pre class="debug-json">${JSON.stringify(score.originalJavaData, null, 2)}</pre>
-                </details>
-            ` : ''}
-        </div>
-    `;
-}
 
 // ======================
 // GRADE COLOR HELPER
@@ -2337,30 +2233,8 @@ document.addEventListener('DOMContentLoaded', () => {
 // This function safely re-renders the last known score
 // into the existing #rankingExplanationSlot container.
 // It prevents the score UI from disappearing due to reflows.
-function persistPromptScoreUI() {
-    const app = window.promptCraftApp;
 
-    if (!app || !app.state || !app.state.lastPromptScore) {
-        return;
-    }
 
-    // Ensure renderPromptScore exists before calling
-    if (typeof renderPromptScore !== 'function') {
-        console.warn('renderPromptScore() not found — score UI cannot be rendered');
-        return;
-    }
-
-    const slot = document.getElementById('rankingExplanationSlot');
-    if (!slot) return;
-
-    // Re-render score from app state (single source of truth)
-    renderPromptScore(app.state.lastPromptScore);
-}
-
-// Re-apply score whenever a prompt is generated
-document.addEventListener('promptGenerated', () => {
-    persistPromptScoreUI();
-});
 
 
 
@@ -2377,15 +2251,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     metricsBtn.addEventListener('click', () => {
         metricsBox.classList.add('active');
-        persistPromptScoreUI(); // ✅ always re-render last score
+       
     });
 
     metricsCloseBtn.addEventListener('click', () => {
         metricsBox.classList.remove('active');
     });
 });
-
 function renderPromptScore(score) {
+    // Notify system that a fresh score is rendered
+    document.dispatchEvent(new Event('promptScoreRendered'));
+
     const outputCard = document.getElementById('outputCard');
     if (!outputCard) return;
 
@@ -2395,6 +2271,11 @@ function renderPromptScore(score) {
         box.className = 'score-results';
         outputCard.appendChild(box);
     }
+
+    // 🔧 CLEAR STALE STYLING
+    box.style.opacity = '1';
+    box.style.filter = 'none';
+    box.querySelector('.score-stale-note')?.remove();
 
     const total = Number(score.totalScore || 0);
     const badgeClass = `score-${Math.floor(total / 5)}`;
@@ -2411,45 +2292,80 @@ function renderPromptScore(score) {
 
     box.innerHTML = `
         <div class="score-card">
-
-            <!-- SCORE BADGE -->
             <div class="score-badge ${badgeClass}">
                 ${score.grade} (${total}/50)
             </div>
 
-            <!-- FEEDBACK -->
             <p style="margin-top:10px">${score.feedback || ''}</p>
 
-            <!-- NORMALIZED BREAKDOWN -->
             <ul style="margin-top:10px;font-size:13px">
                 <li>Clarity & Intent: ${score.clarityAndIntent || 0}/20</li>
                 <li>Structure: ${score.structure || 0}/15</li>
                 <li>Context & Role: ${score.contextAndRole || 0}/15</li>
             </ul>
 
-            <!-- PROMPT STATS -->
             <div style="margin-top:12px;font-size:12px;color:var(--text-secondary)">
                 Prompt Length: ${score.promptLength || 0} chars ·
                 Words: ${score.promptWords || 0}
             </div>
 
-            <!-- STRENGTHS -->
             <div style="margin-top:12px">
                 <strong>Strengths</strong>
-                <ul style="font-size:13px;margin-top:5px">
-                    ${strengths}
-                </ul>
+                <ul style="font-size:13px;margin-top:5px">${strengths}</ul>
             </div>
 
-            <!-- IMPROVEMENTS -->
             <div style="margin-top:10px">
                 <strong>Improvements</strong>
-                <ul style="font-size:13px;margin-top:5px">
-                    ${improvements}
-                </ul>
+                <ul style="font-size:13px;margin-top:5px">${improvements}</ul>
             </div>
-
         </div>
     `;
 }
+
+function markScoreAsStale() {
+    const box = document.querySelector('#outputCard .score-results');
+    if (!box) return;
+
+    // Visually mark score as outdated
+    box.style.opacity = '0.5';
+    box.style.filter = 'grayscale(0.6)';
+
+    // Add / update stale message
+    let staleNote = box.querySelector('.score-stale-note');
+    if (!staleNote) {
+        staleNote = document.createElement('div');
+        staleNote.className = 'score-stale-note';
+        staleNote.style.cssText = `
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--warning, #f59e0b);
+        `;
+        box.appendChild(staleNote);
+    }
+
+    staleNote.textContent = 'Prompt edited — re-score to update results';
+}
+// ================================
+// MARK SCORE AS STALE WHEN USER EDITS PROMPT
+// ================================
+document.addEventListener('DOMContentLoaded', () => {
+    const outputArea = document.getElementById('outputArea');
+    if (!outputArea) return;
+
+    let userEditing = false;
+
+    outputArea.addEventListener('input', () => {
+        // Mark score stale only once per edit cycle
+        if (!userEditing) {
+            userEditing = true;
+            markScoreAsStale();
+        }
+    });
+
+    // Reset stale flag when a fresh score is rendered
+    document.addEventListener('promptScoreRendered', () => {
+        userEditing = false;
+    });
+});
+
 
