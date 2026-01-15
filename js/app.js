@@ -284,6 +284,9 @@ class PromptCraftApp {
             settings: this.loadDefaultSettings()
         };
 
+        // Score mutex flag to prevent double API calls
+        this._scoreInFlight = false;
+
         // Configuration
         this.config = window.AppConfig || {
             WORKER_CONFIG: {
@@ -473,15 +476,15 @@ class PromptCraftApp {
         let userEditing = false;
         
         // ✅ FIXED ISSUE 4: Consolidated edit detection - only listen here
-        outputArea.addEventListener('input', () => {
-            // Mark score stale only once per edit cycle
-            if (!userEditing) {
-                userEditing = true;
-markScoreAsStale();
+      
+outputArea.addEventListener('input', () => {
+    if (!userEditing && !this.state.promptModified) {
+        userEditing = true;
+        this.markScoreAsStale();
+    }
+});
 
-            }
-        });
-        
+
         // Reset stale flag when a fresh score is rendered
         document.addEventListener('promptScoreRendered', () => {
             userEditing = false;
@@ -493,12 +496,11 @@ markScoreAsStale();
         if (!this.elements.metricsBtn || !this.elements.metricsBox || !this.elements.metricsCloseBtn) return;
         
         this.elements.metricsBtn.addEventListener('click', () => {
-  if (!this.state.lastPromptScore) {
-    this.showNotification('📊 Re-scoring edited prompt…', 'info');
-    this.autoScorePromptIfEnabled(true);
-    return;
-}
-   
+            if (!this.state.lastPromptScore) {
+                this.showNotification('📊 Re-scoring edited prompt…', 'info');
+                this.autoScorePromptIfEnabled(true);
+                return;
+            }
             
             this.elements.metricsBox.classList.add('active');
         });
@@ -507,9 +509,6 @@ markScoreAsStale();
             this.elements.metricsBox.classList.remove('active');
         });
     }
-
-    // Mark score as stale (with guard to prevent multiple calls)
-
 
     // Set up event listeners with null safety
     setupEventListeners() {
@@ -807,8 +806,7 @@ markScoreAsStale();
         const modified = currentContent !== this.state.originalPrompt;
 
         if (modified && !this.state.promptModified) {
-            // ✅ FIXED ISSUE 4: Consolidated - only mark stale via handlePromptEdit
-markScoreAsStale();
+            this.markScoreAsStale();
         }
 
         this.state.promptModified = modified;
@@ -923,9 +921,12 @@ markScoreAsStale();
                 console.log(`Prompt preview: ${result.prompt.substring(0, 200)}...`);
                 
                 // AUTO-SCORE AFTER GENERATION
-                setTimeout(() => {
-                    this.autoScorePromptIfEnabled();
-                }, 1000);
+            const scoreTimeout = setTimeout(() => {
+    if (this.state.hasGeneratedPrompt) {
+        this.autoScorePromptIfEnabled();
+    }
+}, 1000);
+
                 
             } else {
                 throw new Error('Failed to generate prompt');
@@ -1137,16 +1138,19 @@ This structured approach ensures you get detailed, actionable responses tailored
     // AUTO-SCORE AFTER GENERATION (FIXED)
     // ======================
     async autoScorePromptIfEnabled(force = false) {
+        // Prevent double API calls
+        if (this._scoreInFlight) return;
+        
         if (!this.state.settings.autoScoreEnabled && !force) return;
         if (!this.state.hasGeneratedPrompt && !force) return;
         if (this.state.promptModified && !force) return;
-        // ✅ FIXED ISSUE 3: Removed generatedFromInput check - scoring depends on prompt, not origin
-        // if (this.state.generatedFromInput === null) return;
-
+        
         const outputArea = document.getElementById('outputArea');
         const prompt = outputArea?.textContent?.trim();
         
         if (!prompt || prompt.length < 50) return;
+        
+        this._scoreInFlight = true;
         
         try {
             console.log('🔍 Auto-scoring prompt...');
@@ -1156,8 +1160,7 @@ This structured approach ensures you get detailed, actionable responses tailored
             // Store score for later display
             this.state.lastPromptScore = scoreData;
             this.state.promptModified = false;
- renderPromptScore(scoreData);
-
+            this.renderPromptScore(scoreData);
             
             // Show subtle notification
             const notificationText = scoreData.isMockData 
@@ -1176,10 +1179,141 @@ This structured approach ensures you get detailed, actionable responses tailored
         } catch (err) {
             console.warn('⚠️ Auto-scoring failed:', err);
             // Silent fail - don't bother user
+        } finally {
+            this._scoreInFlight = false;
         }
     }
 
+    // ======================
+    // PROMPT SCORE PANEL (SINGLE SOURCE)
+    // ======================
 
+    renderPromptScore(score) {
+        this.initPromptScorePanel();
+
+        const panel = document.getElementById('promptScorePanel');
+        const body = panel.querySelector('.score-panel-body');
+        const title = panel.querySelector('.score-panel-title');
+
+        this.state.lastPromptScore = score;
+        this.state.promptModified = false;
+
+        title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
+
+        const bars = [
+            { label: 'Clarity & Intent', value: score.clarityAndIntent, max: 20 },
+            { label: 'Structure', value: score.structure, max: 15 },
+            { label: 'Context & Role', value: score.contextAndRole, max: 15 }
+        ];
+
+        body.innerHTML = `
+            <div class="score-bars">
+                ${bars.map(b => `
+                    <div class="score-bar-row">
+                        <div class="score-bar-label">
+                            ${b.label}
+                            <span>${b.value}/${b.max}</span>
+                        </div>
+                        <div class="score-bar-track">
+                            <div class="score-bar-fill"
+                                 style="width:${(b.value / b.max) * 100}%">
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            ${this.renderScoreList('Strengths', score.originalJavaData?.strengths)}
+            ${this.renderScoreList('Improvements', score.originalJavaData?.improvements)}
+
+            <div class="score-meta">
+                Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
+            </div>
+        `;
+
+if (!panel.classList.contains('expanded')) {
+    this.expandScorePanel();
+}
+
+        document.dispatchEvent(new Event('promptScoreRendered'));
+    }
+
+    renderScoreList(title, items = []) {
+        if (!items || !items.length) return '';
+        return `
+            <div class="score-list">
+                <div class="score-list-title">${title}</div>
+                ${items.map(i => `<span class="score-chip">${i}</span>`).join('')}
+            </div>
+        `;
+    }
+
+    initPromptScorePanel() {
+        const outputCard = document.getElementById('outputCard');
+        if (!outputCard || document.getElementById('promptScorePanel')) return;
+
+        const panel = document.createElement('div');
+        panel.id = 'promptScorePanel';
+        panel.className = 'score-panel collapsed';
+
+        panel.innerHTML = `
+            <div class="score-panel-header">
+                <span class="score-panel-title">Check Prompt Score</span>
+                <button class="score-panel-close">×</button>
+            </div>
+            <div class="score-panel-body"></div>
+        `;
+
+        outputCard.appendChild(panel);
+
+panel.querySelector('.score-panel-header').addEventListener('click', (e) => {
+    if (e.target.classList.contains('score-panel-close')) return;
+
+    if (
+        (!this.state.lastPromptScore || this.state.promptModified) &&
+        !this._scoreInFlight
+    ) {
+        this.autoScorePromptIfEnabled(true);
+    }
+
+if (!panel.classList.contains('expanded')) {
+    this.expandScorePanel();
+}
+
+});
+
+
+        panel.querySelector('.score-panel-close').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.collapseScorePanel();
+        });
+    }
+
+    expandScorePanel() {
+        const panel = document.getElementById('promptScorePanel');
+        if (!panel) return;
+        panel.classList.add('expanded');
+        panel.classList.remove('collapsed');
+    }
+
+    collapseScorePanel() {
+        const panel = document.getElementById('promptScorePanel');
+        if (!panel) return;
+        panel.classList.remove('expanded');
+        panel.classList.add('collapsed');
+    }
+
+    markScoreAsStale() {
+        const panel = document.getElementById('promptScorePanel');
+        if (!panel) return;
+
+        const title = panel.querySelector('.score-panel-title');
+        if (title) title.textContent = 'Prompt Changed · Re-Score';
+
+        this.state.lastPromptScore = null;
+        panel.classList.remove('expanded');
+        panel.classList.add('collapsed');
+    }
 
     // ======================
     // PLATFORM INTEGRATION - SAFE LAUNCH
@@ -1346,8 +1480,8 @@ ${text}
         this.state.redoStack = [];
         this.state.generatedFromInput = null;
         this.state.lastPromptScore = null;
-        const scoreBox = document.querySelector('#outputCard .score-results');
-        if (scoreBox) scoreBox.remove();
+
+
         
         if (this.elements.userInput) {
             this.elements.userInput.value = '';
@@ -1383,6 +1517,9 @@ ${text}
     }
 
     clearGeneratedPrompt() {
+      const panel = document.getElementById('promptScorePanel');
+if (panel) panel.remove();
+
         if (this.elements.outputArea) {
             this.elements.outputArea.textContent = '';
         }
@@ -2261,168 +2398,3 @@ function getGradeColor(grade) {
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
 });
-// ================================
-// PROMPT SCORE PANEL (COLLAPSIBLE)
-// ================================
-
-let promptScoreState = {
-    expanded: false,
-    stale: false,
-    lastScore: null
-};
-
-function initPromptScorePanel() {
-    const outputCard = document.getElementById('outputCard');
-    if (!outputCard) return;
-
-    if (document.getElementById('promptScorePanel')) return;
-
-    const panel = document.createElement('div');
-    panel.id = 'promptScorePanel';
-    panel.className = 'score-panel collapsed';
-
-    panel.innerHTML = `
-        <div class="score-panel-header">
-            <span class="score-panel-title">Check Prompt Score</span>
-            <button class="score-panel-close" title="Close">×</button>
-        </div>
-
-        <div class="score-panel-body"></div>
-    `;
-
-    outputCard.appendChild(panel);
-
-    // Header click (expand / re-score)
-    panel.querySelector('.score-panel-header').addEventListener('click', (e) => {
-        if (e.target.classList.contains('score-panel-close')) return;
-
-        if (promptScoreState.stale || !promptScoreState.lastScore) {
-            triggerPromptScore();
-        }
-
-        expandScorePanel();
-    });
-
-    // Close button
-    panel.querySelector('.score-panel-close').addEventListener('click', (e) => {
-        e.stopPropagation();
-        collapseScorePanel();
-    });
-}
-
-// ================================
-// PANEL STATE HANDLERS
-// ================================
-
-function expandScorePanel() {
-    const panel = document.getElementById('promptScorePanel');
-    if (!panel) return;
-
-    panel.classList.remove('collapsed');
-    panel.classList.add('expanded');
-    promptScoreState.expanded = true;
-}
-
-function collapseScorePanel() {
-    const panel = document.getElementById('promptScorePanel');
-    if (!panel) return;
-
-    panel.classList.remove('expanded');
-    panel.classList.add('collapsed');
-    promptScoreState.expanded = false;
-}
-
-function renderPromptScore(score) {
-    initPromptScorePanel();
-
-    const panel = document.getElementById('promptScorePanel');
-    const body = panel.querySelector('.score-panel-body');
-    const title = panel.querySelector('.score-panel-title');
-
-    promptScoreState.lastScore = score;
-    promptScoreState.stale = false;
-
-    title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
-
-    const bars = [
-        { label: 'Clarity & Intent', value: score.clarityAndIntent, max: 20 },
-        { label: 'Structure', value: score.structure, max: 15 },
-        { label: 'Context & Role', value: score.contextAndRole, max: 15 },
-        { label: 'Constraints', value: score.constraints ?? 15, max: 15 },
-        { label: 'Completeness', value: score.completeness ?? 15, max: 15 }
-    ];
-
-    body.innerHTML = `
-        <div class="score-bars">
-            ${bars.map(b => `
-                <div class="score-bar-row">
-                    <div class="score-bar-label">
-                        ${b.label}
-                        <span>${b.value}/${b.max}</span>
-                    </div>
-                    <div class="score-bar-track">
-                        <div class="score-bar-fill"
-                             style="width:${(b.value / b.max) * 100}%">
-                        </div>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
-
-        ${renderListSection('Strengths', score.originalJavaData?.strengths)}
-        ${renderListSection('Improvements', score.originalJavaData?.improvements)}
-
-        <div class="score-meta">
-            Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
-        </div>
-    `;
-
-    expandScorePanel();
-}
-
-function renderListSection(title, items = []) {
-    if (!items || !items.length) return '';
-
-    return `
-        <div class="score-list">
-            <div class="score-list-title">${title}</div>
-            ${items.map(i => `<span class="score-chip">${i}</span>`).join('')}
-        </div>
-    `;
-}
-
-
-// ================================
-// MARK SCORE STALE ON EDIT
-// ================================
-function markScoreAsStale() {
-    const panel = document.getElementById('promptScorePanel');
-    if (!panel) return;
-
-    const title = panel.querySelector('.score-panel-title');
-    if (!title) return;
-
-    promptScoreState.stale = true;
-    promptScoreState.lastScore = null;
-
-    title.textContent = 'Prompt Changed · Re-Score';
-
-    panel.classList.remove('expanded');
-    panel.classList.add('collapsed');
-}
-
-
-
-// ================================
-// TRIGGER SCORE API
-// ================================
-
-function triggerPromptScore() {
-    console.log('🔍 Re-scoring prompt...');
-    // Reuse existing scoring logic
-    document.dispatchEvent(new CustomEvent('requestPromptScore'));
-}
-document.addEventListener('requestPromptScore', () => {
-    window.promptCraftApp?.autoScorePromptIfEnabled(true);
-});
-
