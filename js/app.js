@@ -430,6 +430,7 @@ class PromptCraftApp {
     }
 
     // Initialize application
+// Initialize application
 async init() {
     console.log('Initializing PromptCraft Pro...');
     
@@ -453,8 +454,11 @@ async init() {
         // Load history
         this.loadHistory();
         
-        // ✅ ADD THIS LINE: Initialize score panel early
+        // ✅ Initialize score panel early
         this.initializeScorePanel();
+        
+        // ✅ FIX 4: Update backend status indicator
+        this.updateBackendStatus();
         
         // Test worker connection (don't block initialization)
         this.testWorkerConnection().catch(error => {
@@ -469,6 +473,43 @@ async init() {
         console.error('Failed to initialize PromptCraft:', error);
         this.showNotification('Failed to initialize application. Please refresh the page.', 'error');
     }
+}
+
+// ✅ ADD THIS METHOD RIGHT HERE:
+updateBackendStatus() {
+    const statusElement = document.getElementById('backendStatusIndicator');
+    if (!statusElement) return;
+    
+    // Hide the "Checking backend..." message after 3 seconds
+    setTimeout(() => {
+        statusElement.style.display = 'none';
+    }, 3000);
+    
+    // Update it based on actual status
+    this.testWorkerConnection().then(result => {
+        if (result.success) {
+            statusElement.className = 'backend-status online';
+            statusElement.innerHTML = '<span></span><span>Backend: Online</span>';
+            
+            // Hide after showing online status
+            setTimeout(() => {
+                statusElement.style.opacity = '0';
+                setTimeout(() => {
+                    statusElement.style.display = 'none';
+                }, 500);
+            }, 2000);
+        } else {
+            statusElement.className = 'backend-status offline';
+            statusElement.innerHTML = '<span></span><span>Backend: Offline (using local mode)</span>';
+        }
+    }).catch(() => {
+        statusElement.style.display = 'none';
+    });
+}
+
+// Then continue with the next method (probably setupEventListeners):
+setupEventListeners() {
+    // ... existing code ...
 }
 
     // Set up score invalidation listeners
