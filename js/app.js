@@ -1191,10 +1191,9 @@ This structured approach ensures you get detailed, actionable responses tailored
     renderPromptScore(score) {
         this.initPromptScorePanel();
 
-        const panel = document.getElementById('promptScorePanel');
-      const body = panel.querySelector('#promptScoreBody');
-
-       const title = panel.querySelector('#promptScoreTitle');
+ const panel = document.getElementById('promptScorePanel');
+const body  = panel.querySelector('.score-panel-body');
+const title = panel.querySelector('.score-panel-title');
 
 
         this.state.lastPromptScore = score;
