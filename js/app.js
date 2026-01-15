@@ -717,6 +717,18 @@ if (metricsBtn && metricsBox && metricsCloseBtn) {
         cleanBtn.classList.remove('disabled');
     });
 }
+// ================================
+// SCORE PROMPT BUTTON → REUSE METRICS LOGIC
+// ================================
+const scorePromptBtn = document.getElementById('scorePromptBtn');
+
+if (scorePromptBtn && this.elements.metricsBtn) {
+    scorePromptBtn.addEventListener('click', () => {
+        // Delegate to metrics button logic
+        this.elements.metricsBtn.click();
+    });
+}
+      
     }
 
     // Set up voice handler callbacks
@@ -2413,3 +2425,8 @@ function getGradeColor(grade) {
 document.addEventListener('DOMContentLoaded', () => {
     window.promptCraftApp = new PromptCraftApp();
 });
+
+// ... existing app.js code ...
+
+
+
