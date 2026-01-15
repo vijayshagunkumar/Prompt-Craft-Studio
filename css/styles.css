@@ -3205,3 +3205,6 @@ input:checked + .toggle-slider:before {
     font-size: 12px;
     color: #666;
 }
+.score-stale-note {
+    color: #3b82f6;
+}
