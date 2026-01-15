@@ -430,7 +430,77 @@ class PromptCraftApp {
     }
 
     // Initialize application
+  // ============================================
+// SCORE PANEL INITIALIZATION - FIX ALL ISSUES
+// ============================================
+
+function initializeScorePanel() {
+    console.log('🔄 Initializing score panel...');
+    
+    // Get score panel
+    const scorePanel = document.getElementById('promptScorePanel');
+    if (!scorePanel) {
+        console.warn('⚠️ Score panel not found');
+        return;
+    }
+    
+    // Ensure it starts COLLAPSED
+    scorePanel.classList.add('collapsed');
+    scorePanel.classList.remove('expanded');
+    console.log('✅ Score panel set to collapsed');
+    
+    // Add header click handler (expand/collapse)
+    const header = scorePanel.querySelector('.score-panel-header');
+    if (header) {
+        // Remove any existing handlers
+        header.onclick = null;
+        
+        // Add toggle functionality
+        header.onclick = function(e) {
+            // Don't trigger if clicking close button
+            if (e.target.closest('.score-panel-close')) {
+                return;
+            }
+            
+            // Toggle collapsed/expanded
+            if (scorePanel.classList.contains('collapsed')) {
+                scorePanel.classList.remove('collapsed');
+                scorePanel.classList.add('expanded');
+                console.log('📌 Score panel expanded');
+            } else {
+                scorePanel.classList.remove('expanded');
+                scorePanel.classList.add('collapsed');
+                console.log('📌 Score panel collapsed');
+            }
+            
+            e.stopPropagation();
+        };
+        
+        console.log('✅ Header click handler added');
+    }
+    
+    // Add close button handler
+    const closeBtn = scorePanel.querySelector('.score-panel-close');
+    if (closeBtn) {
+        closeBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            
+            scorePanel.classList.remove('expanded');
+            scorePanel.classList.add('collapsed');
+            
+            console.log('✅ Score panel closed via X button');
+            return false;
+        };
+        
+        console.log('✅ Close button handler added');
+    }
+    
+    console.log('🎉 Score panel initialization complete');
+}
 // Initialize application
+  
 async init() {
     console.log('Initializing PromptCraft Pro...');
     
@@ -454,8 +524,8 @@ async init() {
         // Load history
         this.loadHistory();
         
-        // ✅ Initialize score panel early
-        this.initializeScorePanel();
+// ✅ Initialize score panel early
+initializeScorePanel();
         
         // ✅ FIX 4: Update backend status indicator
         this.updateBackendStatus();
@@ -1335,6 +1405,8 @@ initPromptScorePanel() {
     `;
 
     outputCard.appendChild(panel);
+  // Initialize the new panel
+initializeScorePanel();
 
     // ✅ FIX 2: Proper close button event listener
     const closeBtn = panel.querySelector('.score-panel-close');
@@ -1364,13 +1436,7 @@ initPromptScorePanel() {
     }
 }
 
-// Add this method to initialize the panel on app startup
-initializeScorePanel() {
-    // Check if panel already exists in HTML
-    if (!document.getElementById('promptScorePanel')) {
-        this.initPromptScorePanel();
-    }
-}
+
     expandScorePanel() {
         const panel = document.getElementById('promptScorePanel');
         if (!panel) return;
