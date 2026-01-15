@@ -96,51 +96,7 @@
             background: linear-gradient(135deg, #2563eb, #7c3aed);
         }
         
-        /* Backend status indicator */
-        .backend-status {
-            position: fixed;
-            bottom: 70px;
-            right: 20px;
-            z-index: 999;
-            font-size: 0.75rem;
-            padding: 0.5rem 0.75rem;
-            border-radius: 1rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            backdrop-filter: blur(10px);
-            background: rgba(0, 0, 0, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .backend-status.online {
-            background: rgba(16, 185, 129, 0.15);
-            color: #10b981;
-            border-color: rgba(16, 185, 129, 0.3);
-        }
-        
-        .backend-status.offline {
-            background: rgba(245, 158, 11, 0.15);
-            color: #f59e0b;
-            border-color: rgba(245, 158, 11, 0.3);
-        }
-        
-        .backend-status span:first-child {
-            width: 0.5rem;
-            height: 0.5rem;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        
-        .backend-status.online span:first-child {
-            background-color: #10b981;
-        }
-        
-        .backend-status.offline span:first-child {
-            background-color: #f59e0b;
-        }
-        
-        /* Keyboard key styling */
+                /* Keyboard key styling */
         kbd {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.3);
@@ -432,12 +388,7 @@
             </div>
         </div>
 
-        <!-- ✅ ADDED: Backend status indicator (Hidden by default, shown by JS) -->
-        <div id="backendStatusIndicator" class="backend-status offline">
-            <span></span>
-            <span>Checking backend...</span>
-        </div>
-
+   
         <!-- Action Bar for proper button layout -->
         <div class="action-bar">
             <button id="stickyPrepareBtn" class="sticky-cta prepare">
