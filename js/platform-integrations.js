@@ -5,7 +5,7 @@ class PlatformIntegrations {
             {
                 id: 'gemini',
                 name: 'Google Gemini',
-                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Google_Gemini_logo.svg/512px-Google_Gemini_logo.svg.png" alt="Gemini" class="platform-logo-img">',
+                logo: '<div class="platform-logo-svg gemini-logo"></div>',
                 color: '#8B5CF6',
                 description: 'Advanced reasoning and multimodal capabilities',
                 tags: ['Multimodal', 'Advanced', 'Google'],
@@ -15,7 +15,7 @@ class PlatformIntegrations {
             {
                 id: 'chatgpt',
                 name: 'ChatGPT',
-                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png" alt="ChatGPT" class="platform-logo-img">',
+                logo: '<div class="platform-logo-svg chatgpt-logo"></div>',
                 color: '#10A37F',
                 description: 'Industry-leading conversational AI',
                 tags: ['Conversational', 'Popular', 'OpenAI'],
@@ -25,7 +25,7 @@ class PlatformIntegrations {
             {
                 id: 'claude',
                 name: 'Anthropic Claude',
-                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Anthropic_Claude_logo.svg/512px-Anthropic_Claude_logo.svg.png" alt="Claude" class="platform-logo-img">',
+                logo: '<div class="platform-logo-svg claude-logo"></div>',
                 color: '#D4A574',
                 description: 'Constitutional AI with safety focus',
                 tags: ['Safe', 'Contextual', 'Anthropic'],
@@ -35,7 +35,7 @@ class PlatformIntegrations {
             {
                 id: 'perplexity',
                 name: 'Perplexity AI',
-                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Perplexity_AI_logo.svg/512px-Perplexity_AI_logo.svg.png" alt="Perplexity" class="platform-logo-img">',
+                logo: '<div class="platform-logo-svg perplexity-logo"></div>',
                 color: '#6B7280',
                 description: 'Search-enhanced AI with citations',
                 tags: ['Search', 'Citations', 'Real-time'],
@@ -45,7 +45,7 @@ class PlatformIntegrations {
             {
                 id: 'deepseek',
                 name: 'DeepSeek',
-                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/DeepSeek_logo.svg/512px-DeepSeek_logo.svg.png" alt="DeepSeek" class="platform-logo-img">',
+                logo: '<div class="platform-logo-svg deepseek-logo"></div>',
                 color: '#3B82F6',
                 description: 'Code-focused AI with reasoning',
                 tags: ['Code', 'Developer', 'Reasoning'],
@@ -55,7 +55,7 @@ class PlatformIntegrations {
             {
                 id: 'copilot',
                 name: 'Microsoft Copilot',
-                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Microsoft_Copilot_Icon.svg/512px-Microsoft_Copilot_Icon.svg.png" alt="Copilot" class="platform-logo-img">',
+                logo: '<div class="platform-logo-svg copilot-logo"></div>',
                 color: '#0078D4',
                 description: 'Microsoft-powered AI assistant',
                 tags: ['Microsoft', 'Productivity', 'Office'],
@@ -65,7 +65,7 @@ class PlatformIntegrations {
             {
                 id: 'grok',
                 name: 'Grok AI',
-                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/X_%28formerly_Twitter%29_logo.svg/512px-X_%28formerly_Twitter%29_logo.svg.png" alt="Grok" class="platform-logo-img">',
+                logo: '<div class="platform-logo-svg grok-logo"></div>',
                 color: '#FF6B35',
                 description: 'Real-time knowledge AI',
                 tags: ['Real-time', 'X', 'Elon'],
@@ -77,7 +77,7 @@ class PlatformIntegrations {
         // Simple cache for performance
         this.loadedLogos = new Set();
         
-        console.log('PlatformIntegrations initialized with Wikimedia CDN logos');
+        console.log('PlatformIntegrations initialized with SVG logos');
     }
 
     // ✅ Mobile detection (UA only)
@@ -350,51 +350,51 @@ class PlatformIntegrations {
         `;
     }
 
-    // Setup logo handlers
+    // Setup logo handlers - add SVG styles
     setupLogoHandlers() {
-        const logoImages = document.querySelectorAll('.platform-logo-img');
-        logoImages.forEach(img => {
-            // Style the logo images
-            img.style.width = '32px';
-            img.style.height = '32px';
-            img.style.objectFit = 'contain';
-            img.style.borderRadius = '6px';
-            img.style.padding = '4px';
-            img.style.backgroundColor = 'white';
+        // Add CSS for SVG logos
+        const style = document.createElement('style');
+        style.textContent = `
+            .platform-logo-svg {
+                width: 32px;
+                height: 32px;
+                background-size: contain;
+                background-repeat: no-repeat;
+                background-position: center;
+                border-radius: 6px;
+                background-color: white;
+            }
             
-            // Add fallback for broken images
-            img.onerror = function() {
-                console.warn(`Logo failed to load: ${this.src}`);
-                this.style.display = 'none';
-                // Create fallback icon
-                const parent = this.parentElement;
-                const platformCard = parent.closest('.platform-card');
-                if (platformCard) {
-                    const platformId = platformCard.dataset.platform;
-                    const fallbackIcon = document.createElement('i');
-                    
-                    // Set appropriate icon based on platform
-                    const iconMap = {
-                        'gemini': 'fas fa-gem',
-                        'chatgpt': 'fas fa-comment-alt',
-                        'claude': 'fas fa-brain',
-                        'perplexity': 'fas fa-search',
-                        'deepseek': 'fas fa-code',
-                        'copilot': 'fas fa-robot',
-                        'grok': 'fas fa-bolt'
-                    };
-                    
-                    fallbackIcon.className = iconMap[platformId] || 'fas fa-robot';
-                    fallbackIcon.style.fontSize = '1.5rem';
-                    fallbackIcon.style.color = 'white';
-                    parent.appendChild(fallbackIcon);
-                }
-            };
+            .gemini-logo {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285F4' d='M12 2L2 7l10 5 10-5-10-5z'/%3E%3Cpath fill='%2334A853' d='M2 17l10 5 10-5'/%3E%3Cpath fill='%23FBBC05' d='M2 12l10 5 10-5'/%3E%3Cpath fill='%23EA4335' d='M22 7v10l-10 5V12'/%3E%3C/svg%3E");
+            }
             
-            // Make sure logo is visible
-            img.style.display = 'block';
-            img.style.opacity = '0.9';
-        });
+            .chatgpt-logo {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2310A37F' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E");
+            }
+            
+            .claude-logo {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23D4A574' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E");
+                background-color: #D4A574 !important;
+            }
+            
+            .perplexity-logo {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%236B7280' d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/%3E%3C/svg%3E");
+            }
+            
+            .deepseek-logo {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%233B82F6' d='M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z'/%3E%3C/svg%3E");
+            }
+            
+            .copilot-logo {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%230078D4' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z'/%3E%3C/svg%3E");
+            }
+            
+            .grok-logo {
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23FF6B35' d='M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z'/%3E%3C/svg%3E");
+            }
+        `;
+        document.head.appendChild(style);
     }
     
     // Render all platforms to container
@@ -422,12 +422,12 @@ class PlatformIntegrations {
         });
         
         // Set up handlers
-        setTimeout(() => this.setupLogoHandlers(), 100); // Increased delay for images to load
+        setTimeout(() => this.setupLogoHandlers(), 0);
         
         // Notify ranking system AFTER platforms exist in DOM
         setTimeout(() => {
             document.dispatchEvent(new CustomEvent('platformsRendered'));
-        }, 150);
+        }, 50);
     }
 
     // Get platform by ID
