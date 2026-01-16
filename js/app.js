@@ -363,10 +363,6 @@ class PromptCraftApp {
         // Settings modal ESC handler
         this._settingsEscHandler = null;
 
-        // About modal speech tracking
-        this._currentlyPlayingSection = null;
-        this._currentListenButton = null;
-
         // Configuration
         this.config = window.AppConfig || {
             WORKER_CONFIG: {
@@ -474,6 +470,7 @@ class PromptCraftApp {
             aboutModal: document.getElementById('aboutModal'),
             closeAboutBtn: document.getElementById('closeAboutBtn'),
             closeAboutFooterBtn: document.getElementById('closeAboutFooterBtn'),
+            aboutListenBtn: document.getElementById('aboutListenBtn'),
             
             // Suggestions
             suggestionsPanel: document.getElementById('suggestionsPanel'),
@@ -720,6 +717,11 @@ class PromptCraftApp {
             this.elements.closeAboutFooterBtn.addEventListener('click', () => this.closeAboutModal());
         }
         
+        // About listen button
+        if (this.elements.aboutListenBtn) {
+            this.elements.aboutListenBtn.addEventListener('click', () => this.toggleAboutSpeech());
+        }
+        
         // Close about modal when clicking outside
         if (this.elements.aboutModal) {
             this.elements.aboutModal.addEventListener('click', (e) => {
@@ -867,10 +869,6 @@ class PromptCraftApp {
             },
             onSpeakingEnd: () => {
                 this.showNotification('Finished reading prompt', 'info');
-                // Also stop about section speech if it's playing
-                if (this._currentListenButton) {
-                    this.stopAboutSectionSpeech();
-                }
             },
             onError: (error) => {
                 const errorLower = error.toLowerCase();
@@ -882,10 +880,6 @@ class PromptCraftApp {
                     this.showNotification('Network error. Check your connection', 'error');
                 } else if (!errorLower.includes('aborted')) {
                     this.showNotification(`Voice error: ${error}`, 'error');
-                }
-                // Stop about section speech on error
-                if (this._currentListenButton) {
-                    this.stopAboutSectionSpeech();
                 }
             }
         });
@@ -1524,9 +1518,6 @@ This structured approach ensures you get detailed, actionable responses tailored
             
             // Store the event listener for cleanup
             this._aboutModalEscHandler = closeOnEsc;
-            
-            // Setup listen buttons
-            this.setupAboutListenButtons();
         } else {
             console.error('About modal not found!');
             this.showNotification('About modal not found. Please refresh the page.', 'error');
@@ -1540,7 +1531,7 @@ This structured approach ensures you get detailed, actionable responses tailored
             document.body.style.overflow = '';
             
             // Stop any ongoing speech
-            this.stopAboutSectionSpeech();
+            this.stopAboutSpeech();
             
             // Remove the ESC event listener
             if (this._aboutModalEscHandler) {
@@ -1554,110 +1545,85 @@ This structured approach ensures you get detailed, actionable responses tailored
     // ABOUT MODAL LISTEN FUNCTIONALITY
     // ======================
 
-    setupAboutListenButtons() {
-        // Get all listen buttons in about modal
-        const listenButtons = document.querySelectorAll('.section-listen-btn');
+    toggleAboutSpeech() {
+        const button = this.elements.aboutListenBtn;
+        if (!button) return;
         
-        listenButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.toggleAboutSectionSpeech(button);
-            });
-        });
-    }
-
-    toggleAboutSectionSpeech(button) {
-        // If this button is already active, stop speech
+        // If already playing, stop it
         if (button.classList.contains('listening')) {
-            this.stopAboutSectionSpeech();
+            this.stopAboutSpeech();
             return;
         }
         
-        // Find the paragraph text within the same section
-        const section = button.closest('.about-section');
-        if (!section) return;
+        // Get all text from the about modal
+        const aboutModal = document.getElementById('aboutModal');
+        if (!aboutModal) return;
         
-        // Get the paragraph text
-        const paragraph = section.querySelector('p');
-        if (!paragraph) return;
+        const title = aboutModal.querySelector('.modal-title').textContent;
+        const sections = aboutModal.querySelectorAll('.about-section');
         
-        // Get the title
-        const title = section.querySelector('h3');
-        const titleText = title ? title.textContent.replace('Listen', '').trim() : '';
+        let fullText = title + ".\n\n";
         
-        // Combine title and paragraph for reading
-        const textToRead = `${titleText}. ${paragraph.textContent}`;
+        sections.forEach(section => {
+            const heading = section.querySelector('h3');
+            const paragraph = section.querySelector('p');
+            
+            if (heading) fullText += heading.textContent + ".\n";
+            if (paragraph) fullText += paragraph.textContent + "\n\n";
+        });
         
-        if (!textToRead.trim()) {
+        // Add version info
+        const versionInfo = aboutModal.querySelector('.version-info');
+        const archInfo = aboutModal.querySelector('.architecture-info');
+        
+        if (versionInfo) fullText += versionInfo.textContent + ".\n";
+        if (archInfo) fullText += archInfo.textContent + ".";
+        
+        if (!fullText.trim()) {
             this.showNotification('No text to read', 'error');
             return;
         }
         
-        // First, stop any currently playing speech
+        // Stop any current speech
         if (this.voiceHandler && this.voiceHandler.isSpeaking) {
             this.voiceHandler.stopSpeaking();
         }
         
-        // Reset all buttons
-        this.stopAboutSectionSpeech();
-        
-        // Update this button's state
+        // Update button state
         button.classList.add('listening');
         button.innerHTML = '<i class="fas fa-volume-up"></i> Stop';
         
-        // Store current playing button
-        this._currentListenButton = button;
-        
         // Speak the content
-        this.voiceHandler.speak(textToRead, {
+        this.voiceHandler.speak(fullText, {
             lang: this.state.settings.voiceOutputLanguage || 'en-US',
             rate: 1.0,
             pitch: 1.0
         });
         
-        // Set up event listeners for speech completion
+        // Set up speech end listener
         const originalOnSpeakingEnd = this.voiceHandler.onSpeakingEnd;
-        const originalOnError = this.voiceHandler.onError;
         
         this.voiceHandler.onSpeakingEnd = () => {
-            // Reset button when speech ends
-            this.stopAboutSectionSpeech();
-            
-            // Restore original callback
+            this.stopAboutSpeech();
             if (originalOnSpeakingEnd) {
                 originalOnSpeakingEnd();
             }
             this.voiceHandler.onSpeakingEnd = originalOnSpeakingEnd;
         };
-        
-        this.voiceHandler.onError = (error) => {
-            // Reset button on error
-            this.stopAboutSectionSpeech();
-            
-            // Restore original callback
-            if (originalOnError) {
-                originalOnError(error);
-            }
-            this.voiceHandler.onError = originalOnError;
-        };
     }
 
-    stopAboutSectionSpeech() {
+    stopAboutSpeech() {
         // Stop speech
         if (this.voiceHandler && this.voiceHandler.isSpeaking) {
             this.voiceHandler.stopSpeaking();
         }
         
-        // Reset all button states
-        const allButtons = document.querySelectorAll('.section-listen-btn');
-        allButtons.forEach(btn => {
-            btn.classList.remove('listening');
-            btn.innerHTML = '<i class="fas fa-volume-up"></i> Listen';
-        });
-        
-        // Clear tracking
-        this._currentlyPlayingSection = null;
-        this._currentListenButton = null;
+        // Reset button
+        const button = this.elements.aboutListenBtn;
+        if (button) {
+            button.classList.remove('listening');
+            button.innerHTML = '<i class="fas fa-volume-up"></i> Listen All';
+        }
     }
 
     // ======================
