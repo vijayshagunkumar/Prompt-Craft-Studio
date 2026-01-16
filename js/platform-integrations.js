@@ -55,7 +55,7 @@ class PlatformIntegrations {
             {
                 id: 'copilot',
                 name: 'Microsoft Copilot',
-                logo: '<i class="fab fa-microsoft"></i>', // ✅ Icon
+                logo: '<i class="fas fa-robot" style="color: #0078D4"></i>', // ✅ Fixed icon
                 color: '#0078D4',
                 description: 'Microsoft-powered AI assistant',
                 tags: ['Microsoft', 'Productivity', 'Office'],
@@ -65,22 +65,12 @@ class PlatformIntegrations {
             {
                 id: 'grok',
                 name: 'Grok AI',
-                logo: '<i class="fab fa-x-twitter"></i>', // ✅ Icon
+                logo: '<i class="fas fa-bolt" style="color: #FF6B35"></i>', // ✅ Fixed icon
                 color: '#FF6B35',
                 description: 'Real-time knowledge AI',
                 tags: ['Real-time', 'X', 'Elon'],
                 launchUrl: 'https://grok.x.ai/',
                 params: { query: '' }
-            },
-            {
-                id: 'groq',
-                name: 'Groq Playground',
-                logo: '<i class="fas fa-rocket"></i>', // ✅ Icon
-                color: '#00B894',
-                description: 'Ultra-fast inference engine',
-                tags: ['Fast', 'API', 'Playground'],
-                launchUrl: 'https://console.groq.com/playground',
-                params: { prompt: '' }
             }
         ];
         
