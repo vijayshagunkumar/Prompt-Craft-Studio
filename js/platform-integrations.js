@@ -5,7 +5,7 @@ class PlatformIntegrations {
             {
                 id: 'gemini',
                 name: 'Google Gemini',
-                logo: '<img src="https://www.gstatic.com/lamda/images/gemini_favicon_light_96a8ff31bae3b1a30c8a.png" alt="Gemini" class="platform-logo-img">',
+                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Google_Gemini_logo.svg/512px-Google_Gemini_logo.svg.png" alt="Gemini" class="platform-logo-img">',
                 color: '#8B5CF6',
                 description: 'Advanced reasoning and multimodal capabilities',
                 tags: ['Multimodal', 'Advanced', 'Google'],
@@ -15,7 +15,7 @@ class PlatformIntegrations {
             {
                 id: 'chatgpt',
                 name: 'ChatGPT',
-                logo: '<img src="https://chat.openai.com/favicon-32x32.png" alt="ChatGPT" class="platform-logo-img">',
+                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/ChatGPT_logo.svg/512px-ChatGPT_logo.svg.png" alt="ChatGPT" class="platform-logo-img">',
                 color: '#10A37F',
                 description: 'Industry-leading conversational AI',
                 tags: ['Conversational', 'Popular', 'OpenAI'],
@@ -25,7 +25,7 @@ class PlatformIntegrations {
             {
                 id: 'claude',
                 name: 'Anthropic Claude',
-                logo: '<img src="https://claude.ai/favicon.ico" alt="Claude" class="platform-logo-img">',
+                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Anthropic_Claude_logo.svg/512px-Anthropic_Claude_logo.svg.png" alt="Claude" class="platform-logo-img">',
                 color: '#D4A574',
                 description: 'Constitutional AI with safety focus',
                 tags: ['Safe', 'Contextual', 'Anthropic'],
@@ -35,7 +35,7 @@ class PlatformIntegrations {
             {
                 id: 'perplexity',
                 name: 'Perplexity AI',
-                logo: '<img src="https://www.perplexity.ai/favicon.ico" alt="Perplexity" class="platform-logo-img">',
+                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Perplexity_AI_logo.svg/512px-Perplexity_AI_logo.svg.png" alt="Perplexity" class="platform-logo-img">',
                 color: '#6B7280',
                 description: 'Search-enhanced AI with citations',
                 tags: ['Search', 'Citations', 'Real-time'],
@@ -45,7 +45,7 @@ class PlatformIntegrations {
             {
                 id: 'deepseek',
                 name: 'DeepSeek',
-                logo: '<img src="https://chat.deepseek.com/favicon.ico" alt="DeepSeek" class="platform-logo-img">',
+                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/DeepSeek_logo.svg/512px-DeepSeek_logo.svg.png" alt="DeepSeek" class="platform-logo-img">',
                 color: '#3B82F6',
                 description: 'Code-focused AI with reasoning',
                 tags: ['Code', 'Developer', 'Reasoning'],
@@ -55,7 +55,7 @@ class PlatformIntegrations {
             {
                 id: 'copilot',
                 name: 'Microsoft Copilot',
-                logo: '<img src="https://copilot.microsoft.com/favicon.ico" alt="Copilot" class="platform-logo-img">',
+                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Microsoft_Copilot_Icon.svg/512px-Microsoft_Copilot_Icon.svg.png" alt="Copilot" class="platform-logo-img">',
                 color: '#0078D4',
                 description: 'Microsoft-powered AI assistant',
                 tags: ['Microsoft', 'Productivity', 'Office'],
@@ -65,7 +65,7 @@ class PlatformIntegrations {
             {
                 id: 'grok',
                 name: 'Grok AI',
-                logo: '<img src="https://grok.x.ai/favicon.ico" alt="Grok" class="platform-logo-img">',
+                logo: '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/X_%28formerly_Twitter%29_logo.svg/512px-X_%28formerly_Twitter%29_logo.svg.png" alt="Grok" class="platform-logo-img">',
                 color: '#FF6B35',
                 description: 'Real-time knowledge AI',
                 tags: ['Real-time', 'X', 'Elon'],
@@ -77,7 +77,7 @@ class PlatformIntegrations {
         // Simple cache for performance
         this.loadedLogos = new Set();
         
-        console.log('PlatformIntegrations initialized with actual logo images');
+        console.log('PlatformIntegrations initialized with Wikimedia CDN logos');
     }
 
     // ✅ Mobile detection (UA only)
@@ -360,6 +360,7 @@ class PlatformIntegrations {
             img.style.objectFit = 'contain';
             img.style.borderRadius = '6px';
             img.style.padding = '4px';
+            img.style.backgroundColor = 'white';
             
             // Add fallback for broken images
             img.onerror = function() {
@@ -367,12 +368,27 @@ class PlatformIntegrations {
                 this.style.display = 'none';
                 // Create fallback icon
                 const parent = this.parentElement;
-                const platformName = parent.closest('.platform-card').querySelector('.platform-name').textContent;
-                const fallbackIcon = document.createElement('i');
-                fallbackIcon.className = 'fas fa-robot';
-                fallbackIcon.style.fontSize = '1.5rem';
-                fallbackIcon.style.color = 'white';
-                parent.appendChild(fallbackIcon);
+                const platformCard = parent.closest('.platform-card');
+                if (platformCard) {
+                    const platformId = platformCard.dataset.platform;
+                    const fallbackIcon = document.createElement('i');
+                    
+                    // Set appropriate icon based on platform
+                    const iconMap = {
+                        'gemini': 'fas fa-gem',
+                        'chatgpt': 'fas fa-comment-alt',
+                        'claude': 'fas fa-brain',
+                        'perplexity': 'fas fa-search',
+                        'deepseek': 'fas fa-code',
+                        'copilot': 'fas fa-robot',
+                        'grok': 'fas fa-bolt'
+                    };
+                    
+                    fallbackIcon.className = iconMap[platformId] || 'fas fa-robot';
+                    fallbackIcon.style.fontSize = '1.5rem';
+                    fallbackIcon.style.color = 'white';
+                    parent.appendChild(fallbackIcon);
+                }
             };
             
             // Make sure logo is visible
