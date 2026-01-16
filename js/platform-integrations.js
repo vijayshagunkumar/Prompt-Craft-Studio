@@ -5,7 +5,7 @@ class PlatformIntegrations {
             {
                 id: 'gemini',
                 name: 'Google Gemini',
-                logo: '<i class="fas fa-robot"></i>', // ✅ Icon instead of image
+                logo: '<img src="https://www.gstatic.com/lamda/images/gemini_favicon_light_96a8ff31bae3b1a30c8a.png" alt="Gemini" class="platform-logo-img">',
                 color: '#8B5CF6',
                 description: 'Advanced reasoning and multimodal capabilities',
                 tags: ['Multimodal', 'Advanced', 'Google'],
@@ -15,7 +15,7 @@ class PlatformIntegrations {
             {
                 id: 'chatgpt',
                 name: 'ChatGPT',
-                logo: '<i class="fas fa-comment-alt"></i>', // ✅ Icon
+                logo: '<img src="https://chat.openai.com/favicon-32x32.png" alt="ChatGPT" class="platform-logo-img">',
                 color: '#10A37F',
                 description: 'Industry-leading conversational AI',
                 tags: ['Conversational', 'Popular', 'OpenAI'],
@@ -25,7 +25,7 @@ class PlatformIntegrations {
             {
                 id: 'claude',
                 name: 'Anthropic Claude',
-                logo: '<i class="fas fa-brain"></i>', // ✅ Icon
+                logo: '<img src="https://claude.ai/favicon.ico" alt="Claude" class="platform-logo-img">',
                 color: '#D4A574',
                 description: 'Constitutional AI with safety focus',
                 tags: ['Safe', 'Contextual', 'Anthropic'],
@@ -35,7 +35,7 @@ class PlatformIntegrations {
             {
                 id: 'perplexity',
                 name: 'Perplexity AI',
-                logo: '<i class="fas fa-search"></i>', // ✅ Icon
+                logo: '<img src="https://www.perplexity.ai/favicon.ico" alt="Perplexity" class="platform-logo-img">',
                 color: '#6B7280',
                 description: 'Search-enhanced AI with citations',
                 tags: ['Search', 'Citations', 'Real-time'],
@@ -45,7 +45,7 @@ class PlatformIntegrations {
             {
                 id: 'deepseek',
                 name: 'DeepSeek',
-                logo: '<i class="fas fa-code"></i>', // ✅ Icon
+                logo: '<img src="https://chat.deepseek.com/favicon.ico" alt="DeepSeek" class="platform-logo-img">',
                 color: '#3B82F6',
                 description: 'Code-focused AI with reasoning',
                 tags: ['Code', 'Developer', 'Reasoning'],
@@ -55,7 +55,7 @@ class PlatformIntegrations {
             {
                 id: 'copilot',
                 name: 'Microsoft Copilot',
-                logo: '<i class="fas fa-robot" style="color: #0078D4"></i>', // ✅ Fixed icon
+                logo: '<img src="https://copilot.microsoft.com/favicon.ico" alt="Copilot" class="platform-logo-img">',
                 color: '#0078D4',
                 description: 'Microsoft-powered AI assistant',
                 tags: ['Microsoft', 'Productivity', 'Office'],
@@ -65,7 +65,7 @@ class PlatformIntegrations {
             {
                 id: 'grok',
                 name: 'Grok AI',
-                logo: '<i class="fas fa-bolt" style="color: #FF6B35"></i>', // ✅ Fixed icon
+                logo: '<img src="https://grok.x.ai/favicon.ico" alt="Grok" class="platform-logo-img">',
                 color: '#FF6B35',
                 description: 'Real-time knowledge AI',
                 tags: ['Real-time', 'X', 'Elon'],
@@ -77,7 +77,7 @@ class PlatformIntegrations {
         // Simple cache for performance
         this.loadedLogos = new Set();
         
-        console.log('PlatformIntegrations initialized with icons');
+        console.log('PlatformIntegrations initialized with actual logo images');
     }
 
     // ✅ Mobile detection (UA only)
@@ -335,7 +335,7 @@ class PlatformIntegrations {
             <div class="platform-card ${isSelected ? 'selected' : ''}"
                  data-platform="${platform.id}">
                 <div class="platform-logo-container"
-                     style="background: ${platform.id === 'gemini' ? 'white' : platform.color}">
+                     style="background: ${platform.color}">
                     ${platform.logo}
                 </div>
 
@@ -352,10 +352,32 @@ class PlatformIntegrations {
 
     // Setup logo handlers
     setupLogoHandlers() {
-        const icons = document.querySelectorAll('.platform-logo-container i');
-        icons.forEach(icon => {
-            icon.style.opacity = '0.9';
-            icon.style.fontSize = '1.5rem';
+        const logoImages = document.querySelectorAll('.platform-logo-img');
+        logoImages.forEach(img => {
+            // Style the logo images
+            img.style.width = '32px';
+            img.style.height = '32px';
+            img.style.objectFit = 'contain';
+            img.style.borderRadius = '6px';
+            img.style.padding = '4px';
+            
+            // Add fallback for broken images
+            img.onerror = function() {
+                console.warn(`Logo failed to load: ${this.src}`);
+                this.style.display = 'none';
+                // Create fallback icon
+                const parent = this.parentElement;
+                const platformName = parent.closest('.platform-card').querySelector('.platform-name').textContent;
+                const fallbackIcon = document.createElement('i');
+                fallbackIcon.className = 'fas fa-robot';
+                fallbackIcon.style.fontSize = '1.5rem';
+                fallbackIcon.style.color = 'white';
+                parent.appendChild(fallbackIcon);
+            };
+            
+            // Make sure logo is visible
+            img.style.display = 'block';
+            img.style.opacity = '0.9';
         });
     }
     
@@ -384,12 +406,12 @@ class PlatformIntegrations {
         });
         
         // Set up handlers
-        setTimeout(() => this.setupLogoHandlers(), 0);
+        setTimeout(() => this.setupLogoHandlers(), 100); // Increased delay for images to load
         
         // Notify ranking system AFTER platforms exist in DOM
         setTimeout(() => {
             document.dispatchEvent(new CustomEvent('platformsRendered'));
-        }, 50);
+        }, 150);
     }
 
     // Get platform by ID
