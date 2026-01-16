@@ -2758,6 +2758,12 @@ input:checked + .toggle-slider:before {
     animation: pulse 1.5s infinite;
 }
 
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
 /* Dark theme */
 .dark-theme .about-listen-btn {
     background: var(--primary-dark);
@@ -2772,4 +2778,18 @@ input:checked + .toggle-slider:before {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .modal-header .modal-title {
+        gap: 8px;
+    }
+    
+    .about-listen-btn {
+        margin-left: 8px;
+        padding: 5px 10px;
+        font-size: 0.8rem;
+    }
 }
