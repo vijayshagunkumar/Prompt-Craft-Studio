@@ -611,30 +611,170 @@ class PromptCraftApp {
     }
 
     // Set up metrics toggle listener
-
 setupMetricsToggle() {
-    if (!this.elements.metricsBtn || !this.elements.metricsBox || !this.elements.metricsCloseBtn) return;
+    // Use the existing score prompt button
+    const metricsBtn = document.getElementById('scorePromptBtn');
     
-    this.elements.metricsBtn.addEventListener('click', () => {
-        // PREVENT MULTIPLE CLICKS - Check if already active
-        if (this.elements.metricsBox.classList.contains('active')) {
+    if (!metricsBtn) {
+        console.warn('Score prompt button not found');
+        return;
+    }
+    
+    // Create or find metrics box
+    let metricsBox = document.getElementById('metricsBox');
+    if (!metricsBox) {
+        metricsBox = this.createMetricsBox();
+    }
+    
+    const metricsCloseBtn = metricsBox.querySelector('#metricsCloseBtn');
+    
+    if (!metricsBox || !metricsCloseBtn) {
+        console.warn('Metrics box elements not found');
+        return;
+    }
+    
+    // Store references
+    this.elements.metricsBtn = metricsBtn;
+    this.elements.metricsBox = metricsBox;
+    this.elements.metricsCloseBtn = metricsCloseBtn;
+    
+    console.log('Metrics toggle initialized with elements:', {
+        metricsBtn: !!this.elements.metricsBtn,
+        metricsBox: !!this.elements.metricsBox,
+        metricsCloseBtn: !!this.elements.metricsCloseBtn
+    });
+    
+    // Track if metrics are open
+    let isMetricsOpen = false;
+    
+    // Add click handler
+    this.elements.metricsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        
+        console.log('Metrics button clicked, isMetricsOpen:', isMetricsOpen);
+        
+        // PREVENT MULTIPLE CLICKS - Check if already open
+        if (isMetricsOpen) {
+            console.log('Metrics already open, ignoring click');
             return;
         }
+        
+        console.log('Opening metrics...');
+        isMetricsOpen = true;
         
         if (!this.state.lastPromptScore) {
             this.showNotification('📊 Re-scoring edited prompt…', 'info');
             this.autoScorePromptIfEnabled(true);
+            
+            // Re-enable button after scoring
+            setTimeout(() => {
+                if (this.state.lastPromptScore) {
+                    this.updateMetricsContent();
+                    this.elements.metricsBox.style.display = 'block';
+                    this.elements.metricsBox.classList.add('active');
+                    
+                    // Disable the button while metrics are open
+                    this.elements.metricsBtn.disabled = true;
+                    this.elements.metricsBtn.classList.add('disabled');
+                } else {
+                    isMetricsOpen = false; // Reset if no score
+                }
+            }, 1500);
+            
             return;
         }
         
+        // Update content
+        this.updateMetricsContent();
+        
+        // Show the metrics box
+        this.elements.metricsBox.style.display = 'block';
         this.elements.metricsBox.classList.add('active');
         
-        // Disable button temporarily
+        // Disable the button while metrics are open
         this.elements.metricsBtn.disabled = true;
-        this.elements.metricsBtn.style.opacity = '0.5';
-        this.elements.metricsBtn.style.cursor = 'not-allowed';
+        this.elements.metricsBtn.classList.add('disabled');
     });
     
+    // Add close handler
+    this.elements.metricsCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('Closing metrics...');
+        
+        // Close the box
+        this.elements.metricsBox.style.display = 'none';
+        this.elements.metricsBox.classList.remove('active');
+        isMetricsOpen = false;
+        
+        // Re-enable the button
+        this.elements.metricsBtn.disabled = false;
+        this.elements.metricsBtn.classList.remove('disabled');
+    });
+    
+    // Also close when clicking outside the box
+    document.addEventListener('click', (e) => {
+        if (isMetricsOpen && 
+            !this.elements.metricsBox.contains(e.target) && 
+            e.target !== this.elements.metricsBtn && 
+            !this.elements.metricsBtn.contains(e.target)) {
+            
+            console.log('Closing metrics (outside click)');
+            this.elements.metricsBox.style.display = 'none';
+            this.elements.metricsBox.classList.remove('active');
+            isMetricsOpen = false;
+            
+            this.elements.metricsBtn.disabled = false;
+            this.elements.metricsBtn.classList.remove('disabled');
+        }
+    });
+}
+
+// Add this helper method to create metrics box
+createMetricsBox() {
+    const metricsBox = document.createElement('div');
+    metricsBox.id = 'metricsBox';
+    metricsBox.className = 'ranking-explanation';
+    metricsBox.style.display = 'none';
+    
+    metricsBox.innerHTML = `
+        <div class="ranking-explanation-box">
+            <div class="ranking-explain-pill">
+                <i class="fas fa-chart-line"></i>
+                Prompt Quality Metrics
+            </div>
+            <p id="metricsContent">Click "Score Prompt" to analyze prompt quality...</p>
+            
+            <div class="metrics-actions">
+                <button class="metrics-close-btn" id="metricsCloseBtn">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Insert after the output area
+    const outputCard = document.getElementById('outputCard');
+    if (outputCard) {
+        outputCard.appendChild(metricsBox);
+    }
+    
+    return metricsBox;
+}
+
+// Add this helper method to update content
+updateMetricsContent() {
+    const content = this.elements.metricsBox.querySelector('#metricsContent');
+    if (content && this.state.lastPromptScore) {
+        content.innerHTML = `
+            <strong>Prompt Score:</strong> ${this.state.lastPromptScore.grade} (${this.state.lastPromptScore.totalScore}/50)<br>
+            <strong>Clarity & Intent:</strong> ${this.state.lastPromptScore.clarityAndIntent}/20<br>
+            <strong>Structure:</strong> ${this.state.lastPromptScore.structure}/15<br>
+            <strong>Context & Role:</strong> ${this.state.lastPromptScore.contextAndRole}/15<br>
+            <br>
+            <em>${this.state.lastPromptScore.feedback}</em>
+        `;
+    }
+}
     this.elements.metricsCloseBtn.addEventListener('click', () => {
         this.elements.metricsBox.classList.remove('active');
         
