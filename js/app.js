@@ -611,24 +611,39 @@ class PromptCraftApp {
     }
 
     // Set up metrics toggle listener
-    setupMetricsToggle() {
-        if (!this.elements.metricsBtn || !this.elements.metricsBox || !this.elements.metricsCloseBtn) return;
-        
-        this.elements.metricsBtn.addEventListener('click', () => {
-            if (!this.state.lastPromptScore) {
-                this.showNotification('📊 Re-scoring edited prompt…', 'info');
-                this.autoScorePromptIfEnabled(true);
-                return;
-            }
-            
-            this.elements.metricsBox.classList.add('active');
-        });
-        
-        this.elements.metricsCloseBtn.addEventListener('click', () => {
-            this.elements.metricsBox.classList.remove('active');
-        });
-    }
 
+setupMetricsToggle() {
+    if (!this.elements.metricsBtn || !this.elements.metricsBox || !this.elements.metricsCloseBtn) return;
+    
+    this.elements.metricsBtn.addEventListener('click', () => {
+        // PREVENT MULTIPLE CLICKS - Check if already active
+        if (this.elements.metricsBox.classList.contains('active')) {
+            return;
+        }
+        
+        if (!this.state.lastPromptScore) {
+            this.showNotification('📊 Re-scoring edited prompt…', 'info');
+            this.autoScorePromptIfEnabled(true);
+            return;
+        }
+        
+        this.elements.metricsBox.classList.add('active');
+        
+        // Disable button temporarily
+        this.elements.metricsBtn.disabled = true;
+        this.elements.metricsBtn.style.opacity = '0.5';
+        this.elements.metricsBtn.style.cursor = 'not-allowed';
+    });
+    
+    this.elements.metricsCloseBtn.addEventListener('click', () => {
+        this.elements.metricsBox.classList.remove('active');
+        
+        // Re-enable button
+        this.elements.metricsBtn.disabled = false;
+        this.elements.metricsBtn.style.opacity = '';
+        this.elements.metricsBtn.style.cursor = '';
+    });
+}
     // Set up event listeners with null safety
     setupEventListeners() {
         // Input handling
