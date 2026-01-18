@@ -2805,3 +2805,42 @@ input:checked + .toggle-slider:before {
     transform: none !important;
     background: var(--glass-bg) !important;
 }
+
+/* =========================
+   METRICS BOX STYLES
+   ========================= */
+#metricsBox {
+    margin-top: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--card-bg);
+    padding: 15px;
+    box-shadow: var(--shadow);
+    display: none;
+}
+
+#metricsBox.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.metrics-actions {
+    margin-top: 15px;
+    text-align: right;
+}
+
+.metrics-close-btn {
+    padding: 8px 16px;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: all var(--transition-base);
+}
+
+.metrics-close-btn:hover {
+    background: var(--danger-light);
+    transform: translateY(-1px);
+}
