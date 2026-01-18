@@ -450,10 +450,11 @@ class PromptCraftApp {
             stickyPrepareBtn: document.getElementById('stickyPrepareBtn'),
             stickyResetBtn: document.getElementById('stickyResetBtn'),
             
-            // Metrics
-            metricsBtn: document.querySelector('.metrics-toggle'),
-            metricsBox: document.querySelector('.ranking-explanation'),
-            metricsCloseBtn: document.querySelector('.metrics-close-btn'),
+
+      // Metrics - will be created dynamically
+metricsBtn: document.getElementById('scorePromptBtn'),
+metricsBox: null, // Will be set in setupMetricsToggle
+metricsCloseBtn: null, // Will be set in setupMetricsToggle
             
             // Inspiration
             inspirationPanel: document.getElementById('inspirationPanel'),
