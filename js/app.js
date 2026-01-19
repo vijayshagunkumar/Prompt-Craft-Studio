@@ -1,6 +1,6 @@
 // ============================================
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
-// Version: 2.0.3 - FINAL FIXES APPLIED
+// Version: 2.0.4 - SCORE MODAL FIXES
 // ============================================
 
 // MODEL VALIDATION FUNCTIONS
@@ -628,60 +628,7 @@ class PromptCraftApp {
             });
         }
         
-        // Score modal close handlers - FIXED: Single binding
-        if (this.elements.closeScoreBtn) {
-            // Clean and rebind
-            const newCloseBtn = this.elements.closeScoreBtn.cloneNode(true);
-            this.elements.closeScoreBtn.parentNode.replaceChild(newCloseBtn, this.elements.closeScoreBtn);
-            this.elements.closeScoreBtn = newCloseBtn;
-            
-            this.elements.closeScoreBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.closeScoreModal();
-            });
-        }
-        
-        if (this.elements.closeScoreFooterBtn) {
-            // Clean and rebind
-            const newFooterCloseBtn = this.elements.closeScoreFooterBtn.cloneNode(true);
-            this.elements.closeScoreFooterBtn.parentNode.replaceChild(newFooterCloseBtn, this.elements.closeScoreFooterBtn);
-            this.elements.closeScoreFooterBtn = newFooterCloseBtn;
-            
-            this.elements.closeScoreFooterBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.closeScoreModal();
-            });
-        }
-        
-        // Apply improvements button - FIXED: Single binding
-        if (this.elements.applyImprovementsBtn) {
-            // Clean and rebind
-            const newApplyBtn = this.elements.applyImprovementsBtn.cloneNode(true);
-            this.elements.applyImprovementsBtn.parentNode.replaceChild(newApplyBtn, this.elements.applyImprovementsBtn);
-            this.elements.applyImprovementsBtn = newApplyBtn;
-            
-            this.elements.applyImprovementsBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.applyImprovements();
-            });
-        }
-        
-        // Score modal click outside to close - FIXED: Single binding
-        if (this.elements.scoreModal) {
-            // Clean and rebind
-            const newScoreModal = this.elements.scoreModal.cloneNode(true);
-            this.elements.scoreModal.parentNode.replaceChild(newScoreModal, this.elements.scoreModal);
-            this.elements.scoreModal = newScoreModal;
-            
-            this.elements.scoreModal.addEventListener('click', (e) => {
-                if (e.target === this.elements.scoreModal) {
-                    this.closeScoreModal();
-                }
-            });
-        }
+        // ✅ FIXED: Remove score modal close button bindings here - they'll be bound when modal opens
         
         // Inspiration
         if (this.elements.needInspirationBtn) {
@@ -1346,7 +1293,7 @@ This structured approach ensures you get detailed, actionable responses tailored
     }
 
     // ======================
-    // SCORE MODAL METHODS
+    // SCORE MODAL METHODS - UPDATED WITH PROPER CLOSE HANDLERS
     // ======================
 
     openScoreModal() {
@@ -1381,13 +1328,83 @@ This structured approach ensures you get detailed, actionable responses tailored
             document.addEventListener('keydown', closeOnEsc);
             this._scoreModalEscHandler = closeOnEsc;
             
+            // ✅ FIX: Re-bind close buttons after modal is opened
+            this.bindScoreModalCloseButtons();
+            
         } else {
             console.error('Score modal not found!');
             this.showNotification('Score modal not available. Please refresh the page.', 'error');
         }
     }
 
+    // ✅ NEW METHOD: Bind score modal close buttons
+    bindScoreModalCloseButtons() {
+        console.log('Binding score modal close buttons...');
+        
+        // Get fresh references to the buttons
+        const closeScoreBtn = document.getElementById('closeScoreBtn');
+        const closeScoreFooterBtn = document.getElementById('closeScoreFooterBtn');
+        const applyImprovementsBtn = document.getElementById('applyImprovementsBtn');
+        const scoreModal = document.getElementById('scoreModal');
+        
+        // Remove any existing event listeners first
+        if (closeScoreBtn) {
+            const newCloseBtn = closeScoreBtn.cloneNode(true);
+            closeScoreBtn.parentNode.replaceChild(newCloseBtn, closeScoreBtn);
+            newCloseBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.closeScoreModal();
+            });
+        }
+        
+        if (closeScoreFooterBtn) {
+            const newFooterBtn = closeScoreFooterBtn.cloneNode(true);
+            closeScoreFooterBtn.parentNode.replaceChild(newFooterBtn, closeScoreFooterBtn);
+            newFooterBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.closeScoreModal();
+            });
+        }
+        
+        if (applyImprovementsBtn) {
+            // Update the Apply Improvements button
+            applyImprovementsBtn.disabled = true;
+            applyImprovementsBtn.textContent = 'Coming Soon';
+            applyImprovementsBtn.title = 'Improvement suggestions will be available in a future update';
+            applyImprovementsBtn.style.opacity = '0.7';
+            applyImprovementsBtn.style.cursor = 'not-allowed';
+            
+            // Add a click handler that shows a helpful message
+            applyImprovementsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.showNotification('🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.', 'info', 4000);
+            });
+        }
+        
+        // Click outside to close (with fresh reference)
+        if (scoreModal) {
+            // Remove existing listener first
+            const newScoreModal = scoreModal.cloneNode(false);
+            while (scoreModal.firstChild) {
+                newScoreModal.appendChild(scoreModal.firstChild);
+            }
+            scoreModal.parentNode.replaceChild(newScoreModal, scoreModal);
+            
+            newScoreModal.addEventListener('click', (e) => {
+                if (e.target === newScoreModal) {
+                    this.closeScoreModal();
+                }
+            });
+        }
+        
+        console.log('✅ Score modal close buttons bound');
+    }
+
     closeScoreModal() {
+        console.log('Closing score modal...');
         const modal = document.getElementById('scoreModal');
         if (modal) {
             modal.classList.remove('active');
@@ -1395,6 +1412,8 @@ This structured approach ensures you get detailed, actionable responses tailored
             
             // Remove ESC listener
             this.removeScoreModalEscListener();
+            
+            console.log('✅ Score modal closed');
         }
     }
 
@@ -1605,39 +1624,84 @@ This structured approach ensures you get detailed, actionable responses tailored
         if (improvementsList) {
             improvementsList.innerHTML = '';
             
-            // ✅ FIX 4: Update applyImprovements button to be disabled
-            const applyBtn = document.getElementById('applyImprovementsBtn');
-            if (applyBtn) {
-                applyBtn.disabled = true;
-                applyBtn.textContent = 'Coming Soon';
-                applyBtn.title = 'Improvement suggestions coming in a future update';
+            // ✅ FIX: Show actual improvements if available, otherwise show default
+            if (scoreData.originalJavaData?.improvements?.length > 0) {
+                scoreData.originalJavaData.improvements.forEach(improvement => {
+                    const improvementElement = document.createElement('div');
+                    improvementElement.className = 'improvement-item';
+                    improvementElement.innerHTML = `
+                        <i class="fas fa-lightbulb"></i>
+                        <span>${improvement}</span>
+                    `;
+                    improvementsList.appendChild(improvementElement);
+                });
+            } else {
+                // Show generic suggestions based on score
+                let suggestions = [];
+                
+                if (scoreData.totalScore < 30) {
+                    suggestions = [
+                        'Add more specific requirements to clarify intent',
+                        'Include examples of expected output format',
+                        'Define the role the AI should assume',
+                        'Break down complex tasks into step-by-step instructions'
+                    ];
+                } else if (scoreData.totalScore < 40) {
+                    suggestions = [
+                        'Consider adding success criteria',
+                        'Specify any constraints or limitations',
+                        'Add context about the target audience',
+                        'Include formatting requirements if applicable'
+                    ];
+                } else {
+                    suggestions = [
+                        'Your prompt is already well-structured!',
+                        'Consider adding edge case handling',
+                        'You could specify tone or style preferences',
+                        'Add more context if this is part of a larger workflow'
+                    ];
+                }
+                
+                suggestions.forEach(suggestion => {
+                    const improvementElement = document.createElement('div');
+                    improvementElement.className = 'improvement-item';
+                    improvementElement.innerHTML = `
+                        <i class="fas fa-lightbulb"></i>
+                        <span>${suggestion}</span>
+                    `;
+                    improvementsList.appendChild(improvementElement);
+                });
             }
+        }
+        
+        // ✅ FIX: Update apply improvements button state
+        const applyBtn = document.getElementById('applyImprovementsBtn');
+        if (applyBtn) {
+            applyBtn.disabled = true;
+            applyBtn.textContent = 'Coming Soon';
+            applyBtn.title = 'Automatic improvement application coming in a future update';
+            applyBtn.style.opacity = '0.7';
+            applyBtn.style.cursor = 'not-allowed';
             
-            // Show generic suggestions
-            const defaultSuggestions = [
-                'Consider adding more specific requirements',
-                'Define clear success criteria',
-                'Include examples of expected output',
-                'Specify the role the AI should assume'
-            ];
-            
-            defaultSuggestions.forEach(suggestion => {
-                const improvementElement = document.createElement('div');
-                improvementElement.className = 'improvement-item';
-                improvementElement.innerHTML = `
-                    <i class="fas fa-lightbulb"></i>
-                    <span>${suggestion}</span>
-                `;
-                improvementsList.appendChild(improvementElement);
+            // Remove any existing click handler and add a new one
+            const newApplyBtn = applyBtn.cloneNode(true);
+            applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
+            newApplyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.showNotification('🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.', 'info', 4000);
             });
         }
+        
+        console.log('✅ Score rendered in modal');
     }
 
     applyImprovements() {
-        // ✅ FIX 4: This is currently a no-op - show notification
-        this.showNotification('Improvement suggestions coming in a future update', 'info');
+        // ✅ FIX 4: Show clearer message about feature status
+        this.showNotification('🔧 Auto-apply feature is under development. For now, use the suggestions above to manually improve your prompt.', 'info', 5000);
         
-        // Don't close the modal so users can see their score
+        // Don't close the modal so users can see the suggestions
+        // this.closeScoreModal();
     }
 
     // ======================
