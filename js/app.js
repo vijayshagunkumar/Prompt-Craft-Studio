@@ -1,6 +1,6 @@
 // ============================================
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
-// Version: 2.0.2 - FINAL FIXES
+// Version: 2.0.3 - FINAL FIXES APPLIED
 // ============================================
 
 // MODEL VALIDATION FUNCTIONS
@@ -218,198 +218,128 @@ function generateMockScore(prompt) {
 }
 
 // ======================
-// SCORE PANEL INITIALIZATION - FIX ALL ISSUES
-// ======================
-
-function initializeScorePanel() {
-    console.log('🔄 Initializing score panel...');
-    
-    // Get score panel
-    const scorePanel = document.getElementById('promptScorePanel');
-    if (!scorePanel) {
-        console.warn('⚠️ Score panel not found');
-        return;
-    }
-    
-    // Ensure it starts COLLAPSED
-    scorePanel.classList.add('collapsed');
-    scorePanel.classList.remove('expanded');
-    console.log('✅ Score panel set to collapsed');
-    
-    // Add header click handler (expand/collapse)
-    const header = scorePanel.querySelector('.score-panel-header');
-    if (header) {
-        // Remove any existing handlers
-        header.onclick = null;
-        
-        // Add toggle functionality
-        header.onclick = function(e) {
-            // Don't trigger if clicking close button
-            if (e.target.closest('.score-panel-close')) {
-                return;
-            }
-            
-            // Toggle collapsed/expanded
-            if (scorePanel.classList.contains('collapsed')) {
-                scorePanel.classList.remove('collapsed');
-                scorePanel.classList.add('expanded');
-                console.log('📌 Score panel expanded');
-            } else {
-                scorePanel.classList.remove('expanded');
-                scorePanel.classList.add('collapsed');
-                console.log('📌 Score panel collapsed');
-            }
-            
-            e.stopPropagation();
-        };
-        
-        console.log('✅ Header click handler added');
-    }
-    
-    // Add close button handler
-    const closeBtn = scorePanel.querySelector('.score-panel-close');
-    if (closeBtn) {
-        closeBtn.onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.stopImmediatePropagation();
-            
-            scorePanel.classList.remove('expanded');
-            scorePanel.classList.add('collapsed');
-            
-            console.log('✅ Score panel closed via X button');
-            return false;
-        };
-        
-        console.log('✅ Close button handler added');
-    }
-    
-    console.log('🎉 Score panel initialization complete');
-}
-
-// ======================
 // MAIN APPLICATION CONTROLLER
 // ======================
 class PromptCraftApp {
-constructor() {
-    // ======================
-    // GLOBAL ERROR FILTER (REGISTER ONCE – PRODUCTION SAFE)
-    // ======================
-    if (!window.__PROMPTCRAFT_ERROR_HANDLER__) {
-        window.__PROMPTCRAFT_ERROR_HANDLER__ = true;
+    constructor() {
+        // ======================
+        // GLOBAL ERROR FILTER (REGISTER ONCE – PRODUCTION SAFE)
+        // ======================
+        if (!window.__PROMPTCRAFT_ERROR_HANDLER__) {
+            window.__PROMPTCRAFT_ERROR_HANDLER__ = true;
 
-        window.addEventListener('error', (event) => {
-            if (
-                !event.filename ||                             // anonymous / injected
-                event.filename === window.location.href ||     // index.html noise
-                event.lineno === 1 ||                          // inline scripts / CF runtime
-                !event.filename.includes('/js/')               // not our JS files
-            ) {
-                return;
-            }
+            window.addEventListener('error', (event) => {
+                if (
+                    !event.filename ||                             // anonymous / injected
+                    event.filename === window.location.href ||     // index.html noise
+                    event.lineno === 1 ||                          // inline scripts / CF runtime
+                    !event.filename.includes('/js/')               // not our JS files
+                ) {
+                    return;
+                }
 
-            console.error('App error:', {
-                message: event.message,
-                file: event.filename,
-                line: event.lineno,
-                column: event.colno
+                console.error('App error:', {
+                    message: event.message,
+                    file: event.filename,
+                    line: event.lineno,
+                    column: event.colno
+                });
             });
-        });
 
-        window.addEventListener('unhandledrejection', (event) => {
-            if (
-                !event.reason ||
-                !event.reason.stack ||
-                (
-                    !event.reason.stack.includes('app.js') &&
-                    !event.reason.stack.includes('prompt-generator.js')
-                )
-            ) {
-                return;
-            }
+            window.addEventListener('unhandledrejection', (event) => {
+                if (
+                    !event.reason ||
+                    !event.reason.stack ||
+                    (
+                        !event.reason.stack.includes('app.js') &&
+                        !event.reason.stack.includes('prompt-generator.js')
+                    )
+                ) {
+                    return;
+                }
 
-            console.error('Unhandled app promise rejection:', event.reason);
-        });
-    }
-
-    // ======================
-    // APP STATE
-    // ======================
-    this.state = {
-        currentStep: 1,
-        hasGeneratedPrompt: false,
-        promptModified: false,
-        originalPrompt: null,
-        selectedPlatform: null,
-        isEditorOpen: false,
-        currentEditor: null,
-        inspirationPanelOpen: false,
-        settingsModified: false,
-        undoStack: [],
-        redoStack: [],
-        promptHistory: [],
-        currentModel: 'gemini-3-flash-preview',
-        generatedFromInput: null,
-        lastPromptScore: null,
-        settings: this.loadDefaultSettings()
-    };
-
-    // Score mutex flag to prevent double API calls
-    this._scoreInFlight = false;
-    
-    // Score button click cooldown flag - ADDED FOR FIX
-    this._scoreButtonCooldown = false;
-    
-    // About modal ESC handler
-    this._aboutModalEscHandler = null;
-    
-    // Settings modal ESC handler
-    this._settingsEscHandler = null;
-    
-    // Score modal ESC handler
-    this._scoreModalEscHandler = null;
-
-    // Configuration
-    this.config = window.AppConfig || {
-        WORKER_CONFIG: {
-            workerUrl: 'https://promptcraft-api.vijay-shagunkumar.workers.dev',
-            defaultModel: 'gemini-3-flash-preview'
+                console.error('Unhandled app promise rejection:', event.reason);
+            });
         }
-    };
-    
-    // ======================
-    // INITIALIZE MANAGERS
-    // ======================
-    this.storageManager = new StorageManager();
 
-    this.voiceHandler = new VoiceHandler({
-        continuous: false,
-        interimResults: false,
-        defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
-        maxListenTime: 10000,
-        maxSimilarityThreshold: 0.75,
-        replaceMode: true,
-        mergeProgressiveResults: true,
-        debounceDelay: 400
-    });
-    
-    this.platformIntegrations = new PlatformIntegrations();
-    this.promptGenerator = new PromptGenerator({
-        workerUrl: this.config.WORKER_CONFIG?.workerUrl,
-        defaultModel: this.config.WORKER_CONFIG?.defaultModel,
-        timeout: 30000,
-        fallbackToLocal: true,
-        enableDebug: true,
-        strictPromptMode: true
-    });
+        // ======================
+        // APP STATE
+        // ======================
+        this.state = {
+            currentStep: 1,
+            hasGeneratedPrompt: false,
+            promptModified: false,
+            originalPrompt: null,
+            selectedPlatform: null,
+            isEditorOpen: false,
+            currentEditor: null,
+            inspirationPanelOpen: false,
+            settingsModified: false,
+            undoStack: [],
+            redoStack: [],
+            promptHistory: [],
+            currentModel: 'gemini-3-flash-preview',
+            generatedFromInput: null,
+            lastPromptScore: null,
+            settings: this.loadDefaultSettings()
+        };
 
-    // Bind elements (with null safety)
-    this.elements = {};
-    this.bindElements();
-    
-    // Initialize
-    this.init();
-}
+        // Score mutex flag to prevent double API calls
+        this._scoreInFlight = false;
+        
+        // Score button click cooldown flag - ADDED FOR FIX
+        this._scoreButtonCooldown = false;
+        
+        // About modal ESC handler
+        this._aboutModalEscHandler = null;
+        
+        // Settings modal ESC handler
+        this._settingsEscHandler = null;
+        
+        // Score modal ESC handler
+        this._scoreModalEscHandler = null;
+
+        // Configuration
+        this.config = window.AppConfig || {
+            WORKER_CONFIG: {
+                workerUrl: 'https://promptcraft-api.vijay-shagunkumar.workers.dev',
+                defaultModel: 'gemini-3-flash-preview'
+            }
+        };
+        
+        // ======================
+        // INITIALIZE MANAGERS
+        // ======================
+        this.storageManager = new StorageManager();
+
+        this.voiceHandler = new VoiceHandler({
+            continuous: false,
+            interimResults: false,
+            defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
+            maxListenTime: 10000,
+            maxSimilarityThreshold: 0.75,
+            replaceMode: true,
+            mergeProgressiveResults: true,
+            debounceDelay: 400
+        });
+        
+        this.platformIntegrations = new PlatformIntegrations();
+        this.promptGenerator = new PromptGenerator({
+            workerUrl: this.config.WORKER_CONFIG?.workerUrl,
+            defaultModel: this.config.WORKER_CONFIG?.defaultModel,
+            timeout: 30000,
+            fallbackToLocal: true,
+            enableDebug: true,
+            strictPromptMode: true
+        });
+
+        // Bind elements (with null safety)
+        this.elements = {};
+        this.bindElements();
+        
+        // Initialize
+        this.init();
+    }
 
     // Load default settings
     loadDefaultSettings() {
@@ -543,13 +473,8 @@ constructor() {
             // Load history
             this.loadHistory();
             
-            // ✅ FIX 4: Update backend status indicator
+            // ✅ FIX 5: Remove duplicate backend test call (only keep one)
             this.updateBackendStatus();
-            
-            // Test worker connection (don't block initialization)
-            this.testWorkerConnection().catch(error => {
-                console.warn('Worker test failed, continuing with local mode:', error);
-            });
             
             // Update model display
             this.updateModelDisplay();
@@ -562,7 +487,7 @@ constructor() {
     }
 
     // ✅ ADD THIS METHOD RIGHT HERE:
-    updateBackendStatus() {
+    async updateBackendStatus() {
         const statusElement = document.getElementById('backendStatusIndicator');
         if (!statusElement) return;
         
@@ -572,11 +497,14 @@ constructor() {
         }, 3000);
         
         // Update it based on actual status
-        this.testWorkerConnection().then(result => {
-            if (result.success) {
+        try {
+            const testResult = await this.testWorkerConnection();
+            
+            if (testResult.success) {
                 statusElement.className = 'backend-status online';
                 statusElement.innerHTML = '<span></span><span>Backend: Online</span>';
                 
+                // ✅ FIX 2: Only show notification on failure
                 // Hide after showing online status
                 setTimeout(() => {
                     statusElement.style.opacity = '0';
@@ -587,10 +515,14 @@ constructor() {
             } else {
                 statusElement.className = 'backend-status offline';
                 statusElement.innerHTML = '<span></span><span>Backend: Offline (using local mode)</span>';
+                
+                // ✅ FIX 2: Show notification only on failure
+                this.showNotification('Backend offline, using local mode', 'warning');
             }
-        }).catch(() => {
+        } catch (error) {
+            console.warn('Backend status check failed:', error);
             statusElement.style.display = 'none';
-        });
+        }
     }
 
     // Set up score invalidation listeners
@@ -615,266 +547,266 @@ constructor() {
     }
 
     // Set up event listeners with null safety
-setupEventListeners() {
-    // Input handling
-    if (this.elements.userInput) {
-        this.elements.userInput.addEventListener('input', () => this.handleInputChange());
-    }
-    
-    // Clear input button (optional)
-    if (this.elements.clearInputBtn) {
-        this.elements.clearInputBtn.addEventListener('click', () => {
-            if (this.elements.userInput) {
-                this.elements.userInput.value = '';
-                this.clearGeneratedPrompt();
-                this.updateButtonStates();
-            }
-        });
-    }
-    
-    // Button events (with null safety)
-    if (this.elements.stickyPrepareBtn) {
-        this.elements.stickyPrepareBtn.addEventListener('click', () => this.preparePrompt());
-    }
-    
-    if (this.elements.copyBtn) {
-        this.elements.copyBtn.addEventListener('click', () => this.copyPrompt());
-    }
-    
-    if (this.elements.speakBtn) {
-        this.elements.speakBtn.addEventListener('click', () => this.toggleSpeech());
-    }
-    
-    if (this.elements.exportBtn) {
-        this.elements.exportBtn.addEventListener('click', () => this.exportPrompt());
-    }
-    
-    if (this.elements.savePromptBtn) {
-        this.elements.savePromptBtn.addEventListener('click', () => this.savePrompt());
-    }
-    
-    if (this.elements.stickyResetBtn) {
-        this.elements.stickyResetBtn.addEventListener('click', () => this.resetApplication());
-    }
-    
-    // Voice button
-    if (this.elements.micBtn) {
-        this.elements.micBtn.addEventListener('click', () => this.toggleVoiceInput());
-    }
-    
-    // Maximize buttons
-    if (this.elements.maximizeInputBtn) {
-        this.elements.maximizeInputBtn.addEventListener('click', () => this.openFullScreenEditor('input'));
-    }
-    
-    if (this.elements.maximizeOutputBtn) {
-        this.elements.maximizeOutputBtn.addEventListener('click', () => this.openFullScreenEditor('output'));
-    }
-    
-    // Score button - FIXED: Use event delegation to prevent multiple bindings
-    if (this.elements.metricsBtn) {
-        // Remove any existing listeners first
-        const newMetricsBtn = this.elements.metricsBtn.cloneNode(true);
-        this.elements.metricsBtn.parentNode.replaceChild(newMetricsBtn, this.elements.metricsBtn);
-        this.elements.metricsBtn = newMetricsBtn;
+    setupEventListeners() {
+        // Input handling
+        if (this.elements.userInput) {
+            this.elements.userInput.addEventListener('input', () => this.handleInputChange());
+        }
         
-        // Add single click handler
-        this.elements.metricsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
+        // Clear input button (optional)
+        if (this.elements.clearInputBtn) {
+            this.elements.clearInputBtn.addEventListener('click', () => {
+                if (this.elements.userInput) {
+                    this.elements.userInput.value = '';
+                    this.clearGeneratedPrompt();
+                    this.updateButtonStates();
+                }
+            });
+        }
+        
+        // Button events (with null safety)
+        if (this.elements.stickyPrepareBtn) {
+            this.elements.stickyPrepareBtn.addEventListener('click', () => this.preparePrompt());
+        }
+        
+        if (this.elements.copyBtn) {
+            this.elements.copyBtn.addEventListener('click', () => this.copyPrompt());
+        }
+        
+        if (this.elements.speakBtn) {
+            this.elements.speakBtn.addEventListener('click', () => this.toggleSpeech());
+        }
+        
+        if (this.elements.exportBtn) {
+            this.elements.exportBtn.addEventListener('click', () => this.exportPrompt());
+        }
+        
+        if (this.elements.savePromptBtn) {
+            this.elements.savePromptBtn.addEventListener('click', () => this.savePrompt());
+        }
+        
+        if (this.elements.stickyResetBtn) {
+            this.elements.stickyResetBtn.addEventListener('click', () => this.resetApplication());
+        }
+        
+        // Voice button
+        if (this.elements.micBtn) {
+            this.elements.micBtn.addEventListener('click', () => this.toggleVoiceInput());
+        }
+        
+        // Maximize buttons
+        if (this.elements.maximizeInputBtn) {
+            this.elements.maximizeInputBtn.addEventListener('click', () => this.openFullScreenEditor('input'));
+        }
+        
+        if (this.elements.maximizeOutputBtn) {
+            this.elements.maximizeOutputBtn.addEventListener('click', () => this.openFullScreenEditor('output'));
+        }
+        
+        // Score button - FIXED: Use event delegation to prevent multiple bindings
+        if (this.elements.metricsBtn) {
+            // Remove any existing listeners first
+            const newMetricsBtn = this.elements.metricsBtn.cloneNode(true);
+            this.elements.metricsBtn.parentNode.replaceChild(newMetricsBtn, this.elements.metricsBtn);
+            this.elements.metricsBtn = newMetricsBtn;
             
-            // Prevent rapid multiple clicks
-            if (this._scoreButtonCooldown) return;
+            // Add single click handler
+            this.elements.metricsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                
+                // Prevent rapid multiple clicks
+                if (this._scoreButtonCooldown) return;
+                
+                this._scoreButtonCooldown = true;
+                setTimeout(() => {
+                    this._scoreButtonCooldown = false;
+                }, 500);
+                
+                console.log('📊 Score button clicked (single handler)');
+                this.openScoreModal();
+            });
+        }
+        
+        // Score modal close handlers - FIXED: Single binding
+        if (this.elements.closeScoreBtn) {
+            // Clean and rebind
+            const newCloseBtn = this.elements.closeScoreBtn.cloneNode(true);
+            this.elements.closeScoreBtn.parentNode.replaceChild(newCloseBtn, this.elements.closeScoreBtn);
+            this.elements.closeScoreBtn = newCloseBtn;
             
-            this._scoreButtonCooldown = true;
-            setTimeout(() => {
-                this._scoreButtonCooldown = false;
-            }, 500);
-            
-            console.log('📊 Score button clicked (single handler)');
-            this.openScoreModal();
-        });
-    }
-    
-    // Score modal close handlers - FIXED: Single binding
-    if (this.elements.closeScoreBtn) {
-        // Clean and rebind
-        const newCloseBtn = this.elements.closeScoreBtn.cloneNode(true);
-        this.elements.closeScoreBtn.parentNode.replaceChild(newCloseBtn, this.elements.closeScoreBtn);
-        this.elements.closeScoreBtn = newCloseBtn;
-        
-        this.elements.closeScoreBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            this.closeScoreModal();
-        });
-    }
-    
-    if (this.elements.closeScoreFooterBtn) {
-        // Clean and rebind
-        const newFooterCloseBtn = this.elements.closeScoreFooterBtn.cloneNode(true);
-        this.elements.closeScoreFooterBtn.parentNode.replaceChild(newFooterCloseBtn, this.elements.closeScoreFooterBtn);
-        this.elements.closeScoreFooterBtn = newFooterCloseBtn;
-        
-        this.elements.closeScoreFooterBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            this.closeScoreModal();
-        });
-    }
-    
-    // Apply improvements button - FIXED: Single binding
-    if (this.elements.applyImprovementsBtn) {
-        // Clean and rebind
-        const newApplyBtn = this.elements.applyImprovementsBtn.cloneNode(true);
-        this.elements.applyImprovementsBtn.parentNode.replaceChild(newApplyBtn, this.elements.applyImprovementsBtn);
-        this.elements.applyImprovementsBtn = newApplyBtn;
-        
-        this.elements.applyImprovementsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            this.applyImprovements();
-        });
-    }
-    
-    // Score modal click outside to close - FIXED: Single binding
-    if (this.elements.scoreModal) {
-        // Clean and rebind
-        const newScoreModal = this.elements.scoreModal.cloneNode(true);
-        this.elements.scoreModal.parentNode.replaceChild(newScoreModal, this.elements.scoreModal);
-        this.elements.scoreModal = newScoreModal;
-        
-        this.elements.scoreModal.addEventListener('click', (e) => {
-            if (e.target === this.elements.scoreModal) {
+            this.elements.closeScoreBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 this.closeScoreModal();
-            }
-        });
-    }
-    
-    // Inspiration
-    if (this.elements.needInspirationBtn) {
-        this.elements.needInspirationBtn.addEventListener('click', () => this.toggleInspirationPanel());
-    }
-    
-    if (this.elements.closeInspirationBtn) {
-        this.elements.closeInspirationBtn.addEventListener('click', () => this.closeInspirationPanel());
-    }
-    
-    // History
-    if (this.elements.historyBtn) {
-        this.elements.historyBtn.addEventListener('click', () => this.toggleHistory());
-    }
-    
-    if (this.elements.closeHistoryBtn) {
-        this.elements.closeHistoryBtn.addEventListener('click', () => this.closeHistory());
-    }
-    
-    // About button events
-    if (this.elements.aboutBtn) {
-        this.elements.aboutBtn.addEventListener('click', () => this.openAboutModal());
-    }
-    
-    if (this.elements.closeAboutBtn) {
-        this.elements.closeAboutBtn.addEventListener('click', () => this.closeAboutModal());
-    }
-    
-    if (this.elements.closeAboutFooterBtn) {
-        this.elements.closeAboutFooterBtn.addEventListener('click', () => this.closeAboutModal());
-    }
-    
-    // About listen button
-    if (this.elements.aboutListenBtn) {
-        this.elements.aboutListenBtn.addEventListener('click', () => this.toggleAboutSpeech());
-    }
-    
-    // Close about modal when clicking outside
-    if (this.elements.aboutModal) {
-        this.elements.aboutModal.addEventListener('click', (e) => {
-            if (e.target === this.elements.aboutModal) {
-                this.closeAboutModal();
-            }
-        });
-    }
-    
-    // Platform clicks
-    if (this.elements.platformsGrid) {
-        this.elements.platformsGrid.addEventListener('click', (e) => {
-            const platformCard = e.target.closest('.platform-card');
-            if (platformCard) {
-                this.handlePlatformClick(platformCard.dataset.platform);
-            }
-        });
-    }
-    
-    // Output editing
-    if (this.elements.outputArea) {
-        this.elements.outputArea.addEventListener('input', () => this.handlePromptEdit());
-        this.elements.outputArea.addEventListener('paste', (e) => {
-            e.preventDefault();
-            const text = e.clipboardData.getData('text/plain');
-            const selection = window.getSelection();
+            });
+        }
+        
+        if (this.elements.closeScoreFooterBtn) {
+            // Clean and rebind
+            const newFooterCloseBtn = this.elements.closeScoreFooterBtn.cloneNode(true);
+            this.elements.closeScoreFooterBtn.parentNode.replaceChild(newFooterCloseBtn, this.elements.closeScoreFooterBtn);
+            this.elements.closeScoreFooterBtn = newFooterCloseBtn;
             
-            if (selection.rangeCount) {
-                selection.deleteFromDocument();
-                selection.getRangeAt(0).insertNode(document.createTextNode(text));
-            }
-        });
-    }
-    
-    // Inspiration items
-    document.querySelectorAll('.inspiration-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            e.preventDefault();
-            this.insertExample(e.currentTarget.dataset.type);
-            this.closeInspirationPanel();
-        });
-    });
-    
-    // Settings button
-    if (this.elements.settingsBtn) {
-        this.elements.settingsBtn.addEventListener('click', () => this.openSettings());
-    }
-    
-    // Settings modal buttons (these might be in a different file)
-    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-    const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-    
-    if (closeSettingsBtn) {
-        closeSettingsBtn.addEventListener('click', () => this.closeSettings());
-    }
-    
-    if (cancelSettingsBtn) {
-        cancelSettingsBtn.addEventListener('click', () => this.closeSettings());
-    }
-    
-    if (saveSettingsBtn) {
-        saveSettingsBtn.addEventListener('click', () => this.saveSettingsModal());
-    }
-    
-    // Close settings when clicking outside
-    const settingsModal = document.getElementById('settingsModal');
-    if (settingsModal) {
-        settingsModal.addEventListener('click', (e) => {
-            if (e.target === settingsModal) {
-                this.closeSettings();
-            }
+            this.elements.closeScoreFooterBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.closeScoreModal();
+            });
+        }
+        
+        // Apply improvements button - FIXED: Single binding
+        if (this.elements.applyImprovementsBtn) {
+            // Clean and rebind
+            const newApplyBtn = this.elements.applyImprovementsBtn.cloneNode(true);
+            this.elements.applyImprovementsBtn.parentNode.replaceChild(newApplyBtn, this.elements.applyImprovementsBtn);
+            this.elements.applyImprovementsBtn = newApplyBtn;
+            
+            this.elements.applyImprovementsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                this.applyImprovements();
+            });
+        }
+        
+        // Score modal click outside to close - FIXED: Single binding
+        if (this.elements.scoreModal) {
+            // Clean and rebind
+            const newScoreModal = this.elements.scoreModal.cloneNode(true);
+            this.elements.scoreModal.parentNode.replaceChild(newScoreModal, this.elements.scoreModal);
+            this.elements.scoreModal = newScoreModal;
+            
+            this.elements.scoreModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.scoreModal) {
+                    this.closeScoreModal();
+                }
+            });
+        }
+        
+        // Inspiration
+        if (this.elements.needInspirationBtn) {
+            this.elements.needInspirationBtn.addEventListener('click', () => this.toggleInspirationPanel());
+        }
+        
+        if (this.elements.closeInspirationBtn) {
+            this.elements.closeInspirationBtn.addEventListener('click', () => this.closeInspirationPanel());
+        }
+        
+        // History
+        if (this.elements.historyBtn) {
+            this.elements.historyBtn.addEventListener('click', () => this.toggleHistory());
+        }
+        
+        if (this.elements.closeHistoryBtn) {
+            this.elements.closeHistoryBtn.addEventListener('click', () => this.closeHistory());
+        }
+        
+        // About button events
+        if (this.elements.aboutBtn) {
+            this.elements.aboutBtn.addEventListener('click', () => this.openAboutModal());
+        }
+        
+        if (this.elements.closeAboutBtn) {
+            this.elements.closeAboutBtn.addEventListener('click', () => this.closeAboutModal());
+        }
+        
+        if (this.elements.closeAboutFooterBtn) {
+            this.elements.closeAboutFooterBtn.addEventListener('click', () => this.closeAboutModal());
+        }
+        
+        // About listen button
+        if (this.elements.aboutListenBtn) {
+            this.elements.aboutListenBtn.addEventListener('click', () => this.toggleAboutSpeech());
+        }
+        
+        // Close about modal when clicking outside
+        if (this.elements.aboutModal) {
+            this.elements.aboutModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.aboutModal) {
+                    this.closeAboutModal();
+                }
+            });
+        }
+        
+        // Platform clicks
+        if (this.elements.platformsGrid) {
+            this.elements.platformsGrid.addEventListener('click', (e) => {
+                const platformCard = e.target.closest('.platform-card');
+                if (platformCard) {
+                    this.handlePlatformClick(platformCard.dataset.platform);
+                }
+            });
+        }
+        
+        // Output editing
+        if (this.elements.outputArea) {
+            this.elements.outputArea.addEventListener('input', () => this.handlePromptEdit());
+            this.elements.outputArea.addEventListener('paste', (e) => {
+                e.preventDefault();
+                const text = e.clipboardData.getData('text/plain');
+                const selection = window.getSelection();
+                
+                if (selection.rangeCount) {
+                    selection.deleteFromDocument();
+                    selection.getRangeAt(0).insertNode(document.createTextNode(text));
+                }
+            });
+        }
+        
+        // Inspiration items
+        document.querySelectorAll('.inspiration-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.insertExample(e.currentTarget.dataset.type);
+                this.closeInspirationPanel();
+            });
         });
         
-        // Enable save button when form changes
-        settingsModal.addEventListener('change', () => {
-            if (saveSettingsBtn) {
-                saveSettingsBtn.disabled = false;
-            }
-        });
+        // Settings button
+        if (this.elements.settingsBtn) {
+            this.elements.settingsBtn.addEventListener('click', () => this.openSettings());
+        }
+        
+        // Settings modal buttons (these might be in a different file)
+        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+        const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+        
+        if (closeSettingsBtn) {
+            closeSettingsBtn.addEventListener('click', () => this.closeSettings());
+        }
+        
+        if (cancelSettingsBtn) {
+            cancelSettingsBtn.addEventListener('click', () => this.closeSettings());
+        }
+        
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', () => this.saveSettingsModal());
+        }
+        
+        // Close settings when clicking outside
+        const settingsModal = document.getElementById('settingsModal');
+        if (settingsModal) {
+            settingsModal.addEventListener('click', (e) => {
+                if (e.target === settingsModal) {
+                    this.closeSettings();
+                }
+            });
+            
+            // Enable save button when form changes
+            settingsModal.addEventListener('change', () => {
+                if (saveSettingsBtn) {
+                    saveSettingsBtn.disabled = false;
+                }
+            });
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
+        
+        // Auto-generation
+        this.setupAutoGeneration();
     }
-    
-    // Keyboard shortcuts
-    document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
-    
-    // Auto-generation
-    this.setupAutoGeneration();
-}
 
     // Set up voice handler callbacks
     setupVoiceCallbacks() {
@@ -1401,15 +1333,9 @@ This structured approach ensures you get detailed, actionable responses tailored
     }
 
     markScoreAsStale() {
-        const panel = document.getElementById('promptScorePanel');
-        if (!panel) return;
-
-        const title = panel.querySelector('.score-panel-title');
-        if (title) title.textContent = 'Prompt Changed · Re-Score';
-
+        // ✅ FIX 1: Removed score panel reference since it's not being used
+        // Only update the metrics button
         this.state.lastPromptScore = null;
-        panel.classList.remove('expanded');
-        panel.classList.add('collapsed');
         
         // Also update score button if it exists
         if (this.elements.metricsBtn) {
@@ -1423,62 +1349,62 @@ This structured approach ensures you get detailed, actionable responses tailored
     // SCORE MODAL METHODS
     // ======================
 
-openScoreModal() {
-    console.log('Opening score modal...');
-    
-    // Check if modal is already open
-    const modal = document.getElementById('scoreModal');
-    if (modal && modal.classList.contains('active')) {
-        console.log('⚠️ Score modal already open');
-        return;
-    }
-    
-    if (modal) {
-        modal.classList.add('active');
-        document.body.style.overflow = 'hidden';
+    openScoreModal() {
+        console.log('Opening score modal...');
         
-        // If we have a last score, display it
-        if (this.state.lastPromptScore) {
-            this.renderScoreInModal(this.state.lastPromptScore);
-        } else {
-            // Otherwise, score the current prompt
-            this.scoreCurrentPromptForModal();
+        // Check if modal is already open
+        const modal = document.getElementById('scoreModal');
+        if (modal && modal.classList.contains('active')) {
+            console.log('⚠️ Score modal already open');
+            return;
         }
         
-        // Add ESC listener
-        this.removeScoreModalEscListener();
-        const closeOnEsc = (e) => {
-            if (e.key === 'Escape') {
-                this.closeScoreModal();
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // If we have a last score, display it
+            if (this.state.lastPromptScore) {
+                this.renderScoreInModal(this.state.lastPromptScore);
+            } else {
+                // Otherwise, score the current prompt
+                this.scoreCurrentPromptForModal();
             }
-        };
-        document.addEventListener('keydown', closeOnEsc);
-        this._scoreModalEscHandler = closeOnEsc;
-        
-    } else {
-        console.error('Score modal not found!');
-        this.showNotification('Score modal not available. Please refresh the page.', 'error');
+            
+            // Add ESC listener
+            this.removeScoreModalEscListener();
+            const closeOnEsc = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeScoreModal();
+                }
+            };
+            document.addEventListener('keydown', closeOnEsc);
+            this._scoreModalEscHandler = closeOnEsc;
+            
+        } else {
+            console.error('Score modal not found!');
+            this.showNotification('Score modal not available. Please refresh the page.', 'error');
+        }
     }
-}
 
-closeScoreModal() {
-    const modal = document.getElementById('scoreModal');
-    if (modal) {
-        modal.classList.remove('active');
-        document.body.style.overflow = '';
-        
-        // Remove ESC listener
-        this.removeScoreModalEscListener();
+    closeScoreModal() {
+        const modal = document.getElementById('scoreModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Remove ESC listener
+            this.removeScoreModalEscListener();
+        }
     }
-}
 
-// Helper method to remove ESC listener
-removeScoreModalEscListener() {
-    if (this._scoreModalEscHandler) {
-        document.removeEventListener('keydown', this._scoreModalEscHandler);
-        this._scoreModalEscHandler = null;
+    // Helper method to remove ESC listener
+    removeScoreModalEscListener() {
+        if (this._scoreModalEscHandler) {
+            document.removeEventListener('keydown', this._scoreModalEscHandler);
+            this._scoreModalEscHandler = null;
+        }
     }
-}
 
     async scoreCurrentPromptForModal() {
         const outputArea = document.getElementById('outputArea');
@@ -1679,50 +1605,39 @@ removeScoreModalEscListener() {
         if (improvementsList) {
             improvementsList.innerHTML = '';
             
-            if (scoreData.originalJavaData?.improvements?.length > 0) {
-                scoreData.originalJavaData.improvements.forEach(improvement => {
-                    const improvementElement = document.createElement('div');
-                    improvementElement.className = 'improvement-item';
-                    improvementElement.innerHTML = `
-                        <i class="fas fa-lightbulb"></i>
-                        <span>${improvement}</span>
-                    `;
-                    improvementsList.appendChild(improvementElement);
-                });
-            } else {
-                const defaultSuggestions = [
-                    'Consider adding more specific requirements',
-                    'Define clear success criteria',
-                    'Include examples of expected output',
-                    'Specify the role the AI should assume'
-                ];
-                
-                defaultSuggestions.forEach(suggestion => {
-                    const improvementElement = document.createElement('div');
-                    improvementElement.className = 'improvement-item';
-                    improvementElement.innerHTML = `
-                        <i class="fas fa-lightbulb"></i>
-                        <span>${suggestion}</span>
-                    `;
-                    improvementsList.appendChild(improvementElement);
-                });
+            // ✅ FIX 4: Update applyImprovements button to be disabled
+            const applyBtn = document.getElementById('applyImprovementsBtn');
+            if (applyBtn) {
+                applyBtn.disabled = true;
+                applyBtn.textContent = 'Coming Soon';
+                applyBtn.title = 'Improvement suggestions coming in a future update';
             }
-        }
-        
-        // Enable apply button if we have improvements
-        const applyBtn = document.getElementById('applyImprovementsBtn');
-        if (applyBtn) {
-            applyBtn.disabled = false;
+            
+            // Show generic suggestions
+            const defaultSuggestions = [
+                'Consider adding more specific requirements',
+                'Define clear success criteria',
+                'Include examples of expected output',
+                'Specify the role the AI should assume'
+            ];
+            
+            defaultSuggestions.forEach(suggestion => {
+                const improvementElement = document.createElement('div');
+                improvementElement.className = 'improvement-item';
+                improvementElement.innerHTML = `
+                    <i class="fas fa-lightbulb"></i>
+                    <span>${suggestion}</span>
+                `;
+                improvementsList.appendChild(improvementElement);
+            });
         }
     }
 
     applyImprovements() {
-        // This would apply the improvement suggestions to the prompt
-        // For now, show a notification
-        this.showNotification('Improvement suggestions applied to prompt', 'success');
+        // ✅ FIX 4: This is currently a no-op - show notification
+        this.showNotification('Improvement suggestions coming in a future update', 'info');
         
-        // Close the modal
-        this.closeScoreModal();
+        // Don't close the modal so users can see their score
     }
 
     // ======================
@@ -2145,7 +2060,9 @@ ${text}
         if (interfaceLanguage) interfaceLanguage.value = this.state.settings.interfaceLanguage || 'en';
         if (voiceInputLanguage) voiceInputLanguage.value = this.state.settings.voiceInputLanguage || 'en-US';
         if (voiceOutputLanguage) voiceOutputLanguage.value = this.state.settings.voiceOutputLanguage || 'en-US';
-        if (autoScoreEnabled) autoScoreEnabled.checked = this.state.settings.autoScoreEnabled || true;
+        // ✅ FIX 3: Fixed autoScoreEnabled boolean default bug
+        if (autoScoreEnabled) autoScoreEnabled.checked = 
+            this.state.settings.autoScoreEnabled !== false;
         
         const saveBtn = document.getElementById('saveSettingsBtn');
         if (saveBtn) {
@@ -2234,6 +2151,7 @@ ${text}
             settingsChanged = true;
         }
         
+        // ✅ FIX 3: Fixed autoScoreEnabled boolean handling
         if (autoScoreEnabled && this.state.settings.autoScoreEnabled !== autoScoreEnabled.checked) {
             this.state.settings.autoScoreEnabled = autoScoreEnabled.checked;
             console.log('Auto-score enabled:', autoScoreEnabled.checked);
@@ -2937,13 +2855,11 @@ Keep the summary concise yet comprehensive.`,
             const testResult = await this.promptGenerator.testConnection();
             console.log('Worker test result:', testResult);
             
-            if (testResult.success) {
-                this.showNotification('Connected to AI services', 'success');
-            } else {
-                console.warn('Worker test failed:', testResult.error);
-            }
+            // ✅ FIX 2: Only return result, notifications handled in updateBackendStatus
+            return testResult;
         } catch (error) {
             console.warn('Worker test failed:', error);
+            return { success: false, error: error.message };
         }
     }
 
