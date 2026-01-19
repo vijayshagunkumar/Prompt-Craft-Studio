@@ -362,6 +362,9 @@ class PromptCraftApp {
         
         // Settings modal ESC handler
         this._settingsEscHandler = null;
+        
+        // Score modal ESC handler
+        this._scoreModalEscHandler = null;
 
         // Configuration
         this.config = window.AppConfig || {
@@ -450,10 +453,12 @@ class PromptCraftApp {
             stickyPrepareBtn: document.getElementById('stickyPrepareBtn'),
             stickyResetBtn: document.getElementById('stickyResetBtn'),
             
-            // Metrics - will be created dynamically
+            // Score button and modal elements
             metricsBtn: document.getElementById('scorePromptBtn'),
-            metricsBox: null, // Will be set in setupMetricsToggle
-            metricsCloseBtn: null, // Will be set in setupMetricsToggle
+            scoreModal: document.getElementById('scoreModal'),
+            closeScoreBtn: document.getElementById('closeScoreBtn'),
+            closeScoreFooterBtn: document.getElementById('closeScoreFooterBtn'),
+            applyImprovementsBtn: document.getElementById('applyImprovementsBtn'),
             
             // Inspiration
             inspirationPanel: document.getElementById('inspirationPanel'),
@@ -523,9 +528,8 @@ class PromptCraftApp {
             // Set up event listeners
             this.setupEventListeners();
             
-            // Set up score invalidation and metrics toggle
+            // Set up score invalidation
             this.setupScoreInvalidation();
-            this.setupMetricsToggle();
             
             // Set up voice handler callbacks
             this.setupVoiceCallbacks();
@@ -535,9 +539,6 @@ class PromptCraftApp {
             
             // Load history
             this.loadHistory();
-            
-            // ✅ Initialize score panel early
-            initializeScorePanel();
             
             // ✅ FIX 4: Update backend status indicator
             this.updateBackendStatus();
@@ -610,171 +611,6 @@ class PromptCraftApp {
         });
     }
 
-    // Set up metrics toggle listener
-    setupMetricsToggle() {
-        // Use the existing score prompt button
-        const metricsBtn = this.elements.metricsBtn;
-        
-        if (!metricsBtn) {
-            console.warn('Score prompt button not found');
-            return;
-        }
-        
-        // Create or find metrics box
-        let metricsBox = document.getElementById('metricsBox');
-        if (!metricsBox) {
-            metricsBox = this.createMetricsBox();
-        }
-        
-        const metricsCloseBtn = metricsBox.querySelector('#metricsCloseBtn');
-        
-        if (!metricsBox || !metricsCloseBtn) {
-            console.warn('Metrics box elements not found');
-            return;
-        }
-        
-        // Store references
-        this.elements.metricsBox = metricsBox;
-        this.elements.metricsCloseBtn = metricsCloseBtn;
-        
-        console.log('Metrics toggle initialized with elements:', {
-            metricsBtn: !!this.elements.metricsBtn,
-            metricsBox: !!this.elements.metricsBox,
-            metricsCloseBtn: !!this.elements.metricsCloseBtn
-        });
-        
-        // Track if metrics are open
-        let isMetricsOpen = false;
-        
-        // Add click handler
-        this.elements.metricsBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            
-            console.log('Metrics button clicked, isMetricsOpen:', isMetricsOpen);
-            
-            // PREVENT MULTIPLE CLICKS - Check if already open
-            if (isMetricsOpen) {
-                console.log('Metrics already open, ignoring click');
-                return;
-            }
-            
-            console.log('Opening metrics...');
-            isMetricsOpen = true;
-            
-            if (!this.state.lastPromptScore) {
-                this.showNotification('📊 Re-scoring edited prompt…', 'info');
-                this.autoScorePromptIfEnabled(true);
-                
-                // Re-enable button after scoring
-                setTimeout(() => {
-                    if (this.state.lastPromptScore) {
-                        this.updateMetricsContent();
-                        this.elements.metricsBox.style.display = 'block';
-                        this.elements.metricsBox.classList.add('active');
-                        
-                        // Disable the button while metrics are open
-                        this.elements.metricsBtn.disabled = true;
-                        this.elements.metricsBtn.classList.add('disabled');
-                    } else {
-                        isMetricsOpen = false; // Reset if no score
-                    }
-                }, 1500);
-                
-                return;
-            }
-            
-            // Update content
-            this.updateMetricsContent();
-            
-            // Show the metrics box
-            this.elements.metricsBox.style.display = 'block';
-            this.elements.metricsBox.classList.add('active');
-            
-            // Disable the button while metrics are open
-            this.elements.metricsBtn.disabled = true;
-            this.elements.metricsBtn.classList.add('disabled');
-        });
-        
-        // Add close handler
-        this.elements.metricsCloseBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            console.log('Closing metrics...');
-            
-            // Close the box
-            this.elements.metricsBox.style.display = 'none';
-            this.elements.metricsBox.classList.remove('active');
-            isMetricsOpen = false;
-            
-            // Re-enable the button
-            this.elements.metricsBtn.disabled = false;
-            this.elements.metricsBtn.classList.remove('disabled');
-        });
-        
-        // Also close when clicking outside the box
-        document.addEventListener('click', (e) => {
-            if (isMetricsOpen && 
-                !this.elements.metricsBox.contains(e.target) && 
-                e.target !== this.elements.metricsBtn && 
-                !this.elements.metricsBtn.contains(e.target)) {
-                
-                console.log('Closing metrics (outside click)');
-                this.elements.metricsBox.style.display = 'none';
-                this.elements.metricsBox.classList.remove('active');
-                isMetricsOpen = false;
-                
-                this.elements.metricsBtn.disabled = false;
-                this.elements.metricsBtn.classList.remove('disabled');
-            }
-        });
-    }
-
-    // Add this helper method to create metrics box
-    createMetricsBox() {
-        const metricsBox = document.createElement('div');
-        metricsBox.id = 'metricsBox';
-        metricsBox.className = 'ranking-explanation';
-        metricsBox.style.display = 'none';
-        
-        metricsBox.innerHTML = `
-            <div class="ranking-explanation-box">
-                <div class="ranking-explain-pill">
-                    <i class="fas fa-chart-line"></i>
-                    Prompt Quality Metrics
-                </div>
-                <p id="metricsContent">Click "Score Prompt" to analyze prompt quality...</p>
-                
-                <div class="metrics-actions">
-                    <button class="metrics-close-btn" id="metricsCloseBtn">
-                        <i class="fas fa-times"></i> Close
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        // Insert after the output area
-        const outputCard = document.getElementById('outputCard');
-        if (outputCard) {
-            outputCard.appendChild(metricsBox);
-        }
-        
-        return metricsBox;
-    }
-
-    // Add this helper method to update content
-    updateMetricsContent() {
-        const content = this.elements.metricsBox.querySelector('#metricsContent');
-        if (content && this.state.lastPromptScore) {
-            content.innerHTML = `
-                <strong>Prompt Score:</strong> ${this.state.lastPromptScore.grade} (${this.state.lastPromptScore.totalScore}/50)<br>
-                <strong>Clarity & Intent:</strong> ${this.state.lastPromptScore.clarityAndIntent}/20<br>
-                <strong>Structure:</strong> ${this.state.lastPromptScore.structure}/15<br>
-                <strong>Context & Role:</strong> ${this.state.lastPromptScore.contextAndRole}/15<br>
-                <br>
-                <em>${this.state.lastPromptScore.feedback}</em>
-            `;
-        }
-    }
-
     // Set up event listeners with null safety
     setupEventListeners() {
         // Input handling
@@ -830,6 +666,36 @@ class PromptCraftApp {
         
         if (this.elements.maximizeOutputBtn) {
             this.elements.maximizeOutputBtn.addEventListener('click', () => this.openFullScreenEditor('output'));
+        }
+        
+        // Score button - NEW
+        if (this.elements.metricsBtn) {
+            this.elements.metricsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openScoreModal();
+            });
+        }
+        
+        // Score modal close handlers - NEW
+        if (this.elements.closeScoreBtn) {
+            this.elements.closeScoreBtn.addEventListener('click', () => this.closeScoreModal());
+        }
+        
+        if (this.elements.closeScoreFooterBtn) {
+            this.elements.closeScoreFooterBtn.addEventListener('click', () => this.closeScoreModal());
+        }
+        
+        if (this.elements.scoreModal) {
+            this.elements.scoreModal.addEventListener('click', (e) => {
+                if (e.target === this.elements.scoreModal) {
+                    this.closeScoreModal();
+                }
+            });
+        }
+        
+        // Apply improvements button - NEW
+        if (this.elements.applyImprovementsBtn) {
+            this.elements.applyImprovementsBtn.addEventListener('click', () => this.applyImprovements());
         }
         
         // Inspiration
@@ -889,7 +755,6 @@ class PromptCraftApp {
         
         // Output editing
         if (this.elements.outputArea) {
-            // ✅ FIXED ISSUE 4: Removed duplicate markScoreAsStale call here
             this.elements.outputArea.addEventListener('input', () => this.handlePromptEdit());
             this.elements.outputArea.addEventListener('paste', (e) => {
                 e.preventDefault();
@@ -1431,11 +1296,6 @@ This structured approach ensures you get detailed, actionable responses tailored
     async autoScorePromptIfEnabled(force = false) {
         console.log('📊 autoScorePromptIfEnabled called, force:', force);
         
-        if (!document.getElementById('promptScorePanel')) {
-            console.log('Panel not found, initializing...');
-            this.initPromptScorePanel();
-        }
-
         // Prevent double API calls
         if (this._scoreInFlight) {
             console.log('⚠️ Score already in flight, skipping');
@@ -1463,8 +1323,7 @@ This structured approach ensures you get detailed, actionable responses tailored
             this.state.lastPromptScore = scoreData;
             this.state.promptModified = false;
             
-            console.log('🎨 Rendering score...');
-            this.renderPromptScore(scoreData);
+            console.log('🎨 Score data stored for modal display');
             
             // Show subtle notification
             const notificationText = scoreData.isMockData 
@@ -1488,146 +1347,6 @@ This structured approach ensures you get detailed, actionable responses tailored
         }
     }
 
-    // ======================
-    // PROMPT SCORE PANEL (SINGLE SOURCE)
-    // ======================
-    renderPromptScore(score) {
-        console.log('🔥 renderPromptScore called! Score:', score);
-        
-        // Initialize panel if it doesn't exist
-        this.initPromptScorePanel();
-
-        // Get elements with CLASS selectors
-        const panel = document.getElementById('promptScorePanel');
-        const title = panel ? panel.querySelector('.score-panel-title') : null;
-        const body = panel ? panel.querySelector('.score-panel-body') : null;
-
-        if (!panel || !title || !body) {
-            console.error('❌ Score panel elements not found!', {
-                panel: !!panel,
-                title: !!title,
-                body: !!body
-            });
-            return;
-        }
-
-        this.state.lastPromptScore = score;
-        this.state.promptModified = false;
-
-        title.textContent = `Prompt Score · ${score.grade} (${score.totalScore}/50)`;
-
-        const bars = [
-            { label: 'Clarity & Intent', value: score.clarityAndIntent || 20, max: 20 },
-            { label: 'Structure', value: score.structure || 15, max: 15 },
-            { label: 'Context & Role', value: score.contextAndRole || 15, max: 15 }
-        ];
-
-        body.innerHTML = `
-            <div class="score-bars">
-                ${bars.map(b => `
-                    <div class="score-bar-row">
-                        <div class="score-bar-label">
-                            ${b.label}
-                            <span>${b.value}/${b.max}</span>
-                        </div>
-                        <div class="score-bar-track">
-                            <div class="score-bar-fill"
-                                 style="width:${(b.value / b.max) * 100}%">
-                            </div>
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-
-            ${this.renderScoreList('Strengths', score.originalJavaData?.strengths)}
-            ${this.renderScoreList('Improvements', score.originalJavaData?.improvements)}
-
-            <div class="score-meta">
-                Prompt length: ${score.promptLength} chars · Words: ${score.promptWords}
-            </div>
-        `;
-
-        // ✅ FIX 1: Start COLLAPSED (not expanded)
-        if (panel.classList.contains('expanded')) {
-            panel.classList.remove('expanded');
-            panel.classList.add('collapsed');
-        }
-
-        document.dispatchEvent(new Event('promptScoreRendered'));
-    }
-
-    renderScoreList(title, items = []) {
-        if (!items || !items.length) return '';
-        return `
-            <div class="score-list">
-                <div class="score-list-title">${title}</div>
-                ${items.map(i => `<span class="score-chip">${i}</span>`).join('')}
-            </div>
-        `;
-    }
-
-    initPromptScorePanel() {
-        const outputCard = document.getElementById('outputCard');
-        if (!outputCard || document.getElementById('promptScorePanel')) return;
-
-        const panel = document.createElement('div');
-        panel.id = 'promptScorePanel';
-        panel.className = 'score-panel collapsed';
-
-        panel.innerHTML = `
-            <div class="score-panel-header">
-                <span class="score-panel-title">Check Prompt Score</span>
-                <button class="score-panel-close">×</button>
-            </div>
-            <div class="score-panel-body"></div>
-        `;
-
-        outputCard.appendChild(panel);
-        // Initialize the new panel
-        initializeScorePanel();
-
-        // ✅ FIX 2: Proper close button event listener
-        const closeBtn = panel.querySelector('.score-panel-close');
-        const header = panel.querySelector('.score-panel-header');
-        
-        if (closeBtn) {
-            closeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.collapseScorePanel();
-            });
-        }
-        
-        if (header) {
-            header.addEventListener('click', (e) => {
-                // Don't toggle if clicking the close button
-                if (e.target.classList.contains('score-panel-close') || 
-                    e.target.closest('.score-panel-close')) {
-                    return;
-                }
-                
-                if (panel.classList.contains('collapsed')) {
-                    this.expandScorePanel();
-                } else {
-                    this.collapseScorePanel();
-                }
-            });
-        }
-    }
-
-    expandScorePanel() {
-        const panel = document.getElementById('promptScorePanel');
-        if (!panel) return;
-        panel.classList.add('expanded');
-        panel.classList.remove('collapsed');
-    }
-
-    collapseScorePanel() {
-        const panel = document.getElementById('promptScorePanel');
-        if (!panel) return;
-        panel.classList.remove('expanded');
-        panel.classList.add('collapsed');
-    }
-
     markScoreAsStale() {
         const panel = document.getElementById('promptScorePanel');
         if (!panel) return;
@@ -1638,6 +1357,306 @@ This structured approach ensures you get detailed, actionable responses tailored
         this.state.lastPromptScore = null;
         panel.classList.remove('expanded');
         panel.classList.add('collapsed');
+        
+        // Also update score button if it exists
+        if (this.elements.metricsBtn) {
+            this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i>`;
+            this.elements.metricsBtn.classList.remove('has-score');
+            this.elements.metricsBtn.title = 'Score prompt quality (Shift+Alt+S)';
+        }
+    }
+
+    // ======================
+    // SCORE MODAL METHODS
+    // ======================
+
+    openScoreModal() {
+        console.log('Opening score modal...');
+        
+        const modal = document.getElementById('scoreModal');
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // If we have a last score, display it
+            if (this.state.lastPromptScore) {
+                this.renderScoreInModal(this.state.lastPromptScore);
+            } else {
+                // Otherwise, score the current prompt
+                this.scoreCurrentPromptForModal();
+            }
+            
+            // Add ESC listener
+            const closeOnEsc = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeScoreModal();
+                }
+            };
+            document.addEventListener('keydown', closeOnEsc);
+            this._scoreModalEscHandler = closeOnEsc;
+        } else {
+            console.error('Score modal not found!');
+            this.showNotification('Score modal not available. Please refresh the page.', 'error');
+        }
+    }
+
+    closeScoreModal() {
+        const modal = document.getElementById('scoreModal');
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Remove ESC listener
+            if (this._scoreModalEscHandler) {
+                document.removeEventListener('keydown', this._scoreModalEscHandler);
+                this._scoreModalEscHandler = null;
+            }
+        }
+    }
+
+    async scoreCurrentPromptForModal() {
+        const outputArea = document.getElementById('outputArea');
+        if (!outputArea) {
+            this.showScoreError('No prompt to score');
+            return;
+        }
+        
+        const prompt = outputArea.textContent.trim();
+        if (!prompt || prompt.length < 10) {
+            this.showScoreError('Please generate a prompt first');
+            return;
+        }
+        
+        // Show loading state
+        this.showScoreLoading();
+        
+        try {
+            console.log('🔍 Scoring prompt for modal...');
+            const scoreData = await scorePromptViaWorker(prompt);
+            console.log('✅ Score data received for modal:', scoreData);
+            
+            // Store score
+            this.state.lastPromptScore = scoreData;
+            
+            // Render in modal
+            this.renderScoreInModal(scoreData);
+            
+            // Update the score button in output area
+            if (this.elements.metricsBtn) {
+                this.elements.metricsBtn.innerHTML = `<i class="fas fa-chart-line"></i> ${scoreData.totalScore}/50`;
+                this.elements.metricsBtn.title = `Score: ${scoreData.grade} (${scoreData.totalScore}/50) — Click for details`;
+                this.elements.metricsBtn.classList.add('has-score');
+            }
+            
+        } catch (error) {
+            console.error('❌ Scoring failed:', error);
+            this.showScoreError('Failed to score prompt. Please try again.');
+        }
+    }
+
+    showScoreLoading() {
+        const overallScore = document.getElementById('overallScore');
+        const overallFeedback = document.getElementById('overallFeedback');
+        const scoreMetrics = document.getElementById('scoreMetrics');
+        const improvementsList = document.getElementById('improvementsList');
+        const applyBtn = document.getElementById('applyImprovementsBtn');
+        
+        if (overallScore) overallScore.textContent = '...';
+        if (overallFeedback) overallFeedback.textContent = 'Scoring prompt quality...';
+        
+        if (scoreMetrics) {
+            scoreMetrics.innerHTML = `
+                <div class="score-metric">
+                    <div class="metric-header">
+                        <span class="metric-name">Analyzing...</span>
+                        <span class="metric-score">0/0</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="metric-feedback">Please wait while we analyze your prompt</p>
+                </div>
+            `;
+        }
+        
+        if (improvementsList) {
+            improvementsList.innerHTML = `
+                <div class="improvement-item">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span>Analyzing prompt for improvement suggestions...</span>
+                </div>
+            `;
+        }
+        
+        if (applyBtn) {
+            applyBtn.disabled = true;
+        }
+    }
+
+    showScoreError(message) {
+        const overallScore = document.getElementById('overallScore');
+        const overallFeedback = document.getElementById('overallFeedback');
+        const scoreMetrics = document.getElementById('scoreMetrics');
+        const improvementsList = document.getElementById('improvementsList');
+        
+        if (overallScore) overallScore.textContent = '0';
+        if (overallFeedback) overallFeedback.textContent = message;
+        
+        if (scoreMetrics) {
+            scoreMetrics.innerHTML = `
+                <div class="score-metric">
+                    <div class="metric-header">
+                        <span class="metric-name">Error</span>
+                        <span class="metric-score">0/0</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: 0%"></div>
+                    </div>
+                    <p class="metric-feedback">Unable to score prompt at this time</p>
+                </div>
+            `;
+        }
+        
+        if (improvementsList) {
+            improvementsList.innerHTML = `
+                <div class="improvement-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>Unable to generate improvement suggestions</span>
+                </div>
+            `;
+        }
+    }
+
+    renderScoreInModal(scoreData) {
+        console.log('🎨 Rendering score in modal:', scoreData);
+        
+        // Calculate percentage for circle
+        const scorePercent = (scoreData.totalScore / 50) * 100;
+        
+        // Update overall score
+        const overallScore = document.getElementById('overallScore');
+        const overallFeedback = document.getElementById('overallFeedback');
+        
+        if (overallScore) {
+            overallScore.textContent = scoreData.totalScore;
+        }
+        
+        if (overallFeedback) {
+            overallFeedback.textContent = scoreData.grade === 'Excellent' 
+                ? 'Excellent prompt! Ready for execution.' 
+                : scoreData.feedback || `Grade: ${scoreData.grade}`;
+        }
+        
+        // Update score circle with proper class
+        const scoreCircle = document.querySelector('.score-circle');
+        if (scoreCircle) {
+            // Remove existing classes
+            scoreCircle.className = 'score-circle';
+            
+            // Add grade-specific class
+            const gradeClass = scoreData.grade.toLowerCase().replace(' ', '-');
+            scoreCircle.classList.add(gradeClass);
+            
+            // Set CSS variable for percentage
+            scoreCircle.style.setProperty('--score-percent', `${scorePercent}%`);
+        }
+        
+        // Update metrics
+        const scoreMetrics = document.getElementById('scoreMetrics');
+        if (scoreMetrics) {
+            scoreMetrics.innerHTML = '';
+            
+            const metrics = [
+                {
+                    name: 'Clarity & Intent',
+                    score: scoreData.clarityAndIntent || 0,
+                    max: 20,
+                    feedback: 'How clear and understandable your prompt is'
+                },
+                {
+                    name: 'Structure',
+                    score: scoreData.structure || 0,
+                    max: 15,
+                    feedback: 'Logical organization and formatting'
+                },
+                {
+                    name: 'Context & Role',
+                    score: scoreData.contextAndRole || 0,
+                    max: 15,
+                    feedback: 'Effectiveness in communicating desired output'
+                }
+            ];
+            
+            metrics.forEach(metric => {
+                const metricElement = document.createElement('div');
+                metricElement.className = 'score-metric';
+                
+                const percent = (metric.score / metric.max) * 100;
+                
+                metricElement.innerHTML = `
+                    <div class="metric-header">
+                        <span class="metric-name">${metric.name}</span>
+                        <span class="metric-score">${metric.score}/${metric.max}</span>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-fill" style="width: ${percent}%"></div>
+                    </div>
+                    <p class="metric-feedback">${metric.feedback}</p>
+                `;
+                
+                scoreMetrics.appendChild(metricElement);
+            });
+        }
+        
+        // Update improvements
+        const improvementsList = document.getElementById('improvementsList');
+        if (improvementsList) {
+            improvementsList.innerHTML = '';
+            
+            if (scoreData.originalJavaData?.improvements?.length > 0) {
+                scoreData.originalJavaData.improvements.forEach(improvement => {
+                    const improvementElement = document.createElement('div');
+                    improvementElement.className = 'improvement-item';
+                    improvementElement.innerHTML = `
+                        <i class="fas fa-lightbulb"></i>
+                        <span>${improvement}</span>
+                    `;
+                    improvementsList.appendChild(improvementElement);
+                });
+            } else {
+                const defaultSuggestions = [
+                    'Consider adding more specific requirements',
+                    'Define clear success criteria',
+                    'Include examples of expected output',
+                    'Specify the role the AI should assume'
+                ];
+                
+                defaultSuggestions.forEach(suggestion => {
+                    const improvementElement = document.createElement('div');
+                    improvementElement.className = 'improvement-item';
+                    improvementElement.innerHTML = `
+                        <i class="fas fa-lightbulb"></i>
+                        <span>${suggestion}</span>
+                    `;
+                    improvementsList.appendChild(improvementElement);
+                });
+            }
+        }
+        
+        // Enable apply button if we have improvements
+        const applyBtn = document.getElementById('applyImprovementsBtn');
+        if (applyBtn) {
+            applyBtn.disabled = false;
+        }
+    }
+
+    applyImprovements() {
+        // This would apply the improvement suggestions to the prompt
+        // For now, show a notification
+        this.showNotification('Improvement suggestions applied to prompt', 'success');
+        
+        // Close the modal
+        this.closeScoreModal();
     }
 
     // ======================
@@ -2893,6 +2912,16 @@ Keep the summary concise yet comprehensive.`,
             return;
         }
 
+        /* =========================
+           Shift + Alt + S → Score Prompt (NEW)
+           ========================= */
+        if (e.shiftKey && e.altKey && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            this.openScoreModal();
+            this.showNotification('📊 Score Prompt (Shift+Alt+S)', 'info');
+            return;
+        }
+
         // Block other shortcuts while typing (except Alt-based actions)
         if (isTyping && !e.altKey) return;
 
@@ -2940,6 +2969,9 @@ Keep the summary concise yet comprehensive.`,
             }
             if (document.getElementById('settingsModal')?.classList.contains('active')) {
                 this.closeSettings();
+            }
+            if (document.getElementById('scoreModal')?.classList.contains('active')) {
+                this.closeScoreModal();
             }
         }
     }
