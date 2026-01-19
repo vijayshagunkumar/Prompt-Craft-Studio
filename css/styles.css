@@ -1,6 +1,3 @@
-/* Import variables */
-@import 'variables.css';
-
 /* ======================
    DESIGN TOKENS (Moved up)
    ====================== */
@@ -10,7 +7,7 @@
     --primary-dark: #3730A3;
     --primary-light: #6366F1;
     --primary-50: #EEF2FF;
-    --primary-gradient: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+    --primary-gradient: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
 
     /* ---------- SECONDARY ---------- */
     --secondary: #7C3AED;
@@ -60,7 +57,7 @@
     --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.14);
 
     /* Gradients */
-    --header-gradient: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+    --header-gradient: var(--primary-gradient);
     --accent-gradient: linear-gradient(135deg, #667EEA 0%, #764BA2 100%);
 
     /* 🔧 FIX: glass background opacity (Step-3 visual fix) */
@@ -137,6 +134,23 @@
 }
 
 /* ===============================
+   HIGH CONTRAST MODE
+   =============================== */
+@media (prefers-contrast: high) {
+    :root {
+        --text-secondary: var(--gray-700);
+        --text-tertiary: var(--gray-600);
+        --border-color: rgba(0, 0, 0, 0.3);
+    }
+    
+    .dark-theme {
+        --text-secondary: var(--gray-200);
+        --text-tertiary: var(--gray-300);
+        --border-color: rgba(255, 255, 255, 0.3);
+    }
+}
+
+/* ===============================
    BODY
    =============================== */
 body {
@@ -151,7 +165,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
 
     /* 🔧 FIX: do NOT hide layout bugs */
-    overflow-x: clip;
+    overflow-x: hidden;
 }
 
 /* Container */
@@ -568,6 +582,16 @@ body {
     border-color: var(--primary);
     box-shadow: inset 0 0 0 1px var(--primary);
     min-height: 240px;
+}
+
+/* Focus styles for accessibility */
+.textarea:focus,
+button:focus,
+.action-btn:focus,
+select:focus,
+.language-select:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
 }
 
 /* Text Area Controls */
