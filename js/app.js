@@ -291,122 +291,125 @@ function initializeScorePanel() {
 // MAIN APPLICATION CONTROLLER
 // ======================
 class PromptCraftApp {
-    constructor() {
-        // ======================
-        // GLOBAL ERROR FILTER (REGISTER ONCE – PRODUCTION SAFE)
-        // ======================
-        if (!window.__PROMPTCRAFT_ERROR_HANDLER__) {
-            window.__PROMPTCRAFT_ERROR_HANDLER__ = true;
+constructor() {
+    // ======================
+    // GLOBAL ERROR FILTER (REGISTER ONCE – PRODUCTION SAFE)
+    // ======================
+    if (!window.__PROMPTCRAFT_ERROR_HANDLER__) {
+        window.__PROMPTCRAFT_ERROR_HANDLER__ = true;
 
-            window.addEventListener('error', (event) => {
-                if (
-                    !event.filename ||                             // anonymous / injected
-                    event.filename === window.location.href ||     // index.html noise
-                    event.lineno === 1 ||                          // inline scripts / CF runtime
-                    !event.filename.includes('/js/')               // not our JS files
-                ) {
-                    return;
-                }
-
-                console.error('App error:', {
-                    message: event.message,
-                    file: event.filename,
-                    line: event.lineno,
-                    column: event.colno
-                });
-            });
-
-            window.addEventListener('unhandledrejection', (event) => {
-                if (
-                    !event.reason ||
-                    !event.reason.stack ||
-                    (
-                        !event.reason.stack.includes('app.js') &&
-                        !event.reason.stack.includes('prompt-generator.js')
-                    )
-                ) {
-                    return;
-                }
-
-                console.error('Unhandled app promise rejection:', event.reason);
-            });
-        }
-
-        // ======================
-        // APP STATE
-        // ======================
-        this.state = {
-            currentStep: 1,
-            hasGeneratedPrompt: false,
-            promptModified: false,
-            originalPrompt: null,
-            selectedPlatform: null,
-            isEditorOpen: false,
-            currentEditor: null,
-            inspirationPanelOpen: false,
-            settingsModified: false,
-            undoStack: [],
-            redoStack: [],
-            promptHistory: [],
-            currentModel: 'gemini-3-flash-preview',
-            generatedFromInput: null,
-            lastPromptScore: null,
-            settings: this.loadDefaultSettings()
-        };
-
-        // Score mutex flag to prevent double API calls
-        this._scoreInFlight = false;
-        
-        // About modal ESC handler
-        this._aboutModalEscHandler = null;
-        
-        // Settings modal ESC handler
-        this._settingsEscHandler = null;
-        
-        // Score modal ESC handler
-        this._scoreModalEscHandler = null;
-
-        // Configuration
-        this.config = window.AppConfig || {
-            WORKER_CONFIG: {
-                workerUrl: 'https://promptcraft-api.vijay-shagunkumar.workers.dev',
-                defaultModel: 'gemini-3-flash-preview'
+        window.addEventListener('error', (event) => {
+            if (
+                !event.filename ||                             // anonymous / injected
+                event.filename === window.location.href ||     // index.html noise
+                event.lineno === 1 ||                          // inline scripts / CF runtime
+                !event.filename.includes('/js/')               // not our JS files
+            ) {
+                return;
             }
-        };
-        
-        // ======================
-        // INITIALIZE MANAGERS
-        // ======================
-        this.storageManager = new StorageManager();
 
-        this.voiceHandler = new VoiceHandler({
-            continuous: false,
-            interimResults: false,
-            defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
-            maxListenTime: 10000,
-            maxSimilarityThreshold: 0.75,
-            replaceMode: true,
-            mergeProgressiveResults: true,
-            debounceDelay: 400
-        });
-        
-        this.platformIntegrations = new PlatformIntegrations();
-        this.promptGenerator = new PromptGenerator({
-            workerUrl: this.config.WORKER_CONFIG?.workerUrl,
-            defaultModel: this.config.WORKER_CONFIG?.defaultModel,
-            timeout: 30000,
-            fallbackToLocal: true,
-            enableDebug: true,
-            strictPromptMode: true
+            console.error('App error:', {
+                message: event.message,
+                file: event.filename,
+                line: event.lineno,
+                column: event.colno
+            });
         });
 
-        // Bind elements (with null safety)
-        this.elements = {};
-        this.bindElements();
-        
-        // Initialize
-        this.init();
+        window.addEventListener('unhandledrejection', (event) => {
+            if (
+                !event.reason ||
+                !event.reason.stack ||
+                (
+                    !event.reason.stack.includes('app.js') &&
+                    !event.reason.stack.includes('prompt-generator.js')
+                )
+            ) {
+                return;
+            }
+
+            console.error('Unhandled app promise rejection:', event.reason);
+        });
     }
+
+    // ======================
+    // APP STATE
+    // ======================
+    this.state = {
+        currentStep: 1,
+        hasGeneratedPrompt: false,
+        promptModified: false,
+        originalPrompt: null,
+        selectedPlatform: null,
+        isEditorOpen: false,
+        currentEditor: null,
+        inspirationPanelOpen: false,
+        settingsModified: false,
+        undoStack: [],
+        redoStack: [],
+        promptHistory: [],
+        currentModel: 'gemini-3-flash-preview',
+        generatedFromInput: null,
+        lastPromptScore: null,
+        settings: this.loadDefaultSettings()
+    };
+
+    // Score mutex flag to prevent double API calls
+    this._scoreInFlight = false;
+    
+    // Score button click cooldown flag - ADDED FOR FIX
+    this._scoreButtonCooldown = false;
+    
+    // About modal ESC handler
+    this._aboutModalEscHandler = null;
+    
+    // Settings modal ESC handler
+    this._settingsEscHandler = null;
+    
+    // Score modal ESC handler
+    this._scoreModalEscHandler = null;
+
+    // Configuration
+    this.config = window.AppConfig || {
+        WORKER_CONFIG: {
+            workerUrl: 'https://promptcraft-api.vijay-shagunkumar.workers.dev',
+            defaultModel: 'gemini-3-flash-preview'
+        }
+    };
+    
+    // ======================
+    // INITIALIZE MANAGERS
+    // ======================
+    this.storageManager = new StorageManager();
+
+    this.voiceHandler = new VoiceHandler({
+        continuous: false,
+        interimResults: false,
+        defaultLang: this.state.settings.voiceInputLanguage || 'en-US',
+        maxListenTime: 10000,
+        maxSimilarityThreshold: 0.75,
+        replaceMode: true,
+        mergeProgressiveResults: true,
+        debounceDelay: 400
+    });
+    
+    this.platformIntegrations = new PlatformIntegrations();
+    this.promptGenerator = new PromptGenerator({
+        workerUrl: this.config.WORKER_CONFIG?.workerUrl,
+        defaultModel: this.config.WORKER_CONFIG?.defaultModel,
+        timeout: 30000,
+        fallbackToLocal: true,
+        enableDebug: true,
+        strictPromptMode: true
+    });
+
+    // Bind elements (with null safety)
+    this.elements = {};
+    this.bindElements();
+    
+    // Initialize
+    this.init();
+}
 
     // Load default settings
     loadDefaultSettings() {
@@ -612,216 +615,266 @@ class PromptCraftApp {
     }
 
     // Set up event listeners with null safety
-    setupEventListeners() {
-        // Input handling
-        if (this.elements.userInput) {
-            this.elements.userInput.addEventListener('input', () => this.handleInputChange());
-        }
+setupEventListeners() {
+    // Input handling
+    if (this.elements.userInput) {
+        this.elements.userInput.addEventListener('input', () => this.handleInputChange());
+    }
+    
+    // Clear input button (optional)
+    if (this.elements.clearInputBtn) {
+        this.elements.clearInputBtn.addEventListener('click', () => {
+            if (this.elements.userInput) {
+                this.elements.userInput.value = '';
+                this.clearGeneratedPrompt();
+                this.updateButtonStates();
+            }
+        });
+    }
+    
+    // Button events (with null safety)
+    if (this.elements.stickyPrepareBtn) {
+        this.elements.stickyPrepareBtn.addEventListener('click', () => this.preparePrompt());
+    }
+    
+    if (this.elements.copyBtn) {
+        this.elements.copyBtn.addEventListener('click', () => this.copyPrompt());
+    }
+    
+    if (this.elements.speakBtn) {
+        this.elements.speakBtn.addEventListener('click', () => this.toggleSpeech());
+    }
+    
+    if (this.elements.exportBtn) {
+        this.elements.exportBtn.addEventListener('click', () => this.exportPrompt());
+    }
+    
+    if (this.elements.savePromptBtn) {
+        this.elements.savePromptBtn.addEventListener('click', () => this.savePrompt());
+    }
+    
+    if (this.elements.stickyResetBtn) {
+        this.elements.stickyResetBtn.addEventListener('click', () => this.resetApplication());
+    }
+    
+    // Voice button
+    if (this.elements.micBtn) {
+        this.elements.micBtn.addEventListener('click', () => this.toggleVoiceInput());
+    }
+    
+    // Maximize buttons
+    if (this.elements.maximizeInputBtn) {
+        this.elements.maximizeInputBtn.addEventListener('click', () => this.openFullScreenEditor('input'));
+    }
+    
+    if (this.elements.maximizeOutputBtn) {
+        this.elements.maximizeOutputBtn.addEventListener('click', () => this.openFullScreenEditor('output'));
+    }
+    
+    // Score button - FIXED: Use event delegation to prevent multiple bindings
+    if (this.elements.metricsBtn) {
+        // Remove any existing listeners first
+        const newMetricsBtn = this.elements.metricsBtn.cloneNode(true);
+        this.elements.metricsBtn.parentNode.replaceChild(newMetricsBtn, this.elements.metricsBtn);
+        this.elements.metricsBtn = newMetricsBtn;
         
-        // Clear input button (optional)
-        if (this.elements.clearInputBtn) {
-            this.elements.clearInputBtn.addEventListener('click', () => {
-                if (this.elements.userInput) {
-                    this.elements.userInput.value = '';
-                    this.clearGeneratedPrompt();
-                    this.updateButtonStates();
-                }
-            });
-        }
+        // Add single click handler
+        this.elements.metricsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            // Prevent rapid multiple clicks
+            if (this._scoreButtonCooldown) return;
+            
+            this._scoreButtonCooldown = true;
+            setTimeout(() => {
+                this._scoreButtonCooldown = false;
+            }, 500);
+            
+            console.log('📊 Score button clicked (single handler)');
+            this.openScoreModal();
+        });
+    }
+    
+    // Score modal close handlers - FIXED: Single binding
+    if (this.elements.closeScoreBtn) {
+        // Clean and rebind
+        const newCloseBtn = this.elements.closeScoreBtn.cloneNode(true);
+        this.elements.closeScoreBtn.parentNode.replaceChild(newCloseBtn, this.elements.closeScoreBtn);
+        this.elements.closeScoreBtn = newCloseBtn;
         
-        // Button events (with null safety)
-        if (this.elements.stickyPrepareBtn) {
-            this.elements.stickyPrepareBtn.addEventListener('click', () => this.preparePrompt());
-        }
+        this.elements.closeScoreBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            this.closeScoreModal();
+        });
+    }
+    
+    if (this.elements.closeScoreFooterBtn) {
+        // Clean and rebind
+        const newFooterCloseBtn = this.elements.closeScoreFooterBtn.cloneNode(true);
+        this.elements.closeScoreFooterBtn.parentNode.replaceChild(newFooterCloseBtn, this.elements.closeScoreFooterBtn);
+        this.elements.closeScoreFooterBtn = newFooterCloseBtn;
         
-        if (this.elements.copyBtn) {
-            this.elements.copyBtn.addEventListener('click', () => this.copyPrompt());
-        }
+        this.elements.closeScoreFooterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            this.closeScoreModal();
+        });
+    }
+    
+    // Apply improvements button - FIXED: Single binding
+    if (this.elements.applyImprovementsBtn) {
+        // Clean and rebind
+        const newApplyBtn = this.elements.applyImprovementsBtn.cloneNode(true);
+        this.elements.applyImprovementsBtn.parentNode.replaceChild(newApplyBtn, this.elements.applyImprovementsBtn);
+        this.elements.applyImprovementsBtn = newApplyBtn;
         
-        if (this.elements.speakBtn) {
-            this.elements.speakBtn.addEventListener('click', () => this.toggleSpeech());
-        }
+        this.elements.applyImprovementsBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            this.applyImprovements();
+        });
+    }
+    
+    // Score modal click outside to close - FIXED: Single binding
+    if (this.elements.scoreModal) {
+        // Clean and rebind
+        const newScoreModal = this.elements.scoreModal.cloneNode(true);
+        this.elements.scoreModal.parentNode.replaceChild(newScoreModal, this.elements.scoreModal);
+        this.elements.scoreModal = newScoreModal;
         
-        if (this.elements.exportBtn) {
-            this.elements.exportBtn.addEventListener('click', () => this.exportPrompt());
-        }
-        
-        if (this.elements.savePromptBtn) {
-            this.elements.savePromptBtn.addEventListener('click', () => this.savePrompt());
-        }
-        
-        if (this.elements.stickyResetBtn) {
-            this.elements.stickyResetBtn.addEventListener('click', () => this.resetApplication());
-        }
-        
-        // Voice button
-        if (this.elements.micBtn) {
-            this.elements.micBtn.addEventListener('click', () => this.toggleVoiceInput());
-        }
-        
-        // Maximize buttons
-        if (this.elements.maximizeInputBtn) {
-            this.elements.maximizeInputBtn.addEventListener('click', () => this.openFullScreenEditor('input'));
-        }
-        
-        if (this.elements.maximizeOutputBtn) {
-            this.elements.maximizeOutputBtn.addEventListener('click', () => this.openFullScreenEditor('output'));
-        }
-        
-        // Score button - NEW
-        if (this.elements.metricsBtn) {
-            this.elements.metricsBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.openScoreModal();
-            });
-        }
-        
-        // Score modal close handlers - NEW
-        if (this.elements.closeScoreBtn) {
-            this.elements.closeScoreBtn.addEventListener('click', () => this.closeScoreModal());
-        }
-        
-        if (this.elements.closeScoreFooterBtn) {
-            this.elements.closeScoreFooterBtn.addEventListener('click', () => this.closeScoreModal());
-        }
-        
-        if (this.elements.scoreModal) {
-            this.elements.scoreModal.addEventListener('click', (e) => {
-                if (e.target === this.elements.scoreModal) {
-                    this.closeScoreModal();
-                }
-            });
-        }
-        
-        // Apply improvements button - NEW
-        if (this.elements.applyImprovementsBtn) {
-            this.elements.applyImprovementsBtn.addEventListener('click', () => this.applyImprovements());
-        }
-        
-        // Inspiration
-        if (this.elements.needInspirationBtn) {
-            this.elements.needInspirationBtn.addEventListener('click', () => this.toggleInspirationPanel());
-        }
-        
-        if (this.elements.closeInspirationBtn) {
-            this.elements.closeInspirationBtn.addEventListener('click', () => this.closeInspirationPanel());
-        }
-        
-        // History
-        if (this.elements.historyBtn) {
-            this.elements.historyBtn.addEventListener('click', () => this.toggleHistory());
-        }
-        
-        if (this.elements.closeHistoryBtn) {
-            this.elements.closeHistoryBtn.addEventListener('click', () => this.closeHistory());
-        }
-        
-        // About button events
-        if (this.elements.aboutBtn) {
-            this.elements.aboutBtn.addEventListener('click', () => this.openAboutModal());
-        }
-        
-        if (this.elements.closeAboutBtn) {
-            this.elements.closeAboutBtn.addEventListener('click', () => this.closeAboutModal());
-        }
-        
-        if (this.elements.closeAboutFooterBtn) {
-            this.elements.closeAboutFooterBtn.addEventListener('click', () => this.closeAboutModal());
-        }
-        
-        // About listen button
-        if (this.elements.aboutListenBtn) {
-            this.elements.aboutListenBtn.addEventListener('click', () => this.toggleAboutSpeech());
-        }
-        
-        // Close about modal when clicking outside
-        if (this.elements.aboutModal) {
-            this.elements.aboutModal.addEventListener('click', (e) => {
-                if (e.target === this.elements.aboutModal) {
-                    this.closeAboutModal();
-                }
-            });
-        }
-        
-        // Platform clicks
-        if (this.elements.platformsGrid) {
-            this.elements.platformsGrid.addEventListener('click', (e) => {
-                const platformCard = e.target.closest('.platform-card');
-                if (platformCard) {
-                    this.handlePlatformClick(platformCard.dataset.platform);
-                }
-            });
-        }
-        
-        // Output editing
-        if (this.elements.outputArea) {
-            this.elements.outputArea.addEventListener('input', () => this.handlePromptEdit());
-            this.elements.outputArea.addEventListener('paste', (e) => {
-                e.preventDefault();
-                const text = e.clipboardData.getData('text/plain');
-                const selection = window.getSelection();
-                
-                if (selection.rangeCount) {
-                    selection.deleteFromDocument();
-                    selection.getRangeAt(0).insertNode(document.createTextNode(text));
-                }
-            });
-        }
-        
-        // Inspiration items
-        document.querySelectorAll('.inspiration-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.insertExample(e.currentTarget.dataset.type);
-                this.closeInspirationPanel();
-            });
+        this.elements.scoreModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.scoreModal) {
+                this.closeScoreModal();
+            }
+        });
+    }
+    
+    // Inspiration
+    if (this.elements.needInspirationBtn) {
+        this.elements.needInspirationBtn.addEventListener('click', () => this.toggleInspirationPanel());
+    }
+    
+    if (this.elements.closeInspirationBtn) {
+        this.elements.closeInspirationBtn.addEventListener('click', () => this.closeInspirationPanel());
+    }
+    
+    // History
+    if (this.elements.historyBtn) {
+        this.elements.historyBtn.addEventListener('click', () => this.toggleHistory());
+    }
+    
+    if (this.elements.closeHistoryBtn) {
+        this.elements.closeHistoryBtn.addEventListener('click', () => this.closeHistory());
+    }
+    
+    // About button events
+    if (this.elements.aboutBtn) {
+        this.elements.aboutBtn.addEventListener('click', () => this.openAboutModal());
+    }
+    
+    if (this.elements.closeAboutBtn) {
+        this.elements.closeAboutBtn.addEventListener('click', () => this.closeAboutModal());
+    }
+    
+    if (this.elements.closeAboutFooterBtn) {
+        this.elements.closeAboutFooterBtn.addEventListener('click', () => this.closeAboutModal());
+    }
+    
+    // About listen button
+    if (this.elements.aboutListenBtn) {
+        this.elements.aboutListenBtn.addEventListener('click', () => this.toggleAboutSpeech());
+    }
+    
+    // Close about modal when clicking outside
+    if (this.elements.aboutModal) {
+        this.elements.aboutModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.aboutModal) {
+                this.closeAboutModal();
+            }
+        });
+    }
+    
+    // Platform clicks
+    if (this.elements.platformsGrid) {
+        this.elements.platformsGrid.addEventListener('click', (e) => {
+            const platformCard = e.target.closest('.platform-card');
+            if (platformCard) {
+                this.handlePlatformClick(platformCard.dataset.platform);
+            }
+        });
+    }
+    
+    // Output editing
+    if (this.elements.outputArea) {
+        this.elements.outputArea.addEventListener('input', () => this.handlePromptEdit());
+        this.elements.outputArea.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const text = e.clipboardData.getData('text/plain');
+            const selection = window.getSelection();
+            
+            if (selection.rangeCount) {
+                selection.deleteFromDocument();
+                selection.getRangeAt(0).insertNode(document.createTextNode(text));
+            }
+        });
+    }
+    
+    // Inspiration items
+    document.querySelectorAll('.inspiration-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.insertExample(e.currentTarget.dataset.type);
+            this.closeInspirationPanel();
+        });
+    });
+    
+    // Settings button
+    if (this.elements.settingsBtn) {
+        this.elements.settingsBtn.addEventListener('click', () => this.openSettings());
+    }
+    
+    // Settings modal buttons (these might be in a different file)
+    const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', () => this.closeSettings());
+    }
+    
+    if (cancelSettingsBtn) {
+        cancelSettingsBtn.addEventListener('click', () => this.closeSettings());
+    }
+    
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', () => this.saveSettingsModal());
+    }
+    
+    // Close settings when clicking outside
+    const settingsModal = document.getElementById('settingsModal');
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                this.closeSettings();
+            }
         });
         
-        // Settings button
-        if (this.elements.settingsBtn) {
-            this.elements.settingsBtn.addEventListener('click', () => this.openSettings());
-        }
-        
-        // Settings modal buttons (these might be in a different file)
-        const closeSettingsBtn = document.getElementById('closeSettingsBtn');
-        const cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
-        const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-        
-        if (closeSettingsBtn) {
-            closeSettingsBtn.addEventListener('click', () => this.closeSettings());
-        }
-        
-        if (cancelSettingsBtn) {
-            cancelSettingsBtn.addEventListener('click', () => this.closeSettings());
-        }
-        
-        if (saveSettingsBtn) {
-            saveSettingsBtn.addEventListener('click', () => this.saveSettingsModal());
-        }
-        
-        // Close settings when clicking outside
-        const settingsModal = document.getElementById('settingsModal');
-        if (settingsModal) {
-            settingsModal.addEventListener('click', (e) => {
-                if (e.target === settingsModal) {
-                    this.closeSettings();
-                }
-            });
-            
-            // Enable save button when form changes
-            settingsModal.addEventListener('change', () => {
-                if (saveSettingsBtn) {
-                    saveSettingsBtn.disabled = false;
-                }
-            });
-        }
-        
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
-        
-        // Auto-generation
-        this.setupAutoGeneration();
+        // Enable save button when form changes
+        settingsModal.addEventListener('change', () => {
+            if (saveSettingsBtn) {
+                saveSettingsBtn.disabled = false;
+            }
+        });
     }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => this.handleKeyboardShortcuts(e));
+    
+    // Auto-generation
+    this.setupAutoGeneration();
+}
 
     // Set up voice handler callbacks
     setupVoiceCallbacks() {
@@ -1370,49 +1423,62 @@ This structured approach ensures you get detailed, actionable responses tailored
     // SCORE MODAL METHODS
     // ======================
 
-    openScoreModal() {
-        console.log('Opening score modal...');
+openScoreModal() {
+    console.log('Opening score modal...');
+    
+    // Check if modal is already open
+    const modal = document.getElementById('scoreModal');
+    if (modal && modal.classList.contains('active')) {
+        console.log('⚠️ Score modal already open');
+        return;
+    }
+    
+    if (modal) {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
         
-        const modal = document.getElementById('scoreModal');
-        if (modal) {
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            // If we have a last score, display it
-            if (this.state.lastPromptScore) {
-                this.renderScoreInModal(this.state.lastPromptScore);
-            } else {
-                // Otherwise, score the current prompt
-                this.scoreCurrentPromptForModal();
-            }
-            
-            // Add ESC listener
-            const closeOnEsc = (e) => {
-                if (e.key === 'Escape') {
-                    this.closeScoreModal();
-                }
-            };
-            document.addEventListener('keydown', closeOnEsc);
-            this._scoreModalEscHandler = closeOnEsc;
+        // If we have a last score, display it
+        if (this.state.lastPromptScore) {
+            this.renderScoreInModal(this.state.lastPromptScore);
         } else {
-            console.error('Score modal not found!');
-            this.showNotification('Score modal not available. Please refresh the page.', 'error');
+            // Otherwise, score the current prompt
+            this.scoreCurrentPromptForModal();
         }
-    }
-
-    closeScoreModal() {
-        const modal = document.getElementById('scoreModal');
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-            
-            // Remove ESC listener
-            if (this._scoreModalEscHandler) {
-                document.removeEventListener('keydown', this._scoreModalEscHandler);
-                this._scoreModalEscHandler = null;
+        
+        // Add ESC listener
+        this.removeScoreModalEscListener();
+        const closeOnEsc = (e) => {
+            if (e.key === 'Escape') {
+                this.closeScoreModal();
             }
-        }
+        };
+        document.addEventListener('keydown', closeOnEsc);
+        this._scoreModalEscHandler = closeOnEsc;
+        
+    } else {
+        console.error('Score modal not found!');
+        this.showNotification('Score modal not available. Please refresh the page.', 'error');
     }
+}
+
+closeScoreModal() {
+    const modal = document.getElementById('scoreModal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+        
+        // Remove ESC listener
+        this.removeScoreModalEscListener();
+    }
+}
+
+// Helper method to remove ESC listener
+removeScoreModalEscListener() {
+    if (this._scoreModalEscHandler) {
+        document.removeEventListener('keydown', this._scoreModalEscHandler);
+        this._scoreModalEscHandler = null;
+    }
+}
 
     async scoreCurrentPromptForModal() {
         const outputArea = document.getElementById('outputArea');
