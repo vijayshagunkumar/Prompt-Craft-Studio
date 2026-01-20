@@ -696,7 +696,7 @@
         </div>
     </div>
 
-    <!-- ✅ ADDED: Score Modal -->
+    <!-- ✅ IMPROVED: Score Modal with Better Structure -->
     <div id="scoreModal" class="modal-overlay">
         <div class="modal-content score-modal-content">
             <div class="modal-header">
@@ -704,13 +704,32 @@
                     <i class="fas fa-chart-line"></i>
                     Prompt Quality Score
                 </div>
-                <button id="closeScoreBtn" class="action-btn">
+                <button id="closeScoreBtn" class="action-btn" title="Close (ESC)">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             
             <div class="modal-body">
-                <div class="score-summary">
+                <!-- Empty State (Initially hidden) -->
+                <div id="scoreEmptyState" class="score-empty-state">
+                    <i class="fas fa-file-alt"></i>
+                    <h4>No Prompt to Score</h4>
+                    <p>Generate a prompt first to analyze its quality and get improvement suggestions.</p>
+                    <button id="generatePromptBtn" class="btn-action">
+                        <i class="fas fa-magic"></i>
+                        Generate a Prompt
+                    </button>
+                </div>
+                
+                <!-- Loading State (Initially hidden) -->
+                <div id="scoreLoading" class="score-loading" style="display: none;">
+                    <i class="fas fa-spinner"></i>
+                    <h4>Analyzing Prompt Quality...</h4>
+                    <p>Please wait while we evaluate your prompt structure and clarity.</p>
+                </div>
+                
+                <!-- Score Content (Initially visible) -->
+                <div class="score-summary" id="scoreContent">
                     <div class="overall-score">
                         <div class="score-circle">
                             <span id="overallScore">0</span>
@@ -718,7 +737,7 @@
                         </div>
                         <div class="score-label">
                             <h3>Overall Score</h3>
-                            <p id="overallFeedback">Your prompt quality assessment will appear here</p>
+                            <p id="overallFeedback">Click "Score" to analyze your prompt's effectiveness</p>
                         </div>
                     </div>
                     
@@ -726,16 +745,6 @@
                         <h4><i class="fas fa-list-alt"></i> Detailed Breakdown</h4>
                         <div class="score-metrics" id="scoreMetrics">
                             <!-- Score metrics will be dynamically inserted here -->
-                            <div class="score-metric">
-                                <div class="metric-header">
-                                    <span class="metric-name">Clarity & Intent</span>
-                                    <span class="metric-score">0/20</span>
-                                </div>
-                                <div class="metric-bar">
-                                    <div class="metric-fill" style="width: 0%"></div>
-                                </div>
-                                <p class="metric-feedback">How clear and understandable your prompt is</p>
-                            </div>
                         </div>
                     </div>
                     
@@ -743,10 +752,6 @@
                         <h4><i class="fas fa-lightbulb"></i> Improvement Suggestions</h4>
                         <div class="improvements-list" id="improvementsList">
                             <!-- Improvement suggestions will appear here -->
-                            <div class="improvement-item">
-                                <i class="fas fa-check-circle"></i>
-                                <span>Generate a prompt first to see improvement suggestions</span>
-                            </div>
                         </div>
                     </div>
                 </div>
