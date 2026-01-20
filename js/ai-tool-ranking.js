@@ -465,6 +465,7 @@ function reorderToolButtons(rankedTools, taskType, explanation = '') {
 }
 
 // 5. ENHANCED EXPLANATION WITH USER PREFERENCE
+// 5. ENHANCED EXPLANATION WITH USER PREFERENCE
 function showRankingExplanation(taskAnalysis, topToolId, rankedTools, explanation = '') {
   // Remove previous explanation
   const prevExplanation = document.querySelector('.ranking-explanation');
@@ -506,21 +507,73 @@ function showRankingExplanation(taskAnalysis, topToolId, rankedTools, explanatio
     '</div>';
 
   // ✅ INSERT DIRECTLY AFTER GENERATED PROMPT
-const slot = document.getElementById('rankingExplanationSlot');
-if (slot) {
-  slot.innerHTML = '';
-  slot.appendChild(explanationEl);
-}
+  const slot = document.getElementById('rankingExplanationSlot');
+  if (slot) {
+    slot.innerHTML = '';
+    slot.appendChild(explanationEl);
+  }
 
-
-  // ✅ METRICS BUTTON (RESTORED)
+  // ✅ METRICS BUTTON WITH PROPER STATE MANAGEMENT
   let metricsBtn = explanationEl.querySelector('.ranking-metrics-btn');
   if (!metricsBtn) {
     metricsBtn = document.createElement('button');
     metricsBtn.className = 'ranking-metrics-btn';
     metricsBtn.textContent = '📊';
     metricsBtn.title = 'Show ranking metrics';
-    metricsBtn.onclick = showMetricsDashboard;
+    metricsBtn.style.cssText = 'background: none; border: none; cursor: pointer; font-size: 14px; margin-left: 8px; padding: 2px 6px; border-radius: 4px;';
+    
+    // Add hover effect
+    metricsBtn.addEventListener('mouseenter', () => {
+      if (!metricsBtn.disabled) {
+        metricsBtn.style.background = 'rgba(148, 163, 184, 0.2)';
+      }
+    });
+    metricsBtn.addEventListener('mouseleave', () => {
+      if (!metricsBtn.disabled) {
+        metricsBtn.style.background = 'none';
+      }
+    });
+    
+    metricsBtn.onclick = function() {
+      // Disable button immediately
+      metricsBtn.disabled = true;
+      metricsBtn.style.opacity = '0.5';
+      metricsBtn.style.cursor = 'not-allowed';
+      metricsBtn.title = 'Metrics dashboard is open';
+      
+      // Show the dashboard
+      const dashboard = showMetricsDashboard();
+      
+      // When dashboard closes, re-enable the button
+      // We'll check periodically if the dashboard is still in the DOM
+      function checkDashboard() {
+        const existingDashboard = document.querySelector('.ranking-metrics-dashboard');
+        if (!existingDashboard) {
+          // Dashboard was removed, re-enable button
+          metricsBtn.disabled = false;
+          metricsBtn.style.opacity = '1';
+          metricsBtn.style.cursor = 'pointer';
+          metricsBtn.style.background = 'none';
+          metricsBtn.title = 'Show ranking metrics';
+          clearInterval(checkInterval);
+        }
+      }
+      
+      // Check every 500ms if dashboard is still present
+      const checkInterval = setInterval(checkDashboard, 500);
+      
+      // Also add a one-time check after 10 seconds (safety net)
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        if (metricsBtn.disabled) {
+          metricsBtn.disabled = false;
+          metricsBtn.style.opacity = '1';
+          metricsBtn.style.cursor = 'pointer';
+          metricsBtn.title = 'Show ranking metrics';
+        }
+      }, 10000);
+    };
+    
     explanationEl
       .querySelector('.ranking-explanation-box')
       .appendChild(metricsBtn);
@@ -612,25 +665,26 @@ const debouncedRanking = (function() {
 
 // 8. SAFE METRICS DASHBOARD (OPTIONAL)
 // Comment this function out if you don't want metrics
+// 8. SAFE METRICS DASHBOARD (OPTIONAL)
 function showMetricsDashboard() {
   const stats = UserPreferenceManager.getStats();
   const dashboard = document.createElement('div');
+  dashboard.className = 'ranking-metrics-dashboard'; // Add this class
   dashboard.style.cssText = `
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: #0f172a;
-  color: #e5e7eb;
-  border: 1px solid #334155;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-  z-index: 1000;
-  font-family: system-ui;
-  font-size: 12px;
-  max-width: 300px;
-`;
-
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #0f172a;
+    color: #e5e7eb;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+    z-index: 1000;
+    font-family: system-ui;
+    font-size: 12px;
+    max-width: 300px;
+  `;
   
   const mostCommonTasks = Object.entries(stats.taskTypeDistribution || {})
     .sort((a,b) => b[1] - a[1])
@@ -661,6 +715,7 @@ function showMetricsDashboard() {
     '<button onclick="this.parentElement.remove()" style="margin-top: 8px; background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer;">Close</button>';
   
   document.body.appendChild(dashboard);
+  return dashboard; // Return the dashboard element
 }
 
 // 9. SAFE INITIALIZATION WITH OPTIONAL METRICS
