@@ -1300,43 +1300,36 @@ This structured approach ensures you get detailed, actionable responses tailored
     // SCORE MODAL METHODS - UPDATED WITH PROPER CLOSE HANDLERS
     // ======================
 
-    openScoreModal() {
-        console.log('Opening score modal...');
-        
-        // ✅ FIX: Check if modal is already open
-        const modal = this.elements.scoreModal;
-        if (modal && modal.classList.contains('active')) {
-            console.log('⚠️ Score modal already open — ignoring click');
-            return;
-        }
-        
-        if (modal) {
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            
-            // If we have a last score, display it
-            if (this.state.lastPromptScore) {
-                this.renderScoreInModal(this.state.lastPromptScore);
-            } else {
-                // Otherwise, score the current prompt
-                this.scoreCurrentPromptForModal();
-            }
-            
-            // Add ESC listener
-            this.removeScoreModalEscListener();
-            const closeOnEsc = (e) => {
-                if (e.key === 'Escape') {
-                    this.closeScoreModal();
-                }
-            };
-            document.addEventListener('keydown', closeOnEsc);
-            this._scoreModalEscHandler = closeOnEsc;
-            
-        } else {
-            console.error('Score modal not found!');
-            this.showNotification('Score modal not available. Please refresh the page.', 'error');
-        }
+openScoreModal() {
+    console.log('Opening score modal...');
+    
+    const modal = this.elements.scoreModal;
+    if (!modal) return;
+
+    // ✅ SIMPLE FIX: disable button immediately
+    if (this.elements.metricsBtn) {
+        this.elements.metricsBtn.disabled = true;
     }
+
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+
+    if (this.state.lastPromptScore) {
+        this.renderScoreInModal(this.state.lastPromptScore);
+    } else {
+        this.scoreCurrentPromptForModal();
+    }
+
+    this.removeScoreModalEscListener();
+    const closeOnEsc = (e) => {
+        if (e.key === 'Escape') {
+            this.closeScoreModal();
+        }
+    };
+    document.addEventListener('keydown', closeOnEsc);
+    this._scoreModalEscHandler = closeOnEsc;
+}
+
 
     // ✅ FIXED: Bind score modal close buttons
     bindScoreModalCloseButtons() {
@@ -1397,19 +1390,24 @@ This structured approach ensures you get detailed, actionable responses tailored
         console.log('✅ Score modal close buttons bound');
     }
 
-    closeScoreModal() {
-        console.log('Closing score modal...');
-        const modal = this.elements.scoreModal;
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-            
-            // Remove ESC listener
-            this.removeScoreModalEscListener();
-            
-            console.log('✅ Score modal closed');
-        }
+  closeScoreModal() {
+    console.log('Closing score modal...');
+    const modal = this.elements.scoreModal;
+
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
     }
+
+    // ✅ SIMPLE FIX: re-enable button
+    if (this.elements.metricsBtn) {
+        this.elements.metricsBtn.disabled = false;
+    }
+
+    this.removeScoreModalEscListener();
+    console.log('✅ Score modal closed');
+}
+
 
     // Helper method to remove ESC listener
     removeScoreModalEscListener() {
