@@ -971,11 +971,25 @@ select:focus,
 #scorePromptBtn {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     color: white;
+
+    /* FIX: pill-style button */
+    width: auto !important;
+    min-width: 36px;
+    padding: 0 12px;
+    border-radius: 18px;
+    white-space: nowrap;
 }
 
 #scorePromptBtn:hover {
     background: linear-gradient(135deg, #2563eb, #7c3aed);
 }
+
+/* FIX: Keep action buttons inside Card 2 */
+.output-actions {
+    max-width: calc(100% - 24px);
+    overflow: hidden;
+}
+
 
 /* AI Platforms Sidebar */
 .platforms-sidebar {
