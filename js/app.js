@@ -1387,11 +1387,15 @@ This structured approach ensures you get detailed, actionable responses tailored
         // Click outside to close (with fresh reference)
         if (scoreModal) {
             // Remove existing listener first
-            const newScoreModal = scoreModal.cloneNode(false);
-            while (scoreModal.firstChild) {
-                newScoreModal.appendChild(scoreModal.firstChild);
-            }
-            scoreModal.parentNode.replaceChild(newScoreModal, scoreModal);
+          if (scoreModal && !scoreModal.dataset.bound) {
+    scoreModal.addEventListener('click', (e) => {
+        if (e.target === scoreModal) {
+            this.closeScoreModal();
+        }
+    });
+    scoreModal.dataset.bound = 'true';
+}
+
             
             newScoreModal.addEventListener('click', (e) => {
                 if (e.target === newScoreModal) {
