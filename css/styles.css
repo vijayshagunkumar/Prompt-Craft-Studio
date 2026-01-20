@@ -3072,3 +3072,177 @@ input:checked + .toggle-slider:before {
     background: linear-gradient(135deg, #2563eb, #7c3aed);
     transform: translateY(-2px);
 }
+/* ============================================
+   GENERATION SOURCE INDICATOR STYLES
+   ============================================ */
+
+/* Generation Source Indicator */
+.generation-source-indicator {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    z-index: 100;
+    animation: slideInRight 0.3s ease-out;
+    pointer-events: none;
+}
+
+.source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    pointer-events: auto;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.source-badge.ai {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.source-badge.local {
+    background: linear-gradient(135deg, rgba(245, 87, 108, 0.9) 0%, rgba(240, 147, 251, 0.9) 100%);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.source-badge i {
+    font-size: 12px;
+}
+
+.source-note {
+    font-size: 11px;
+    opacity: 0.9;
+    margin-left: 4px;
+    font-style: italic;
+}
+
+/* Animation for indicator */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.generation-source-indicator.fade-out {
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+}
+
+/* Make sure output section has relative positioning */
+.output-section {
+    position: relative;
+    min-height: 200px;
+}
+
+/* For light theme support */
+[data-theme="light"] .source-badge {
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+[data-theme="light"] .source-badge.ai {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+[data-theme="light"] .source-badge.local {
+    background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
+}
+
+/* Tooltip styling for source badges */
+.source-badge {
+    position: relative;
+    cursor: help;
+}
+
+.source-badge::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.85);
+    color: white;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+    z-index: 1000;
+    margin-bottom: 8px;
+}
+
+.source-badge:hover::after {
+    opacity: 1;
+}
+
+.source-badge::before {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0,0,0,0.85);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    margin-bottom: -2px;
+}
+
+.source-badge:hover::before {
+    opacity: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .generation-source-indicator {
+        top: 5px;
+        right: 10px;
+    }
+    
+    .source-badge {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+    
+    .source-note {
+        display: none; /* Hide note on mobile for simplicity */
+    }
+}
+
+/* Optional: Add pulsing animation for AI generation */
+@keyframes pulse-glow {
+    0% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0.4); }
+    70% { box-shadow: 0 0 0 6px rgba(102, 126, 234, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(102, 126, 234, 0); }
+}
+
+.source-badge.ai:not(.local) {
+    animation: pulse-glow 2s infinite;
+}
+
+/* Optional: Add shake animation for local generation */
+@keyframes gentle-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+.source-badge.local {
+    animation: gentle-shake 0.5s ease;
+}
