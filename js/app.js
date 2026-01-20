@@ -1338,74 +1338,36 @@ This structured approach ensures you get detailed, actionable responses tailored
     }
 
     // ✅ NEW METHOD: Bind score modal close buttons
-    bindScoreModalCloseButtons() {
-        console.log('Binding score modal close buttons...');
-        
-        // Get fresh references to the buttons
-        const closeScoreBtn = document.getElementById('closeScoreBtn');
-        const closeScoreFooterBtn = document.getElementById('closeScoreFooterBtn');
-        const applyImprovementsBtn = document.getElementById('applyImprovementsBtn');
-        const scoreModal = document.getElementById('scoreModal');
-        
-        // Remove any existing event listeners first
-        if (closeScoreBtn) {
-            const newCloseBtn = closeScoreBtn.cloneNode(true);
-            closeScoreBtn.parentNode.replaceChild(newCloseBtn, closeScoreBtn);
-            newCloseBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
+bindScoreModalCloseButtons() {
+    const scoreModal = this.elements.scoreModal;
+    if (!scoreModal) return;
+
+    // 🔒 Bind backdrop click ONCE
+    if (!scoreModal.dataset.backdropBound) {
+        scoreModal.addEventListener('click', (e) => {
+            if (e.target === scoreModal) {
                 this.closeScoreModal();
-            });
-        }
-        
-        if (closeScoreFooterBtn) {
-            const newFooterBtn = closeScoreFooterBtn.cloneNode(true);
-            closeScoreFooterBtn.parentNode.replaceChild(newFooterBtn, closeScoreFooterBtn);
-            newFooterBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.closeScoreModal();
-            });
-        }
-        
-        if (applyImprovementsBtn) {
-            // Update the Apply Improvements button
-            applyImprovementsBtn.disabled = true;
-            applyImprovementsBtn.textContent = 'Coming Soon';
-            applyImprovementsBtn.title = 'Improvement suggestions will be available in a future update';
-            applyImprovementsBtn.style.opacity = '0.7';
-            applyImprovementsBtn.style.cursor = 'not-allowed';
-            
-            // Add a click handler that shows a helpful message
-            applyImprovementsBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.showNotification('🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.', 'info', 4000);
-            });
-        }
-        
-        // Click outside to close (with fresh reference)
-        if (scoreModal) {
-            // Remove existing listener first
-          if (scoreModal && !scoreModal.dataset.bound) {
-    scoreModal.addEventListener('click', (e) => {
-        if (e.target === scoreModal) {
+            }
+        });
+        scoreModal.dataset.backdropBound = "true";
+    }
+
+    // 🔒 Bind close buttons ONCE
+    const closeButtons = scoreModal.querySelectorAll(
+        '.modal-close, .score-close-btn, [data-action="close"]'
+    );
+
+    closeButtons.forEach(btn => {
+        if (btn.dataset.bound) return;
+
+        btn.addEventListener('click', () => {
             this.closeScoreModal();
-        }
+        });
+
+        btn.dataset.bound = "true";
     });
-    scoreModal.dataset.bound = 'true';
 }
 
-            
-            newScoreModal.addEventListener('click', (e) => {
-                if (e.target === newScoreModal) {
-                    this.closeScoreModal();
-                }
-            });
-        }
-        
-        console.log('✅ Score modal close buttons bound');
-    }
 
     closeScoreModal() {
         console.log('Closing score modal...');
