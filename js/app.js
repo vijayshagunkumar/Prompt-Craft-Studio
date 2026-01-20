@@ -1,6 +1,6 @@
 // ============================================
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
-// Version: 2.0.6 - FIXED ALL CRITICAL ISSUES
+// Version: 2.0.7 - LOCAL GENERATION INDICATOR
 // ============================================
 
 // MODEL VALIDATION FUNCTIONS
@@ -478,7 +478,7 @@ class PromptCraftApp {
             // Load history
             this.loadHistory();
             
-            // ✅ FIX 5: Remove duplicate backend test call (only keep one)
+            // Update backend status
             this.updateBackendStatus();
             
             // Update model display
@@ -510,6 +510,58 @@ class PromptCraftApp {
         }
     }
 
+    // ✅ ADD THIS METHOD: Show generation source indicator
+    showGenerationSource(source, model = null, details = {}) {
+        console.log(`🔧 Generation source: ${source}, Model: ${model}`);
+        
+        // Remove any existing indicator first
+        this.hideGenerationSource();
+        
+        // Create new indicator
+        const sourceIndicator = document.createElement('div');
+        sourceIndicator.id = 'generationSourceIndicator';
+        sourceIndicator.className = 'generation-source-indicator';
+        
+        const sourceText = source === 'local' 
+            ? '🔄 Generated locally' 
+            : `⚡ Generated with ${this.getModelDisplayName(model) || 'AI'}`;
+        
+        const tooltip = source === 'local' 
+            ? 'AI backend unavailable. Using local generation with basic structure.'
+            : `Generated using ${this.getModelDisplayName(model)} AI model`;
+        
+        sourceIndicator.innerHTML = `
+            <div class="source-badge ${source}" title="${tooltip}">
+                <i class="fas fa-${source === 'local' ? 'microchip' : 'brain'}"></i>
+                <span>${sourceText}</span>
+                ${source === 'local' ? '<span class="source-note">(AI offline)</span>' : ''}
+            </div>
+        `;
+        
+        // Add to output section
+        if (this.elements.outputSection) {
+            this.elements.outputSection.appendChild(sourceIndicator);
+        }
+        
+        // Auto-hide after 6 seconds
+        setTimeout(() => {
+            this.hideGenerationSource();
+        }, 6000);
+    }
+
+    // ✅ ADD THIS METHOD: Hide generation source indicator
+    hideGenerationSource() {
+        const sourceIndicator = document.getElementById('generationSourceIndicator');
+        if (sourceIndicator) {
+            sourceIndicator.classList.add('fade-out');
+            setTimeout(() => {
+                if (sourceIndicator && sourceIndicator.parentNode) {
+                    sourceIndicator.remove();
+                }
+            }, 300);
+        }
+    }
+
     // ✅ ADD THIS METHOD RIGHT HERE:
     async updateBackendStatus() {
         const statusElement = document.getElementById('backendStatusIndicator');
@@ -528,7 +580,6 @@ class PromptCraftApp {
                 statusElement.className = 'backend-status online';
                 statusElement.innerHTML = '<span></span><span>Backend: Online</span>';
                 
-                // ✅ FIX 2: Only show notification on failure
                 // Hide after showing online status
                 setTimeout(() => {
                     statusElement.style.opacity = '0';
@@ -540,7 +591,7 @@ class PromptCraftApp {
                 statusElement.className = 'backend-status offline';
                 statusElement.innerHTML = '<span></span><span>Backend: Offline (using local mode)</span>';
                 
-                // ✅ FIX 2: Show notification only on failure
+                // Show notification only on failure
                 this.showNotification('Backend offline, using local mode', 'warning');
             }
         } catch (error) {
@@ -955,6 +1006,13 @@ class PromptCraftApp {
             });
             
             if (result.success && result.prompt) {
+                // Show generation source indicator
+                const source = result.fallbackUsed ? 'local' : 'ai';
+                this.showGenerationSource(source, result.model, {
+                    provider: result.provider,
+                    fallback: result.fallbackUsed
+                });
+                
                 // Clear score immediately before setting new text
                 this.state.lastPromptScore = null;
 
@@ -1005,7 +1063,8 @@ class PromptCraftApp {
                 
                 const modelDisplayName = this.getModelDisplayName(result.model);
                 const fallbackNote = result.fallbackUsed ? ' (using fallback)' : '';
-                this.showNotification(`Prompt generated successfully with ${modelDisplayName}${fallbackNote}!`, 'success');
+                this.showNotification(`Prompt generated successfully with ${modelDisplayName}${fallbackNote}!`, 
+                    result.fallbackUsed ? 'warning' : 'success');
                 
                 console.log(`=== GENERATION SUCCESSFUL ===`);
                 console.log(`Final prompt length: ${result.prompt.length} chars`);
@@ -1100,6 +1159,11 @@ class PromptCraftApp {
                 });
                 
                 if (fallbackResult.success && fallbackResult.prompt && fallbackResult.prompt.length > 50) {
+                    this.showGenerationSource('ai', fallbackModel, {
+                        provider: fallbackResult.provider,
+                        fallback: false
+                    });
+                    
                     this.state.lastPromptScore = null;
                     
                     const success = this.setOutputText(fallbackResult.prompt);
@@ -1157,7 +1221,11 @@ class PromptCraftApp {
 
     useLocalGeneration(inputText) {
         try {
-            this.showNotification('Using local generation...', 'info');
+            this.showGenerationSource('local', 'local-fallback', {
+                reason: 'AI backend unavailable',
+                fallback: true
+            });
+            this.showNotification('🔧 Using local generation (AI backend offline)', 'warning');
             
             this.state.lastPromptScore = null;
             
@@ -1204,7 +1272,6 @@ This structured approach ensures you get detailed, actionable responses tailored
             this.updateButtonStates();
             this.saveToHistory(inputText, localPrompt, 'local');
             
-            this.showNotification('Generated locally', 'warning');
             console.log('Local generation successful');
             
         } catch (error) {
@@ -1300,36 +1367,43 @@ This structured approach ensures you get detailed, actionable responses tailored
     // SCORE MODAL METHODS - UPDATED WITH PROPER CLOSE HANDLERS
     // ======================
 
-openScoreModal() {
-    console.log('Opening score modal...');
-    
-    const modal = this.elements.scoreModal;
-    if (!modal) return;
-
-    // ✅ SIMPLE FIX: disable button immediately
-    if (this.elements.metricsBtn) {
-        this.elements.metricsBtn.disabled = true;
-    }
-
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-
-    if (this.state.lastPromptScore) {
-        this.renderScoreInModal(this.state.lastPromptScore);
-    } else {
-        this.scoreCurrentPromptForModal();
-    }
-
-    this.removeScoreModalEscListener();
-    const closeOnEsc = (e) => {
-        if (e.key === 'Escape') {
-            this.closeScoreModal();
+    openScoreModal() {
+        console.log('Opening score modal...');
+        
+        // ✅ FIX: Check if modal is already open
+        const modal = this.elements.scoreModal;
+        if (modal && modal.classList.contains('active')) {
+            console.log('⚠️ Score modal already open — ignoring click');
+            return;
         }
-    };
-    document.addEventListener('keydown', closeOnEsc);
-    this._scoreModalEscHandler = closeOnEsc;
-}
-
+        
+        if (modal) {
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+            
+            // If we have a last score, display it
+            if (this.state.lastPromptScore) {
+                this.renderScoreInModal(this.state.lastPromptScore);
+            } else {
+                // Otherwise, score the current prompt
+                this.scoreCurrentPromptForModal();
+            }
+            
+            // Add ESC listener
+            this.removeScoreModalEscListener();
+            const closeOnEsc = (e) => {
+                if (e.key === 'Escape') {
+                    this.closeScoreModal();
+                }
+            };
+            document.addEventListener('keydown', closeOnEsc);
+            this._scoreModalEscHandler = closeOnEsc;
+            
+        } else {
+            console.error('Score modal not found!');
+            this.showNotification('Score modal not available. Please refresh the page.', 'error');
+        }
+    }
 
     // ✅ FIXED: Bind score modal close buttons
     bindScoreModalCloseButtons() {
@@ -1390,24 +1464,19 @@ openScoreModal() {
         console.log('✅ Score modal close buttons bound');
     }
 
-  closeScoreModal() {
-    console.log('Closing score modal...');
-    const modal = this.elements.scoreModal;
-
-    if (modal) {
-        modal.classList.remove('active');
-        document.body.style.overflow = '';
+    closeScoreModal() {
+        console.log('Closing score modal...');
+        const modal = this.elements.scoreModal;
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Remove ESC listener
+            this.removeScoreModalEscListener();
+            
+            console.log('✅ Score modal closed');
+        }
     }
-
-    // ✅ SIMPLE FIX: re-enable button
-    if (this.elements.metricsBtn) {
-        this.elements.metricsBtn.disabled = false;
-    }
-
-    this.removeScoreModalEscListener();
-    console.log('✅ Score modal closed');
-}
-
 
     // Helper method to remove ESC listener
     removeScoreModalEscListener() {
