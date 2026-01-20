@@ -1,6 +1,6 @@
 // ============================================
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
-// Version: 2.0.4 - SCORE MODAL FIXES
+// Version: 2.0.5 - FIXED SCORE MODAL MULTIPLE CLICKS
 // ============================================
 
 // MODEL VALIDATION FUNCTIONS
@@ -287,8 +287,8 @@ class PromptCraftApp {
         // Score mutex flag to prevent double API calls
         this._scoreInFlight = false;
         
-        // Score button click cooldown flag - ADDED FOR FIX
-        this._scoreButtonCooldown = false;
+        // ✅ FIXED: Remove score button cooldown flag
+        // this._scoreButtonCooldown = false; // REMOVED
         
         // About modal ESC handler
         this._aboutModalEscHandler = null;
@@ -458,6 +458,9 @@ class PromptCraftApp {
             // Load settings
             this.loadSettings();
             
+            // ✅ FIX: Bind score button ONCE here
+            this.bindScoreButtonOnce();
+            
             // Set up event listeners
             this.setupEventListeners();
             
@@ -483,6 +486,25 @@ class PromptCraftApp {
         } catch (error) {
             console.error('Failed to initialize PromptCraft:', error);
             this.showNotification('Failed to initialize application. Please refresh the page.', 'error');
+        }
+    }
+
+    // ✅ NEW METHOD: Bind score button ONCE
+    bindScoreButtonOnce() {
+        const scoreBtn = document.getElementById('scorePromptBtn');
+        if (scoreBtn && !scoreBtn.dataset.bound) {
+            console.log('📊 Binding score button (once)...');
+            
+            // Use onclick to replace any existing handlers
+            scoreBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📊 Score button clicked (single handler)');
+                this.openScoreModal();
+            };
+            
+            scoreBtn.dataset.bound = "true";
+            console.log('✅ Score button bound once');
         }
     }
 
@@ -603,32 +625,8 @@ class PromptCraftApp {
             this.elements.maximizeOutputBtn.addEventListener('click', () => this.openFullScreenEditor('output'));
         }
         
-        // Score button - FIXED: Use event delegation to prevent multiple bindings
-        if (this.elements.metricsBtn) {
-            // Remove any existing listeners first
-            const newMetricsBtn = this.elements.metricsBtn.cloneNode(true);
-            this.elements.metricsBtn.parentNode.replaceChild(newMetricsBtn, this.elements.metricsBtn);
-            this.elements.metricsBtn = newMetricsBtn;
-            
-            // Add single click handler
-            this.elements.metricsBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                
-                // Prevent rapid multiple clicks
-                if (this._scoreButtonCooldown) return;
-                
-                this._scoreButtonCooldown = true;
-                setTimeout(() => {
-                    this._scoreButtonCooldown = false;
-                }, 500);
-                
-                console.log('📊 Score button clicked (single handler)');
-                this.openScoreModal();
-            });
-        }
-        
-        // ✅ FIXED: Remove score modal close button bindings here - they'll be bound when modal opens
+        // ✅ FIXED: Score button binding moved to bindScoreButtonOnce()
+        // This prevents multiple event listeners
         
         // Inspiration
         if (this.elements.needInspirationBtn) {
@@ -1299,10 +1297,10 @@ This structured approach ensures you get detailed, actionable responses tailored
     openScoreModal() {
         console.log('Opening score modal...');
         
-        // Check if modal is already open
+        // ✅ FIX: Check if modal is already open
         const modal = document.getElementById('scoreModal');
         if (modal && modal.classList.contains('active')) {
-            console.log('⚠️ Score modal already open');
+            console.log('⚠️ Score modal already open — ignoring click');
             return;
         }
         
@@ -1679,14 +1677,19 @@ bindScoreModalCloseButtons() {
             applyBtn.style.cursor = 'not-allowed';
             
             // Remove any existing click handler and add a new one
-            const newApplyBtn = applyBtn.cloneNode(true);
-            applyBtn.parentNode.replaceChild(newApplyBtn, applyBtn);
-            newApplyBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                this.showNotification('🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.', 'info', 4000);
-            });
-        }
+if (!applyBtn.dataset.bound) {
+    applyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.showNotification(
+            '🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.',
+            'info',
+            4000
+        );
+    });
+    applyBtn.dataset.bound = "true";
+}
+
         
         console.log('✅ Score rendered in modal');
     }
