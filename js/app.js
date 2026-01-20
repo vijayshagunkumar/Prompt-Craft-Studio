@@ -1,6 +1,6 @@
 // ============================================
 // PROMPTCRAFT PRO - MAIN APPLICATION CONTROLLER
-// Version: 2.0.5 - FIXED SCORE MODAL MULTIPLE CLICKS
+// Version: 2.0.6 - FIXED ALL CRITICAL ISSUES
 // ============================================
 
 // MODEL VALIDATION FUNCTIONS
@@ -85,7 +85,9 @@ function onStrictModeToggle(isStrict) {
   if (!validation.valid && validation.correctedModel) {
     // Auto-correct and show toast
     document.getElementById('model-selector').value = validation.correctedModel;
-    window.promptCraftApp?.showNotification(validation.reason, 'warning');
+    if (window.promptCraftApp && window.promptCraftApp.showNotification) {
+      window.promptCraftApp.showNotification(validation.reason, 'warning');
+    }
   }
 }
 
@@ -93,7 +95,7 @@ function onStrictModeToggle(isStrict) {
 // SCORING API HELPER (NEW - DIRECT WORKER CALL)
 // ======================
 async function scorePromptViaWorker(prompt) {
-    const workerUrl = window.AppConfig?.WORKER_CONFIG?.workerUrl || 
+    const workerUrl = window.AppConfig && window.AppConfig.WORKER_CONFIG && window.AppConfig.WORKER_CONFIG.workerUrl || 
                      'https://promptcraft-api.vijay-shagunkumar.workers.dev';
     
     // Remove trailing slash to prevent double slashes
@@ -287,9 +289,6 @@ class PromptCraftApp {
         // Score mutex flag to prevent double API calls
         this._scoreInFlight = false;
         
-        // ✅ FIXED: Remove score button cooldown flag
-        // this._scoreButtonCooldown = false; // REMOVED
-        
         // About modal ESC handler
         this._aboutModalEscHandler = null;
         
@@ -325,8 +324,8 @@ class PromptCraftApp {
         
         this.platformIntegrations = new PlatformIntegrations();
         this.promptGenerator = new PromptGenerator({
-            workerUrl: this.config.WORKER_CONFIG?.workerUrl,
-            defaultModel: this.config.WORKER_CONFIG?.defaultModel,
+            workerUrl: this.config.WORKER_CONFIG && this.config.WORKER_CONFIG.workerUrl,
+            defaultModel: this.config.WORKER_CONFIG && this.config.WORKER_CONFIG.defaultModel,
             timeout: 30000,
             fallbackToLocal: true,
             enableDebug: true,
@@ -460,6 +459,9 @@ class PromptCraftApp {
             
             // ✅ FIX: Bind score button ONCE here
             this.bindScoreButtonOnce();
+            
+            // ✅ FIX: Bind score modal close buttons ONCE here
+            this.bindScoreModalCloseButtons();
             
             // Set up event listeners
             this.setupEventListeners();
@@ -946,7 +948,7 @@ class PromptCraftApp {
             
             console.log('Generation result:', {
                 success: result.success,
-                promptLength: result.prompt?.length || 0,
+                promptLength: result.prompt && result.prompt.length || 0,
                 fallbackUsed: result.fallbackUsed || false,
                 model: result.model,
                 provider: result.provider
@@ -980,10 +982,12 @@ class PromptCraftApp {
                 }
                 // Auto-scroll to generated prompt
                 setTimeout(() => {
-                    this.elements.outputSection?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
+                    if (this.elements.outputSection) {
+                        this.elements.outputSection.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }
                 }, 150);
                 
                 if (this.elements.platformsGrid && this.elements.platformsEmptyState) {
@@ -1237,7 +1241,9 @@ This structured approach ensures you get detailed, actionable responses tailored
         if (this.state.promptModified && !force) return;
         
         const outputArea = document.getElementById('outputArea');
-        const prompt = outputArea?.textContent?.trim();
+        const prompt = outputArea && outputArea.textContent
+            ? outputArea.textContent.trim()
+            : '';
         
         if (!prompt || prompt.length < 50) return;
         
@@ -1298,7 +1304,7 @@ This structured approach ensures you get detailed, actionable responses tailored
         console.log('Opening score modal...');
         
         // ✅ FIX: Check if modal is already open
-        const modal = document.getElementById('scoreModal');
+        const modal = this.elements.scoreModal;
         if (modal && modal.classList.contains('active')) {
             console.log('⚠️ Score modal already open — ignoring click');
             return;
@@ -1326,79 +1332,74 @@ This structured approach ensures you get detailed, actionable responses tailored
             document.addEventListener('keydown', closeOnEsc);
             this._scoreModalEscHandler = closeOnEsc;
             
-            // ✅ FIX: Re-bind close buttons after modal is opened
-            this.bindScoreModalCloseButtons();
-            
         } else {
             console.error('Score modal not found!');
             this.showNotification('Score modal not available. Please refresh the page.', 'error');
         }
     }
 
-    // ✅ NEW METHOD: Bind score modal close buttons
-bindScoreModalCloseButtons() {
-    const scoreModal = this.elements.scoreModal;
-    if (!scoreModal) return;
+    // ✅ FIXED: Bind score modal close buttons
+    bindScoreModalCloseButtons() {
+        const scoreModal = this.elements.scoreModal;
+        if (!scoreModal) return;
 
-    console.log('Binding score modal close buttons...');
+        console.log('Binding score modal close buttons...');
 
-    // 🔒 Bind backdrop click ONCE
-    if (!scoreModal.dataset.backdropBound) {
-        scoreModal.addEventListener('click', (e) => {
-            if (e.target === scoreModal) {
+        // 🔒 Bind backdrop click ONCE
+        if (!scoreModal.dataset.backdropBound) {
+            scoreModal.addEventListener('click', (e) => {
+                if (e.target === scoreModal) {
+                    this.closeScoreModal();
+                }
+            });
+            scoreModal.dataset.backdropBound = "true";
+        }
+
+        // 🔒 Bind all close buttons ONCE
+        const closeButtons = scoreModal.querySelectorAll(
+            '#closeScoreBtn, #closeScoreFooterBtn, .modal-close, [data-action="close"]'
+        );
+
+        closeButtons.forEach(btn => {
+            if (btn.dataset.bound) return;
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 this.closeScoreModal();
-            }
+            });
+
+            btn.dataset.bound = "true";
         });
-        scoreModal.dataset.backdropBound = "true";
+
+        // Apply Improvements – disabled
+        const applyBtn = document.getElementById('applyImprovementsBtn');
+        if (applyBtn && !applyBtn.dataset.bound) {
+            applyBtn.disabled = true;
+            applyBtn.textContent = 'Coming Soon';
+            applyBtn.title = 'Improvement suggestions will be available in a future update';
+            applyBtn.style.opacity = '0.7';
+            applyBtn.style.cursor = 'not-allowed';
+
+            applyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showNotification(
+                    '🔧 Auto-apply feature coming soon!',
+                    'info',
+                    4000
+                );
+            });
+
+            applyBtn.dataset.bound = "true";
+        }
+
+        console.log('✅ Score modal close buttons bound');
     }
-
-    // 🔒 Bind all close buttons ONCE
-    const closeButtons = scoreModal.querySelectorAll(
-        '#closeScoreBtn, #closeScoreFooterBtn, .modal-close, [data-action="close"]'
-    );
-
-    closeButtons.forEach(btn => {
-        if (btn.dataset.bound) return;
-
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            this.closeScoreModal();
-        });
-
-        btn.dataset.bound = "true";
-    });
-
-    // Apply Improvements – disabled (bind once)
-    const applyBtn = document.getElementById('applyImprovementsBtn');
-    if (applyBtn && !applyBtn.dataset.bound) {
-        applyBtn.disabled = true;
-        applyBtn.textContent = 'Coming Soon';
-        applyBtn.title = 'Improvement suggestions will be available in a future update';
-        applyBtn.style.opacity = '0.7';
-        applyBtn.style.cursor = 'not-allowed';
-
-        applyBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            this.showNotification(
-                '🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.',
-                'info',
-                4000
-            );
-        });
-
-        applyBtn.dataset.bound = "true";
-    }
-}
-    console.log('✅ Score modal close buttons bound');
-}
-
-
 
     closeScoreModal() {
         console.log('Closing score modal...');
-        const modal = document.getElementById('scoreModal');
+        const modal = this.elements.scoreModal;
         if (modal) {
             modal.classList.remove('active');
             document.body.style.overflow = '';
@@ -1618,7 +1619,7 @@ bindScoreModalCloseButtons() {
             improvementsList.innerHTML = '';
             
             // ✅ FIX: Show actual improvements if available, otherwise show default
-            if (scoreData.originalJavaData?.improvements?.length > 0) {
+            if (scoreData.originalJavaData && scoreData.originalJavaData.improvements && scoreData.originalJavaData.improvements.length > 0) {
                 scoreData.originalJavaData.improvements.forEach(improvement => {
                     const improvementElement = document.createElement('div');
                     improvementElement.className = 'improvement-item';
@@ -1667,30 +1668,8 @@ bindScoreModalCloseButtons() {
             }
         }
         
-        // ✅ FIX: Update apply improvements button state
-        const applyBtn = document.getElementById('applyImprovementsBtn');
-        if (applyBtn) {
-            applyBtn.disabled = true;
-            applyBtn.textContent = 'Coming Soon';
-            applyBtn.title = 'Automatic improvement application coming in a future update';
-            applyBtn.style.opacity = '0.7';
-            applyBtn.style.cursor = 'not-allowed';
-            
-            // Remove any existing click handler and add a new one
-if (!applyBtn.dataset.bound) {
-    applyBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        this.showNotification(
-            '🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.',
-            'info',
-            4000
-        );
-    });
-    applyBtn.dataset.bound = "true";
-}
-
-        
+        // ✅ FIX: Remove duplicate Apply Improvements button binding
+        // The button is already bound in bindScoreModalCloseButtons()
         console.log('✅ Score rendered in modal');
     }
 
@@ -1709,7 +1688,7 @@ if (!applyBtn.dataset.bound) {
     openAboutModal() {
         console.log('Opening about modal...');
         
-        const modal = document.getElementById('aboutModal');
+        const modal = this.elements.aboutModal;
         if (modal) {
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
@@ -1732,7 +1711,7 @@ if (!applyBtn.dataset.bound) {
     }
 
     closeAboutModal() {
-        const modal = document.getElementById('aboutModal');
+        const modal = this.elements.aboutModal;
         if (modal) {
             modal.classList.remove('active');
             document.body.style.overflow = '';
@@ -2926,7 +2905,7 @@ Keep the summary concise yet comprehensive.`,
     }
 
     handleKeyboardShortcuts(e) {
-        const tag = e.target.tagName?.toLowerCase();
+        const tag = e.target.tagName ? e.target.tagName.toLowerCase() : '';
 
         const isTyping =
             tag === 'input' ||
@@ -3005,16 +2984,18 @@ Keep the summary concise yet comprehensive.`,
         if (e.key === 'Escape') {
             if (this.state.isEditorOpen) this.closeFullScreenEditor();
             if (this.state.inspirationPanelOpen) this.closeInspirationPanel();
-            if (this.elements.historySection?.classList.contains('active')) {
+            if (this.elements.historySection && this.elements.historySection.classList.contains('active')) {
                 this.closeHistory();
             }
-            if (this.elements.aboutModal?.classList.contains('active')) {
+            if (this.elements.aboutModal && this.elements.aboutModal.classList.contains('active')) {
                 this.closeAboutModal();
             }
-            if (document.getElementById('settingsModal')?.classList.contains('active')) {
+            const settingsModal = document.getElementById('settingsModal');
+            if (settingsModal && settingsModal.classList.contains('active')) {
                 this.closeSettings();
             }
-            if (document.getElementById('scoreModal')?.classList.contains('active')) {
+            const scoreModal = document.getElementById('scoreModal');
+            if (scoreModal && scoreModal.classList.contains('active')) {
                 this.closeScoreModal();
             }
         }
