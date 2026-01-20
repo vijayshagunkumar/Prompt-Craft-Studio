@@ -1390,7 +1390,7 @@ bindScoreModalCloseButtons() {
 
         applyBtn.dataset.bound = "true";
     }
-
+}
     console.log('✅ Score modal close buttons bound');
 }
 
