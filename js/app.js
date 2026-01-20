@@ -1364,7 +1364,7 @@ This structured approach ensures you get detailed, actionable responses tailored
     }
 
     // ======================
-    // SCORE MODAL METHODS - UPDATED WITH PROPER CLOSE HANDLERS
+    // SCORE MODAL METHODS - IMPROVED WITH BETTER ERROR HANDLING
     // ======================
 
     openScoreModal() {
@@ -1381,12 +1381,33 @@ This structured approach ensures you get detailed, actionable responses tailored
             modal.classList.add('active');
             document.body.style.overflow = 'hidden';
             
-            // If we have a last score, display it
-            if (this.state.lastPromptScore) {
-                this.renderScoreInModal(this.state.lastPromptScore);
+            // Show initial empty state while checking prompt
+            this.showScoreLoadingState();
+            
+            // Check if we have a valid prompt
+            const outputArea = document.getElementById('outputArea');
+            const prompt = outputArea ? outputArea.textContent.trim() : '';
+            const promptLength = prompt.length;
+            const isPlaceholder = prompt.includes('Your optimized prompt will appear here');
+            
+            // Hide all content initially
+            this.hideAllScoreContent();
+            
+            if (!prompt || promptLength < 30 || isPlaceholder) {
+                // Show appropriate empty state message
+                this.showEmptyStateForPrompt(prompt, promptLength, isPlaceholder);
             } else {
-                // Otherwise, score the current prompt
-                this.scoreCurrentPromptForModal();
+                // Show loading while scoring
+                this.showScoreLoading();
+                
+                // If we have a last score, display it immediately
+                if (this.state.lastPromptScore) {
+                    this.renderScoreInModal(this.state.lastPromptScore);
+                    this.showScoreContent();
+                } else {
+                    // Otherwise, score the current prompt
+                    this.scoreCurrentPromptForModal();
+                }
             }
             
             // Add ESC listener
@@ -1405,97 +1426,107 @@ This structured approach ensures you get detailed, actionable responses tailored
         }
     }
 
-    // ✅ FIXED: Bind score modal close buttons
-    bindScoreModalCloseButtons() {
-        const scoreModal = this.elements.scoreModal;
-        if (!scoreModal) return;
+    // Helper method to hide all score content
+    hideAllScoreContent() {
+        const scoreEmptyState = document.getElementById('scoreEmptyState');
+        const scoreLoading = document.getElementById('scoreLoading');
+        const scoreContent = document.getElementById('scoreContent');
+        
+        if (scoreEmptyState) scoreEmptyState.style.display = 'none';
+        if (scoreLoading) scoreLoading.style.display = 'none';
+        if (scoreContent) scoreContent.style.display = 'none';
+    }
 
-        console.log('Binding score modal close buttons...');
-
-        // 🔒 Bind backdrop click ONCE
-        if (!scoreModal.dataset.backdropBound) {
-            scoreModal.addEventListener('click', (e) => {
-                if (e.target === scoreModal) {
+    // Show appropriate empty state
+    showEmptyStateForPrompt(prompt, promptLength, isPlaceholder) {
+        const scoreEmptyState = document.getElementById('scoreEmptyState');
+        const generateBtn = document.getElementById('generatePromptBtn');
+        
+        if (!scoreEmptyState) return;
+        
+        let title = 'No Prompt to Score';
+        let message = '';
+        
+        if (isPlaceholder) {
+            title = 'Generate a Prompt First';
+            message = 'Your prompt area is empty. Describe your task in Step 1 and click "Prepare Prompt" to generate an optimized prompt.';
+        } else if (promptLength === 0) {
+            title = 'Empty Prompt';
+            message = 'There is nothing to score. Please enter or generate a prompt first.';
+        } else if (promptLength < 10) {
+            title = 'Prompt Too Short';
+            message = 'Your prompt is very short. Please provide more details for meaningful scoring.';
+        } else if (promptLength < 30) {
+            title = 'Add More Details';
+            message = 'Your prompt could use more details. Add specific requirements or context for better scoring.';
+        } else {
+            title = 'Ready for Scoring';
+            message = 'Click "Score" to analyze your prompt quality.';
+        }
+        
+        // Update empty state content
+        scoreEmptyState.querySelector('h4').textContent = title;
+        scoreEmptyState.querySelector('p').textContent = message;
+        
+        // Update button text based on state
+        if (generateBtn) {
+            if (isPlaceholder || promptLength === 0) {
+                generateBtn.innerHTML = '<i class="fas fa-magic"></i> Generate a Prompt';
+                generateBtn.onclick = () => {
                     this.closeScoreModal();
-                }
-            });
-            scoreModal.dataset.backdropBound = "true";
+                    this.elements.userInput?.focus();
+                    this.showNotification('Describe your task in Step 1, then click "Prepare Prompt"', 'info');
+                };
+            } else if (promptLength < 30) {
+                generateBtn.innerHTML = '<i class="fas fa-edit"></i> Edit Prompt';
+                generateBtn.onclick = () => {
+                    this.closeScoreModal();
+                    this.openFullScreenEditor('output');
+                };
+            } else {
+                generateBtn.innerHTML = '<i class="fas fa-chart-line"></i> Score Prompt';
+                generateBtn.onclick = () => {
+                    this.scoreCurrentPromptForModal();
+                };
+            }
         }
-
-        // 🔒 Bind all close buttons ONCE
-        const closeButtons = scoreModal.querySelectorAll(
-            '#closeScoreBtn, #closeScoreFooterBtn, .modal-close, [data-action="close"]'
-        );
-
-        closeButtons.forEach(btn => {
-            if (btn.dataset.bound) return;
-
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.closeScoreModal();
-            });
-
-            btn.dataset.bound = "true";
-        });
-
-        // Apply Improvements – disabled
-        const applyBtn = document.getElementById('applyImprovementsBtn');
-        if (applyBtn && !applyBtn.dataset.bound) {
-            applyBtn.disabled = true;
-            applyBtn.textContent = 'Coming Soon';
-            applyBtn.title = 'Improvement suggestions will be available in a future update';
-            applyBtn.style.opacity = '0.7';
-            applyBtn.style.cursor = 'not-allowed';
-
-            applyBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                this.showNotification(
-                    '🔧 Auto-apply feature coming soon!',
-                    'info',
-                    4000
-                );
-            });
-
-            applyBtn.dataset.bound = "true";
-        }
-
-        console.log('✅ Score modal close buttons bound');
+        
+        // Show empty state
+        scoreEmptyState.style.display = 'flex';
     }
 
-    closeScoreModal() {
-        console.log('Closing score modal...');
-        const modal = this.elements.scoreModal;
-        if (modal) {
-            modal.classList.remove('active');
-            document.body.style.overflow = '';
-            
-            // Remove ESC listener
-            this.removeScoreModalEscListener();
-            
-            console.log('✅ Score modal closed');
+    // Show loading state
+    showScoreLoadingState() {
+        this.hideAllScoreContent();
+        const scoreLoading = document.getElementById('scoreLoading');
+        if (scoreLoading) {
+            scoreLoading.style.display = 'block';
         }
     }
 
-    // Helper method to remove ESC listener
-    removeScoreModalEscListener() {
-        if (this._scoreModalEscHandler) {
-            document.removeEventListener('keydown', this._scoreModalEscHandler);
-            this._scoreModalEscHandler = null;
+    // Show score content
+    showScoreContent() {
+        this.hideAllScoreContent();
+        const scoreContent = document.getElementById('scoreContent');
+        if (scoreContent) {
+            scoreContent.style.display = 'block';
         }
     }
 
     async scoreCurrentPromptForModal() {
         const outputArea = document.getElementById('outputArea');
         if (!outputArea) {
-            this.showScoreError('No prompt to score');
+            this.showScoreError('Output area not found', 0);
             return;
         }
         
         const prompt = outputArea.textContent.trim();
-        if (!prompt || prompt.length < 10) {
-            this.showScoreError('Please generate a prompt first');
+        const promptLength = prompt.length;
+        const isPlaceholder = prompt.includes('Your optimized prompt will appear here');
+        
+        // ✅ FIX: Check for empty or invalid prompt
+        if (!prompt || promptLength < 30 || isPlaceholder) {
+            this.showEmptyStateForPrompt(prompt, promptLength, isPlaceholder);
             return;
         }
         
@@ -1512,6 +1543,7 @@ This structured approach ensures you get detailed, actionable responses tailored
             
             // Render in modal
             this.renderScoreInModal(scoreData);
+            this.showScoreContent();
             
             // Update the score button in output area
             if (this.elements.metricsBtn) {
@@ -1520,83 +1552,82 @@ This structured approach ensures you get detailed, actionable responses tailored
                 this.elements.metricsBtn.classList.add('has-score');
             }
             
+            // Show success notification
+            if (!scoreData.isMockData) {
+                this.showNotification(`✅ Prompt scored: ${scoreData.grade} (${scoreData.totalScore}/50)`, 'success', 3000);
+            }
+            
         } catch (error) {
             console.error('❌ Scoring failed:', error);
-            this.showScoreError('Failed to score prompt. Please try again.');
+            
+            // Show appropriate error based on error type
+            if (error.name === 'AbortError' || error.message.includes('timeout')) {
+                this.showScoreError('Scoring timed out. Please try again.', promptLength);
+            } else if (error.message.includes('network')) {
+                this.showScoreError('Network error. Please check your connection.', promptLength);
+            } else {
+                this.showScoreError('Unable to score prompt at this time.', promptLength);
+            }
+            
+            // Show empty state with retry option
+            this.showEmptyStateForPrompt(prompt, promptLength, false);
+            
+            // Update button to retry
+            const generateBtn = document.getElementById('generatePromptBtn');
+            if (generateBtn) {
+                generateBtn.innerHTML = '<i class="fas fa-redo"></i> Retry Scoring';
+                generateBtn.onclick = () => {
+                    this.scoreCurrentPromptForModal();
+                };
+            }
         }
     }
 
     showScoreLoading() {
-        const overallScore = document.getElementById('overallScore');
-        const overallFeedback = document.getElementById('overallFeedback');
-        const scoreMetrics = document.getElementById('scoreMetrics');
-        const improvementsList = document.getElementById('improvementsList');
-        const applyBtn = document.getElementById('applyImprovementsBtn');
-        
-        if (overallScore) overallScore.textContent = '...';
-        if (overallFeedback) overallFeedback.textContent = 'Scoring prompt quality...';
-        
-        if (scoreMetrics) {
-            scoreMetrics.innerHTML = `
-                <div class="score-metric">
-                    <div class="metric-header">
-                        <span class="metric-name">Analyzing...</span>
-                        <span class="metric-score">0/0</span>
-                    </div>
-                    <div class="metric-bar">
-                        <div class="metric-fill" style="width: 0%"></div>
-                    </div>
-                    <p class="metric-feedback">Please wait while we analyze your prompt</p>
-                </div>
-            `;
-        }
-        
-        if (improvementsList) {
-            improvementsList.innerHTML = `
-                <div class="improvement-item">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span>Analyzing prompt for improvement suggestions...</span>
-                </div>
-            `;
-        }
-        
-        if (applyBtn) {
-            applyBtn.disabled = true;
+        this.hideAllScoreContent();
+        const scoreLoading = document.getElementById('scoreLoading');
+        if (scoreLoading) {
+            scoreLoading.style.display = 'block';
         }
     }
 
-    showScoreError(message) {
-        const overallScore = document.getElementById('overallScore');
-        const overallFeedback = document.getElementById('overallFeedback');
-        const scoreMetrics = document.getElementById('scoreMetrics');
-        const improvementsList = document.getElementById('improvementsList');
+    showScoreError(message, promptLength = 0) {
+        // Hide loading and show empty state with error
+        this.hideAllScoreContent();
         
-        if (overallScore) overallScore.textContent = '0';
-        if (overallFeedback) overallFeedback.textContent = message;
+        const scoreEmptyState = document.getElementById('scoreEmptyState');
+        const generateBtn = document.getElementById('generatePromptBtn');
         
-        if (scoreMetrics) {
-            scoreMetrics.innerHTML = `
-                <div class="score-metric">
-                    <div class="metric-header">
-                        <span class="metric-name">Error</span>
-                        <span class="metric-score">0/0</span>
-                    </div>
-                    <div class="metric-bar">
-                        <div class="metric-fill" style="width: 0%"></div>
-                    </div>
-                    <p class="metric-feedback">Unable to score prompt at this time</p>
-                </div>
-            `;
+        if (!scoreEmptyState) return;
+        
+        let title = 'Scoring Error';
+        let userMessage = message;
+        
+        // Provide more user-friendly messages
+        if (message.includes('timeout')) {
+            title = 'Scoring Timed Out';
+            userMessage = 'The scoring process took too long. Please try again.';
+        } else if (message.includes('network')) {
+            title = 'Network Issue';
+            userMessage = 'Unable to connect to scoring service. Check your internet connection.';
+        } else if (promptLength < 30) {
+            title = 'Prompt Needs Improvement';
+            userMessage = 'Your prompt is too brief for meaningful scoring. Add more details about your task.';
         }
         
-        if (improvementsList) {
-            improvementsList.innerHTML = `
-                <div class="improvement-item">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span>Unable to generate improvement suggestions</span>
-                </div>
-            `;
+        // Update empty state
+        scoreEmptyState.querySelector('h4').textContent = title;
+        scoreEmptyState.querySelector('p').textContent = userMessage;
+        
+        // Update button
+        if (generateBtn) {
+            generateBtn.innerHTML = '<i class="fas fa-redo"></i> Try Again';
+            generateBtn.onclick = () => {
+                this.scoreCurrentPromptForModal();
+            };
         }
+        
+        scoreEmptyState.style.display = 'flex';
     }
 
     renderScoreInModal(scoreData) {
@@ -1614,9 +1645,31 @@ This structured approach ensures you get detailed, actionable responses tailored
         }
         
         if (overallFeedback) {
-            overallFeedback.textContent = scoreData.grade === 'Excellent' 
-                ? 'Excellent prompt! Ready for execution.' 
-                : scoreData.feedback || `Grade: ${scoreData.grade}`;
+            // Create more descriptive feedback based on grade
+            let feedback = '';
+            switch(scoreData.grade) {
+                case 'Excellent':
+                    feedback = 'Excellent! Your prompt is well-structured and ready for execution.';
+                    break;
+                case 'Very Good':
+                    feedback = 'Very good prompt! Minor improvements could make it even better.';
+                    break;
+                case 'Good':
+                    feedback = 'Good foundation. Consider the suggestions below to improve clarity.';
+                    break;
+                case 'Fair':
+                    feedback = 'Fair prompt. The suggestions below will help strengthen it.';
+                    break;
+                case 'Poor':
+                    feedback = 'Needs significant improvement. Review the suggestions carefully.';
+                    break;
+                case 'Inadequate':
+                    feedback = 'Please revise your prompt using the suggestions below.';
+                    break;
+                default:
+                    feedback = scoreData.feedback || `Grade: ${scoreData.grade}`;
+            }
+            overallFeedback.textContent = feedback;
         }
         
         // Update score circle with proper class
@@ -1685,7 +1738,7 @@ This structured approach ensures you get detailed, actionable responses tailored
         if (improvementsList) {
             improvementsList.innerHTML = '';
             
-            // ✅ FIX: Show actual improvements if available, otherwise show default
+            // Show actual improvements if available, otherwise show default
             if (scoreData.originalJavaData && scoreData.originalJavaData.improvements && scoreData.originalJavaData.improvements.length > 0) {
                 scoreData.originalJavaData.improvements.forEach(improvement => {
                     const improvementElement = document.createElement('div');
@@ -1697,29 +1750,36 @@ This structured approach ensures you get detailed, actionable responses tailored
                     improvementsList.appendChild(improvementElement);
                 });
             } else {
-                // Show generic suggestions based on score
+                // Show suggestions based on score
                 let suggestions = [];
                 
-                if (scoreData.totalScore < 30) {
+                if (scoreData.totalScore < 25) {
                     suggestions = [
-                        'Add more specific requirements to clarify intent',
-                        'Include examples of expected output format',
-                        'Define the role the AI should assume',
-                        'Break down complex tasks into step-by-step instructions'
+                        'Start with a clear role definition (e.g., "You are an expert in...")',
+                        'Add specific objectives and success criteria',
+                        'Break down complex tasks into numbered steps',
+                        'Include examples of expected output format'
                     ];
-                } else if (scoreData.totalScore < 40) {
+                } else if (scoreData.totalScore < 35) {
                     suggestions = [
-                        'Consider adding success criteria',
+                        'Add context about the target audience or use case',
                         'Specify any constraints or limitations',
-                        'Add context about the target audience',
+                        'Define the tone or style preference',
                         'Include formatting requirements if applicable'
+                    ];
+                } else if (scoreData.totalScore < 45) {
+                    suggestions = [
+                        'Consider adding edge case handling',
+                        'Add more context if this is part of a larger workflow',
+                        'Specify the level of detail needed in the response',
+                        'Consider adding quality criteria for the output'
                     ];
                 } else {
                     suggestions = [
-                        'Your prompt is already well-structured!',
-                        'Consider adding edge case handling',
-                        'You could specify tone or style preferences',
-                        'Add more context if this is part of a larger workflow'
+                        'Your prompt is already excellent!',
+                        'Consider adding timing or iteration requirements',
+                        'You could specify response length if important',
+                        'Consider adding collaboration instructions if this is a team task'
                     ];
                 }
                 
@@ -1733,11 +1793,103 @@ This structured approach ensures you get detailed, actionable responses tailored
                     improvementsList.appendChild(improvementElement);
                 });
             }
+            
+            // Enable apply button if we have suggestions
+            const applyBtn = document.getElementById('applyImprovementsBtn');
+            if (applyBtn && improvementsList.children.length > 0) {
+                applyBtn.disabled = false;
+                applyBtn.title = 'Apply selected suggestions to your prompt';
+            }
         }
         
-        // ✅ FIX: Remove duplicate Apply Improvements button binding
-        // The button is already bound in bindScoreModalCloseButtons()
         console.log('✅ Score rendered in modal');
+    }
+
+    // ✅ FIXED: Bind score modal close buttons
+    bindScoreModalCloseButtons() {
+        const scoreModal = this.elements.scoreModal;
+        if (!scoreModal) return;
+
+        console.log('Binding score modal close buttons...');
+
+        // 🔒 Bind backdrop click ONCE
+        if (!scoreModal.dataset.backdropBound) {
+            scoreModal.addEventListener('click', (e) => {
+                if (e.target === scoreModal) {
+                    this.closeScoreModal();
+                }
+            });
+            scoreModal.dataset.backdropBound = "true";
+        }
+
+        // 🔒 Bind all close buttons ONCE
+        const closeButtons = scoreModal.querySelectorAll(
+            '#closeScoreBtn, #closeScoreFooterBtn, .modal-close, [data-action="close"]'
+        );
+
+        closeButtons.forEach(btn => {
+            if (btn.dataset.bound) return;
+
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.closeScoreModal();
+            });
+
+            btn.dataset.bound = "true";
+        });
+
+        // Apply Improvements – disabled
+        const applyBtn = document.getElementById('applyImprovementsBtn');
+        if (applyBtn && !applyBtn.dataset.bound) {
+            applyBtn.disabled = true;
+            applyBtn.textContent = 'Coming Soon';
+            applyBtn.title = 'Improvement suggestions will be available in a future update';
+            applyBtn.style.opacity = '0.7';
+            applyBtn.style.cursor = 'not-allowed';
+
+            applyBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showNotification(
+                    '🔧 Auto-apply feature coming soon!',
+                    'info',
+                    4000
+                );
+            });
+
+            applyBtn.dataset.bound = "true";
+        }
+
+        // Generate Prompt button in empty state
+        const generateBtn = document.getElementById('generatePromptBtn');
+        if (generateBtn && !generateBtn.dataset.bound) {
+            generateBtn.dataset.bound = "true";
+        }
+
+        console.log('✅ Score modal close buttons bound');
+    }
+
+    closeScoreModal() {
+        console.log('Closing score modal...');
+        const modal = this.elements.scoreModal;
+        if (modal) {
+            modal.classList.remove('active');
+            document.body.style.overflow = '';
+            
+            // Remove ESC listener
+            this.removeScoreModalEscListener();
+            
+            console.log('✅ Score modal closed');
+        }
+    }
+
+    // Helper method to remove ESC listener
+    removeScoreModalEscListener() {
+        if (this._scoreModalEscHandler) {
+            document.removeEventListener('keydown', this._scoreModalEscHandler);
+            this._scoreModalEscHandler = null;
+        }
     }
 
     applyImprovements() {
