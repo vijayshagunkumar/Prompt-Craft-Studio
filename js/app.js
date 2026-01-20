@@ -1342,6 +1342,8 @@ bindScoreModalCloseButtons() {
     const scoreModal = this.elements.scoreModal;
     if (!scoreModal) return;
 
+    console.log('Binding score modal close buttons...');
+
     // 🔒 Bind backdrop click ONCE
     if (!scoreModal.dataset.backdropBound) {
         scoreModal.addEventListener('click', (e) => {
@@ -1352,21 +1354,48 @@ bindScoreModalCloseButtons() {
         scoreModal.dataset.backdropBound = "true";
     }
 
-    // 🔒 Bind close buttons ONCE
+    // 🔒 Bind all close buttons ONCE
     const closeButtons = scoreModal.querySelectorAll(
-        '.modal-close, .score-close-btn, [data-action="close"]'
+        '#closeScoreBtn, #closeScoreFooterBtn, .modal-close, [data-action="close"]'
     );
 
     closeButtons.forEach(btn => {
         if (btn.dataset.bound) return;
 
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
             this.closeScoreModal();
         });
 
         btn.dataset.bound = "true";
     });
+
+    // Apply Improvements – disabled (bind once)
+    const applyBtn = document.getElementById('applyImprovementsBtn');
+    if (applyBtn && !applyBtn.dataset.bound) {
+        applyBtn.disabled = true;
+        applyBtn.textContent = 'Coming Soon';
+        applyBtn.title = 'Improvement suggestions will be available in a future update';
+        applyBtn.style.opacity = '0.7';
+        applyBtn.style.cursor = 'not-allowed';
+
+        applyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            this.showNotification(
+                '🔧 Auto-apply feature coming soon! For now, use the suggestions above to manually improve your prompt.',
+                'info',
+                4000
+            );
+        });
+
+        applyBtn.dataset.bound = "true";
+    }
+
+    console.log('✅ Score modal close buttons bound');
 }
+
 
 
     closeScoreModal() {
