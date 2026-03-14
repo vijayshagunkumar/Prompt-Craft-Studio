@@ -1,262 +1,385 @@
-Prompt Craft Studio – Technical Architecture & Deployment Documentation
+# PromptCraft Studio
 
+### Technical Architecture & Deployment Documentation
 
+**Author:** Vijay Kumar
 
-By Vijay Kumar
+---
 
-2 min
+# 1. Overview
 
-Add a reaction
-Prompt Craft Studio – Technical Architecture & Deployment Documentation
-1. Overview
-Application Name: Prompt Craft Studio
-Live Application URL:
-PromptCraft STUDIO | Enterprise AI Prompt Assistant 
+**Application Name:** PromptCraft Studio
 
-Product Summary – Prompt Craft
-Prompt Craft is a prompt-generation and AI guidance platform designed to help users convert their ideas into clear, structured, and high-quality AI prompts. It enables users to describe their requirements using text or voice and automatically transforms those inputs into optimized prompts that deliver better results from AI systems.
+**Live Application:**
+🔗 PromptCraft STUDIO – Enterprise AI Prompt Assistant
 
-In addition to generating prompts, Prompt Craft intelligently recommends the most suitable AI tool for each use case, guiding users toward platforms such as ChatGPT or Gemini based on the nature of the task. From within the application, users can open the recommended AI tool, copy the generated prompt, and immediately use it to obtain accurate and relevant responses.
+---
 
-The platform incorporates a backend evaluation mechanism that assesses prompt quality and structure to continuously improve prompt effectiveness. This evaluation supports prompt refinement but remains transparent to the user, ensuring a simple and intuitive experience.
+## Product Summary
 
-Prompt Craft is built with a scalable, cloud-based architecture and follows a stateless design, with no user data stored. The same backend services support multiple frontend applications, ensuring consistency, maintainability, and extensibility.
+PromptCraft Studio is a **prompt-generation and AI guidance platform** designed to help users convert their ideas into **clear, structured, and high-quality AI prompts**.
 
-Overall, Prompt Craft simplifies the interaction between users and AI tools by bridging the gap between human intent and effective AI communication.
+Users describe their requirements using **text or voice**, and the system automatically transforms those inputs into optimized prompts that deliver better results from AI systems.
 
-It uses a shared Java-based backend, securely accessed through Cloudflare Workers and deployed on Railway, to support multiple frontend applications with a scalable and maintainable architecture.
+In addition to prompt generation, PromptCraft **intelligently recommends the most suitable AI tool** for each use case. Based on the nature of the task, users are guided toward platforms such as **ChatGPT or Gemini**.
 
- 
+From within the application, users can:
 
-2. High-Level Architecture
+* Generate structured prompts
+* Copy prompts directly
+* Open recommended AI tools
+* Execute prompts immediately
+
+The platform also includes a **backend prompt evaluation engine** that analyzes prompt quality and structure to continuously improve effectiveness.
+
+Key characteristics of the platform:
+
+* Stateless architecture
+* No user data stored
+* Cloud-native deployment
+* Shared backend services supporting multiple frontend applications
+
+PromptCraft bridges the gap between **human intent and effective AI communication**.
+
+---
+
+# 2. High-Level Architecture
+
+```
 Frontend (Web UI)
+        │
+        ▼
+Cloudflare Worker (Middleware / API Gateway)
+        │
+        ▼
+Java Spring Boot Scoring Engine
+        │
+        ▼
+Railway Cloud Deployment
+```
 
-Hosted on GitHub Pages / Cloudflare Pages
+---
 
-Built using HTML, CSS, and JavaScript
+# 3. Frontend (UI Layer)
 
-Middleware Layer
+## Technology Stack
 
-Cloudflare Worker (worker.js)
+* HTML
+* CSS
+* JavaScript
 
-Acts as a secure gateway and response transformer
+## Source Control
 
-Backend (Scoring Engine)
+Hosted on **GitHub**
 
-Java Spring Boot application
+## Deployment
 
-Deployed on Railway
+Deployed using:
 
-Public health endpoint, controlled scoring access
+* GitHub Pages
+* Cloudflare Pages
 
-3. Frontend (UI Layer)
-Technology Stack
+## Live Application
 
-HTML
+🔗 PromptCraft STUDIO – Enterprise AI Prompt Assistant
 
-CSS
+---
 
-JavaScript
+# 4. Java Backend (Scoring API)
 
-Source Control
+## 4.1 Source Repository
 
-Hosted on GitHub
+GitHub Repository
 
-Deployed using GitHub Pages
+```
+https://github.com/vijayshagunkumar/promptcraft-java-backend
+```
 
-Live URL
+---
 
-PromptCraft STUDIO | Enterprise AI Prompt Assistant 
+## 4.2 Local Project Location
 
-4. Java Backend (Scoring API)
-4.1 Source Repository
-GitHub - vijayshagunkumar/promptcraft-java-backend: promptcraft-java-backend 
-
-4.2 Local Project Location
-
-
+```
 D:\PrompCraftStudio\promptcraft-java-backend
-This directory contains the complete Spring Boot–based scoring application.
+```
 
-4.3 Development Environment
-IDE: IntelliJ IDEA 2025.3.1.1
+This directory contains the **complete Spring Boot–based scoring application**.
 
-Java Version: JDK 17+
+---
 
-Build Tool: Maven Wrapper
+## 4.3 Development Environment
 
-5. Java Deployment & Execution
-5.1 Prerequisites
-Java JDK 17 or later
+| Component    | Tool                     |
+| ------------ | ------------------------ |
+| IDE          | IntelliJ IDEA 2025.3.1.1 |
+| Java Version | JDK 17+                  |
+| Build Tool   | Maven Wrapper            |
 
-Git
+---
 
-Internet connectivity for Maven dependencies
+# 5. Java Deployment & Execution
 
-5.2 Running Locally
+## 5.1 Prerequisites
 
+* Java JDK 17+
+* Git
+* Internet connectivity for Maven dependencies
 
+---
+
+## 5.2 Running Locally
+
+```bash
 cd D:\PrompCraftStudio\promptcraft-java-backend
 .\mvnw.cmd spring-boot:run
-Local Health Check
+```
 
+### Local Health Check
 
-
+```
 http://localhost:8080/api/v1/health
-5.3 Building the Application
+```
 
+---
 
+## 5.3 Building the Application
+
+```bash
 .\mvnw.cmd clean package
+```
+
 Generated artifact:
 
-
-
+```
 target/promptcraft-java-backend-0.0.1-SNAPSHOT.jar
-5.4 Running the JAR Manually
+```
 
+---
 
+## 5.4 Running the JAR
+
+```bash
 java -jar target/promptcraft-java-backend-0.0.1-SNAPSHOT.jar
-6. Environment Variables & Profiles
-6.1 Spring Profiles
-default – Local development
+```
 
-prod – Railway deployment
+---
+
+# 6. Environment Variables & Profiles
+
+## 6.1 Spring Profiles
+
+| Profile | Description        |
+| ------- | ------------------ |
+| default | Local development  |
+| prod    | Railway deployment |
 
 Example:
 
-
-
+```bash
 --spring.profiles.active=prod
-6.2 Common Environment Variables
-Variable
+```
 
-Description
+---
 
-Example
+## 6.2 Environment Variables
 
-SERVER_PORT
+| Variable               | Description      | Example  |
+| ---------------------- | ---------------- | -------- |
+| SERVER_PORT            | Application port | 8080     |
+| SPRING_PROFILES_ACTIVE | Active profile   | prod     |
+| JAVA_OPTS              | JVM tuning       | -Xmx512m |
 
-Application port
+Railway automatically injects the **PORT** variable during runtime.
 
-8080
+---
 
-SPRING_PROFILES_ACTIVE
+# 7. Railway Deployment (Java Backend)
 
-Active profile
+## 7.1 Deployment Model
 
-prod
+* GitHub repository connected directly to Railway
+* Automatic CI/CD on every push
+* No manual infrastructure management
 
-JAVA_OPTS
+---
 
-JVM tuning
+## 7.2 Build & Run Commands
 
--Xmx512m
+### Build Phase
 
-Railway automatically injects the PORT variable during runtime.
-
-7. Railway Deployment (Java Backend)
-7.1 Deployment Model
-GitHub repository connected directly to Railway
-
-Automatic CI/CD on every push
-
-No manual infrastructure management
-
-7.2 Build & Run Commands (Railway)
-Build Phase
-
-
-
+```bash
 ./mvnw clean package
-Run Phase
+```
 
+### Run Phase
 
-
+```bash
 java -jar target/*.jar
-7.3 Production Health Check
+```
 
+---
 
+## 7.3 Production Health Check
+
+```
 https://promptcraft-java-backend-production.up.railway.app/api/v1/health
-8. Cloudflare Worker (Scoring Gateway)
-8.1 Purpose
-Acts as a secure middleware layer
+```
 
-Calls Java backend scoring API
+---
 
-Normalizes score to frontend scale
+# 8. Cloudflare Worker (Scoring Gateway)
 
-Adds metadata (requestId, timestamp, transformation flag)
+## 8.1 Purpose
 
-8.2 Local Worker Source
+The Cloudflare Worker acts as a **secure middleware layer**.
 
+Responsibilities:
 
+* Calls Java backend scoring API
+* Normalizes scores for frontend display
+* Adds metadata
+
+  * requestId
+  * timestamp
+  * transformation flags
+
+---
+
+## 8.2 Local Worker Source
+
+```
 C:\Users\Vijay Kumar\promptcraft-backend
-8.3 Deployment
+```
 
+---
 
+## 8.3 Deployment
+
+```bash
 wrangler deploy
-9. Public Scoring API
-9.1 Endpoint
+```
 
+---
 
+# 9. Public Scoring API
+
+## Endpoint
+
+```
 POST https://promptcraft-api.vijay-shagunkumar.workers.dev/score
-9.2 Request Payload
+```
 
+---
 
+## Request Payload
+
+```json
 {
   "prompt": "Create a professional follow-up email for a product demo",
   "tool": "chatgpt"
 }
-10. CI/CD & Repository Integration
-GitHub → Railway (Java backend)
+```
 
-GitHub → Cloudflare Pages (UI apps)
+---
 
-Cloudflare Worker shared across applications
+# 10. CI/CD & Repository Integration
 
-Zero-downtime deployments
+Deployment flow:
 
-11. Shared Architecture
-One Java Scoring Engine
+```
+GitHub → Railway (Java Backend)
+GitHub → Cloudflare Pages (Frontend)
+Cloudflare Worker → Shared Middleware Layer
+```
 
-One Cloudflare Worker
+Key capabilities:
 
-Multiple frontends:
+* Automated deployments
+* Zero-downtime updates
+* Shared infrastructure across multiple applications
 
-Prompt Craft Studio
+---
 
-Prompt Craft Pro
+# 11. Shared Architecture
 
-12. Troubleshooting
-Maven Wrapper Issue
+The backend infrastructure is designed to support **multiple frontend products**.
 
+Shared components:
 
+* One Java Scoring Engine
+* One Cloudflare Worker
+* Multiple UI applications
 
+Supported frontend applications:
+
+* PromptCraft Studio
+* PromptCraft Pro
+
+---
+
+# 12. Troubleshooting
+
+## Maven Wrapper Issue
+
+```bash
 .\mvnw.cmd spring-boot:run
-Port Conflict
+```
 
+---
 
+## Port Conflict
 
+```bash
 set SERVER_PORT=9090
-Worker Connectivity Issue
+```
 
-Validate backend /health
+---
 
-Verify backend URL in worker.js
+## Worker Connectivity Issue
 
-13. Security Notes
-No user PII stored
+Steps to verify:
 
-Stateless API processing
+1. Validate backend `/health` endpoint
+2. Verify backend URL configured in `worker.js`
+3. Confirm worker deployment
 
-No authentication (intentional design)
+---
 
-Architecture supports future token-based security
+# 13. Security Notes
 
-14. End-to-End Flow
-Frontend
-→ Cloudflare Worker
-→ Java Scoring API (Railway)
-→ Response Transformation
-→ UI Display
+Security design principles:
+
+* No user PII stored
+* Stateless API processing
+* No authentication (intentional design for MVP)
+* Architecture supports future token-based authentication
+
+---
+
+# 14. End-to-End Flow
+
+```
+User Input (Frontend UI)
+        │
+        ▼
+Cloudflare Worker
+        │
+        ▼
+Java Scoring API (Railway)
+        │
+        ▼
+Response Transformation
+        │
+        ▼
+Prompt Score Display in UI
+```
+
+---
+
+# Author
+
+**Vijay Kumar**
+Product Leader – AI Platforms, Enterprise Systems & Digital Transformation
+
+---
 
